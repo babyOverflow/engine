@@ -1,0 +1,4 @@
+*.dll
+CMakePresets.json
+vcpkg_installed
+out
