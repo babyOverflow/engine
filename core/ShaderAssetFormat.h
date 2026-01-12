@@ -1,0 +1,80 @@
+#pragma once
+#include <expected>
+#include <span>
+#include <format>
+#include <iostream>
+#include <magic_enum/magic_enum.hpp>
+
+#include "Common.h"
+
+namespace core {
+struct ShaderAsset {
+    static constexpr uint32_t SHADER_ASSET_MAGIC = 0x52444853;
+    static constexpr uint32_t SHADER_ASSET_VERSION = 1;
+
+    enum class ResourceType : uint8_t {
+        UniformBuffer,
+        StorageBuffer,
+        ReadOnlyStorage,
+        Texture,
+        Sampler,
+        Unknown = 0xFF,
+    };
+
+    inline void PrintTo(ResourceType type, std::ostream* os) { *os << magic_enum::enum_name(type); }
+
+    enum class ShaderVisibility : uint8_t {
+        None = 0x0,
+        Vertex = 0x1,
+        Fragment = 0x2,
+        Compute = 0x4,
+        All = Vertex | Fragment | Compute
+    };
+
+    struct alignas(32) Header {
+        uint32_t magicNumber = SHADER_ASSET_MAGIC;
+        uint16_t version = SHADER_ASSET_VERSION;
+        uint16_t bindingCount;
+        uint32_t shaderSize;
+        uint32_t threadGroupSize[3];
+    };
+    /**
+     * @brief Flattened Resource's binding information
+     *
+     * @note If Resource type is a Uniform or Storage buffer bufferSize must be set.
+     */
+    struct alignas(64) Binding {
+        uint32_t set;
+        uint32_t binding;
+        uint32_t bufferSize;
+        ResourceType resourceType;
+        ShaderVisibility visibility;
+        char name[50];
+    };
+
+    Header header;
+    std::vector<Binding> bindings;
+    std::vector<uint8_t> code;
+
+    static std::expected<ShaderAsset, Error> LoadFromMemory(std::span<const uint8_t> memory);
+};
+
+inline ShaderAsset::ShaderVisibility operator|(ShaderAsset::ShaderVisibility a,
+                                               ShaderAsset::ShaderVisibility b) {
+    return static_cast<ShaderAsset::ShaderVisibility>(static_cast<uint8_t>(a) |
+                                                      static_cast<uint8_t>(b));
+}
+
+}  // namespace core
+
+template <>
+struct std::formatter<core::ShaderAsset::ResourceType> : std::formatter<std::string_view> {
+    auto format(core::ShaderAsset::ResourceType type, std::format_context& ctx) const {
+        std::string_view name = magic_enum::enum_name(type);
+        return std::formatter<std::string_view>::format(name, ctx);
+    }
+};
+
+inline std::ostream& operator<<(std::ostream& os, core::ShaderAsset::ResourceType type) {
+    return os << std::format("{}", type);
+}
