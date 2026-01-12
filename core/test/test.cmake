@@ -1,0 +1,1 @@
+add_executable(core_test "ShaderAssetLoad.cpp")
