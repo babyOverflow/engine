@@ -5,7 +5,7 @@
 
 namespace core::render {
 
-bool IsEntryEqual(const wgpu::BindGroupLayoutEntry& a, const wgpu::BindGroupLayoutEntry& b);
+
 
 struct BindGroupLayoutKey {
     std::vector<wgpu::BindGroupLayoutEntry> entries;
@@ -33,7 +33,7 @@ class LayoutCache {
 
     wgpu::BindGroupLayout GetBindGroupLayout(wgpu::BindGroupLayoutDescriptor& desc);
 
-    wgpu::PipelineLayout GetPipelineLayout(std::vector<wgpu::BindGroupLayout> bindGroupLayouts);
+    wgpu::PipelineLayout GetPipelineLayout(wgpu::PipelineLayoutDescriptor& pipelineLayoutDesc);
 
   private:
     Device* m_device;

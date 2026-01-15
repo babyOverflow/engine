@@ -29,10 +29,12 @@
     "util/Load.h" 
     "util/Load.cpp" 
     "wgx/consts.h"
+    "wgx/compare.h"
     "wgx.h"
     "wgx/hash.h"
     "ShaderAssetFormat.h"
-    "ShaderAssetFormat.cpp" "Common.h")
+    "ShaderAssetFormat.cpp" "Common.h" "render/util.cpp" 
+)
 
 
 set(CORE_INTEROP_HEADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/render"

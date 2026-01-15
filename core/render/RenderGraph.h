@@ -31,7 +31,7 @@ class FrameContext {
 
 class RenderGraph {
   public:
-    RenderGraph(Device* device, const GpuBindGroupLayout& globalBindGroupLayout);
+    RenderGraph(Device* device, const wgpu::BindGroupLayout globalBindGroupLayout);
 
     RenderGraph(RenderGraph&& rhs) = default;
 

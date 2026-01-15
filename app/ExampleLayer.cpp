@@ -27,70 +27,27 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     using core::render::Vertex;
 
     core::render::Device* device = app->GetDevice();
+    core::render::PipelineManager* pipelineManager = app->GetPipelineManager();
+    core::AssetManager* assetManager = app->GetAssetManager();
 
     using namespace core::render;
-     //const auto code =
-     //    core::util::ReadFileToString("shaders/tri.wgsl");
-     //if (!code.has_value()) {
-     //    return nullptr;
-     //}
-     //GpuShaderModule shader = device->CreateShaderModuleFromWGSL(code.value());
-    auto shaderAssetOrError =
-        core::util::ReadFileToByte("assets/tri_VS.shdr").and_then(core::ShaderAsset::LoadFromMemory);
-    if (!shaderAssetOrError.has_value()) {
-        return nullptr;
-    }
-    auto fragShaderAssetOrError =
-        core::util::ReadFileToByte("assets/tri_FS.shdr").and_then(core::ShaderAsset::LoadFromMemory);
-    core::ShaderAsset shaderAsset = shaderAssetOrError.value();
-    core::ShaderAsset fragShaderAsset = fragShaderAssetOrError.value();
 
-    std::string_view wgslCode = std::string_view(
-        reinterpret_cast<const char*>(shaderAsset.code.data()), shaderAsset.code.size());
-    GpuShaderModule shader = device->CreateShaderModuleFromWGSL(wgslCode);
+    auto vsHandle =  assetManager->LoadShader("assets/tri_VS.shdr");
+    auto fsHandle =  assetManager->LoadShader("assets/tri_FS.shdr");
 
-    std::string_view fragWgslCode = std::string_view(
-        reinterpret_cast<const char*>(fragShaderAsset.code.data()), fragShaderAsset.code.size());
-    GpuShaderModule fragShader = device->CreateShaderModuleFromWGSL(fragWgslCode);
-
-    GpuPipelineLayout renderPipelineLayout =
-        device->CreatePipelineLayout(wgpu::PipelineLayoutDescriptor{
-            .bindGroupLayoutCount = 1, .bindGroupLayouts = &app->GetGlobalLayout().GetHandle()});
-
-    std::array<wgpu::VertexBufferLayout, 1> vertexBufferLayouts{
-        wgpu::VertexBufferLayout{.arrayStride = sizeof(Vertex),
-                                 .attributeCount = Vertex::GetAttributes().size(),
-                                 .attributes = Vertex::GetAttributes().data()},
+    core::render::PipelineDesc pipelineDesc{
+        .vertexShader = assetManager->GetShaderModule(vsHandle),
+        .fragmentShader = assetManager->GetShaderModule(fsHandle),
+        .vertexType = core::render::VertexType::StandardMesh,
+        .blendState = wgx::BlendState::kReplace,
     };
-
-    wgpu::ColorTargetState targets{.format = device->GetSurfaceConfig().format,
-                                   .blend = &wgx::BlendState::kReplace,
-                                   .writeMask = wgpu::ColorWriteMask::All};
-    wgpu::FragmentState fragment = wgpu::FragmentState{.module = fragShader.GetHandle(),
-                                                       .entryPoint = "fragmentMain",
-                                                       .targetCount = 1,
-                                                       .targets = &targets};
-    GpuRenderPipeline renderPipeline = device->CreateRenderPipeline(wgpu::RenderPipelineDescriptor{
-        .layout = renderPipelineLayout.GetHandle(),
-        .vertex = wgpu::VertexState{.module = shader.GetHandle(),
-                                    .entryPoint = "vertexMain",
-                                    .bufferCount = vertexBufferLayouts.size(),
-                                    .buffers = vertexBufferLayouts.data()},
-        .primitive = wgx::PrimitiveState::kDefault,
-        .fragment = &fragment,
-    });
+    const GpuRenderPipeline* renderPipeline = pipelineManager->GetRenderPipeline(pipelineDesc);
 
     auto config = device->GetSurfaceConfig();
     auto proj = common::Projection::Perspective(45, config.width, config.height, 0.1, 100.0);
     common::GameCamera gameCamera{glm::vec3(0.F, 0.F, 0.F), 0.F, 0.F, proj};
 
-    std::vector<core::render::GpuShaderModule> shaders;
-    
-    shaders.emplace_back(std::move(shader));
-    shaders.emplace_back(std::move(fragShader));
-    return std::unique_ptr<ExampleLayer>(
-        new ExampleLayer(app, device, gameCamera, std::move(shaders),
-                         std::move(renderPipelineLayout), std::move(renderPipeline)));
+    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, renderPipeline));
 }
 
 void ExampleLayer::OnAttach() {
@@ -110,11 +67,10 @@ void ExampleLayer::OnRender(core::render::FrameContext& context) {
     context.SetCameraData(cameraData);
 
     for (auto& mesh : model->subMeshes) {
-        core::render::RenderPacket packet{.pipeline = m_renderPipeline.GetHandle(),
+        core::render::RenderPacket packet{.pipeline = m_renderPipeline->GetHandle(),
                                           .vertexBuffer = mesh.vertexBuffer.GetHandle(),
                                           .indexBuffer = mesh.indexBuffer.GetHandle(),
                                           .indexCount = mesh.indexCount};
-
         context.Submit(packet);
     }
 }

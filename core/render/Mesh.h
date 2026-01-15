@@ -12,8 +12,16 @@ struct Vertex {
     glm::vec2 uv;
     glm::vec4 tangent;
 
-    static const std::array<wgpu::VertexAttribute, 4> GetAttributes();
+    static wgpu::VertexBufferLayout GetWgpuVertexLayout();
 };
+
+enum class VertexType {
+    None = 0,
+    StandardMesh = 1,
+};
+
+wgpu::VertexBufferLayout MapVertexDesc(VertexType type);
+
 
 struct SubMesh {
     GpuBuffer vertexBuffer;

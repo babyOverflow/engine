@@ -18,8 +18,7 @@ BindGroupLayoutKey core::render::BindGroupLayoutKey::From(wgpu::BindGroupLayoutD
     };
 }
 
-wgpu::BindGroupLayout core::render::LayoutCache::GetBindGroupLayout(
-    wgpu::BindGroupLayoutDescriptor& desc) {
+wgpu::BindGroupLayout core::render::LayoutCache::GetBindGroupLayout(wgpu::BindGroupLayoutDescriptor& desc) {
     auto key = BindGroupLayoutKey::From(desc);
 
     if (m_bindGroupLayoutCache.contains(key)) {
@@ -32,16 +31,14 @@ wgpu::BindGroupLayout core::render::LayoutCache::GetBindGroupLayout(
 }
 
 wgpu::PipelineLayout core::render::LayoutCache::GetPipelineLayout(
-    std::vector<wgpu::BindGroupLayout> bindGroupLayouts) {
+    wgpu::PipelineLayoutDescriptor& pipelineLayoutDesc) {
+    std::vector<wgpu::BindGroupLayout> bindGroupLayouts(
+        pipelineLayoutDesc.bindGroupLayouts,
+        pipelineLayoutDesc.bindGroupLayouts + pipelineLayoutDesc.bindGroupLayoutCount);
     PipelineLayoutKey key{.layouts = bindGroupLayouts};
     if (m_pipelineLayoutCache.contains(key)) {
         return m_pipelineLayoutCache[key].GetHandle();
     }
-
-    wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{
-        .bindGroupLayoutCount = bindGroupLayouts.size(),
-        .bindGroupLayouts = bindGroupLayouts.data(),
-    };
 
     GpuPipelineLayout pipelineLayout = m_device->CreatePipelineLayout(pipelineLayoutDesc);
     m_pipelineLayoutCache[key] = std::move(pipelineLayout);
@@ -53,35 +50,14 @@ bool BindGroupLayoutKey::operator==(const BindGroupLayoutKey& other) const {
         return false;
     }
     for (uint32_t i = 0; i < entries.size(); ++i) {
-        if (!IsEntryEqual(entries[i], other.entries[i])) {
+        if (!wgx::IsEntryEqual(entries[i], other.entries[i])) {
             return false;
         }
     }
     return true;
 }
 
-bool IsEntryEqual(const wgpu::BindGroupLayoutEntry& a, const wgpu::BindGroupLayoutEntry& b) {
-    if (a.binding != b.binding || a.visibility != b.visibility ||
-        a.bindingArraySize != b.bindingArraySize) {
-        return false;
-    }
-    // WebGPU BindGroupLayoutEntry must have only one resource binding.
-    if (a.buffer.type != wgpu::BufferBindingType::Undefined) {
-        return a.buffer.hasDynamicOffset == b.buffer.hasDynamicOffset &&
-               a.buffer.minBindingSize == b.buffer.minBindingSize && a.buffer.type == b.buffer.type;
-    } else if (a.texture.sampleType != wgpu::TextureSampleType::Undefined) {
-        return a.texture.multisampled == b.texture.multisampled &&
-               a.texture.sampleType == b.texture.sampleType &&
-               a.texture.viewDimension == b.texture.viewDimension;
-    } else if (a.sampler.type != wgpu::SamplerBindingType::Undefined) {
-        return a.sampler.type == b.sampler.type;
-    } else if (a.storageTexture.access != wgpu::StorageTextureAccess::Undefined) {
-        return a.storageTexture.access == b.storageTexture.access &&
-               a.storageTexture.format == b.storageTexture.format &&
-               a.storageTexture.viewDimension == b.storageTexture.viewDimension;
-    }
-    return true;
-}
+
 
 bool PipelineLayoutKey::operator==(const PipelineLayoutKey& other) const {
     if (layouts.size() != other.layouts.size()) {
