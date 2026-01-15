@@ -1,22 +1,9 @@
 #include "RenderGraph.h"
 #include <array>
 
-core::render::RenderGraph::RenderGraph(Device* device, const GpuBindGroupLayout& globalBindGroupLayout)
+core::render::RenderGraph::RenderGraph(Device* device, const wgpu::BindGroupLayout globalBindGroupLayout)
     : m_device(device) {
-    //const std::array<wgpu::BindGroupLayoutEntry, 1> entries{wgpu::BindGroupLayoutEntry{
-    //    .binding = 0,
-    //    .visibility = wgpu::ShaderStage::Vertex,
-    //    .buffer =
-    //        wgpu::BufferBindingLayout{
-    //            .type = wgpu::BufferBindingType::Uniform,
-    //            .hasDynamicOffset = false,
-    //            .minBindingSize = 0,
-    //        },
-    //}};
-    //m_globalBindGroupLayout = device->CreateBindGroupLayout(wgpu::BindGroupLayoutDescriptor{
-    //    .entryCount = entries.size(),
-    //    .entries = entries.data(),
-    //});
+
 
     CameraUniformData cameraUniformData;
     GpuBuffer globalUniform = device->CreateBufferFromData(&cameraUniformData.viewProj,
@@ -31,7 +18,7 @@ core::render::RenderGraph::RenderGraph(Device* device, const GpuBindGroupLayout&
         .size = sizeof(cameraUniformData.viewProj),
     }};
     m_globalBindGroup = device->CreateBindGroup(wgpu::BindGroupDescriptor{
-        .layout = globalBindGroupLayout.GetHandle(),
+        .layout = globalBindGroupLayout,
         .entryCount = bindGroupEntries.size(),
         .entries = bindGroupEntries.data(),
     });

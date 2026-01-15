@@ -3,6 +3,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "AssetManager.h"
+#include "ShaderAssetFormat.h"
+#include "render/util.h"
 
 #include <slang.h>
 
@@ -121,15 +123,23 @@ render::Model* AssetManager::GetModel(Handle handle) {
 
 Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
     auto it = m_shaderCache.find(shaderPath);
-    if (it != m_shaderCache.end() && it->second.IsValid())
-    {
+    if (it != m_shaderCache.end() && it->second.IsValid()) {
         return it->second;
     }
-    const auto wgslCode = util::ReadFileToString(shaderPath);
-    if (!wgslCode.has_value()) {
+
+    const auto shrdOrError = util::ReadFileToByte(shaderPath).and_then(ShaderAsset::LoadFromMemory);
+    if (!shrdOrError.has_value()) {
         return Handle();
     }
-    render::GpuShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode.value());
+    const auto shdr = shrdOrError.value();
+
+    std::string_view wgslCode(reinterpret_cast<const char*> (shdr.code.data()), shdr.code.size());
+    render::GpuShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
+
+     util::WgpuShaderBindingLayoutInfo entries =
+        core::util::MapShdrBindToWgpu(shdr.bindings);
+    shader.SetBindGroupEntries(entries);
+
     Handle handle = m_shaderPool.Attach(std::move(shader));
     m_shaderCache[shaderPath] = handle;
     return handle;

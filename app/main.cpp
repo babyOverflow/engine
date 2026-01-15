@@ -1,6 +1,3 @@
-#include "render/render.h"
-#include "Application.h"
-
 #include "ExampleLayer.h"
 #include <print>
 

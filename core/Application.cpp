@@ -3,6 +3,22 @@
 
 namespace core {
 
+wgpu::BindGroupLayoutDescriptor Application::GetGlobalLayouDesc() {
+    static const std::array<wgpu::BindGroupLayoutEntry, 1> entries{wgpu::BindGroupLayoutEntry{
+        .binding = 0,
+        .visibility = wgpu::ShaderStage::Vertex,
+        .buffer =
+            wgpu::BufferBindingLayout{
+                .type = wgpu::BufferBindingType::Uniform,
+                .hasDynamicOffset = false,
+                .minBindingSize = 0,
+            },
+    }};
+    return wgpu::BindGroupLayoutDescriptor{
+        .entryCount = entries.size(),
+        .entries = entries.data(),
+    };
+}
 std::expected<Application, int> core::Application::Create(ApplicationSpec& spec) {
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << '\n';
@@ -21,27 +37,15 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     Window window = std::move(re.value());
     std::unique_ptr<render::Device> device = render::Device::Create(window);
     auto assetManager = AssetManager::Create(device.get());
+    auto globalBindGroupLayout = GetGlobalLayouDesc();
+    auto pipelineManager = render::PipelineManager(device.get(), globalBindGroupLayout);
+    
 
-    const std::array<wgpu::BindGroupLayoutEntry, 1> entries{wgpu::BindGroupLayoutEntry{
-        .binding = 0,
-        .visibility = wgpu::ShaderStage::Vertex,
-        .buffer =
-            wgpu::BufferBindingLayout{
-                .type = wgpu::BufferBindingType::Uniform,
-                .hasDynamicOffset = false,
-                .minBindingSize = 0,
-            },
-    }};
-    render::GpuBindGroupLayout globalBindGroupLayout =
-        device->CreateBindGroupLayout(wgpu::BindGroupLayoutDescriptor{
-            .entryCount = entries.size(),
-            .entries = entries.data(),
-        });
-    render::RenderGraph renderGraph(device.get(), globalBindGroupLayout);
+    render::RenderGraph renderGraph(device.get(), pipelineManager.GetBindGroupLayout(globalBindGroupLayout));
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
                        std::move(eventDispatcher), std::move(renderGraph),
-                       std::move(globalBindGroupLayout));
+                       std::move(pipelineManager));
 }
 
 core::Application::~Application() {}
