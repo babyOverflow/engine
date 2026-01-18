@@ -85,8 +85,8 @@ bool IsSRGB(wgpu::TextureFormat format) {
     }
 }
 
-wgpu::TextureFormat SelectSurfaceFormat(const wgpu::Adapter& adapter, const wgpu::Surface& surface)
-{
+wgpu::TextureFormat SelectSurfaceFormat(const wgpu::Adapter& adapter,
+                                        const wgpu::Surface& surface) {
     wgpu::SurfaceCapabilities capabilities;
     wgpu::ConvertibleStatus status = surface.GetCapabilities(adapter, &capabilities);
 
@@ -114,6 +114,99 @@ static wgpu::ShaderStage MapStageToWgpu(ShaderAsset::ShaderVisibility visibility
     }
 }
 
+static wgpu::SamplerBindingLayout MapBindingToSampler(const ShaderAsset::Binding& binding) {
+    const auto& sampler = binding.resource.sampler;
+    switch (sampler.type) {
+        case ShaderAsset::SamplerType::Filtering:
+            return wgpu::SamplerBindingLayout{
+                .type = wgpu::SamplerBindingType::Filtering,
+            };
+        case ShaderAsset::SamplerType::NonFiltering:
+            return wgpu::SamplerBindingLayout{
+                .type = wgpu::SamplerBindingType::NonFiltering,
+            };
+        case ShaderAsset::SamplerType::Comparison:
+            return wgpu::SamplerBindingLayout{
+                .type = wgpu::SamplerBindingType::Comparison,
+            };
+        case ShaderAsset::SamplerType::Undefined:
+            return wgpu::SamplerBindingLayout{
+                .type = wgpu::SamplerBindingType::Undefined,
+            };
+        case ShaderAsset::SamplerType::BindingNotUsed:
+            return wgpu::SamplerBindingLayout{
+                .type = wgpu::SamplerBindingType::BindingNotUsed,
+            };
+        default:
+            return {};
+    }
+}
+
+static wgpu::TextureBindingLayout MapBindingToTexture(const ShaderAsset::Binding& binding) {
+    const auto& texture = binding.resource.texture;
+
+    wgpu::TextureBindingLayout layout{};
+    switch (texture.type) {
+        case ShaderAsset::TextureType::Float:
+            layout.sampleType = wgpu::TextureSampleType::Float;
+            break;
+        case ShaderAsset::TextureType::UnfilterableFloat:
+            layout.sampleType = wgpu::TextureSampleType::UnfilterableFloat;
+            break;
+        case ShaderAsset::TextureType::Depth:
+            layout.sampleType = wgpu::TextureSampleType::Depth;
+            break;
+        case ShaderAsset::TextureType::Sint:
+            layout.sampleType = wgpu::TextureSampleType::Sint;
+            break;
+        case ShaderAsset::TextureType::Uint:
+            layout.sampleType = wgpu::TextureSampleType::Uint;
+            break;
+        case ShaderAsset::TextureType::Undefined:
+            layout.sampleType = wgpu::TextureSampleType::Undefined;
+            break;
+        case ShaderAsset::TextureType::BindingNotUsed:
+            layout.sampleType = wgpu::TextureSampleType::BindingNotUsed;
+            break;
+        default:
+            break;
+    }
+
+    switch (texture.viewDimension) {
+        case ShaderAsset::ViewDimension::e1D:
+            layout.viewDimension = wgpu::TextureViewDimension::e1D;
+            break;
+        case ShaderAsset::ViewDimension::e2D:
+            layout.viewDimension = wgpu::TextureViewDimension::e2D;
+            break;
+        case ShaderAsset::ViewDimension::e2DArray:
+            layout.viewDimension = wgpu::TextureViewDimension::e2DArray;
+            break;
+        case ShaderAsset::ViewDimension::Cube:
+            layout.viewDimension = wgpu::TextureViewDimension::Cube;
+            break;
+        case ShaderAsset::ViewDimension::CubeArray:
+            layout.viewDimension = wgpu::TextureViewDimension::CubeArray;
+            break;
+        case ShaderAsset::ViewDimension::e3D:
+            layout.viewDimension = wgpu::TextureViewDimension::e3D;
+            break;
+        case ShaderAsset::ViewDimension::Undefined:
+            layout.viewDimension = wgpu::TextureViewDimension::Undefined;
+            break;
+        default:
+            break;
+    }
+
+    if (texture.multiSampled) {
+        layout.multisampled = true;
+    } else {
+        layout.multisampled = false;
+    }
+
+    return layout;
+}
+
 WgpuShaderBindingLayoutInfo core::util::MapShdrBindToWgpu(
     std::span<const ShaderAsset::Binding> shdrBinding) {
     constexpr uint32_t kMaxBindGroups = 4;
@@ -137,30 +230,26 @@ WgpuShaderBindingLayoutInfo core::util::MapShdrBindToWgpu(
             case ShaderAsset::ResourceType::UniformBuffer:
                 entry.buffer = wgpu::BufferBindingLayout{
                     .type = wgpu::BufferBindingType::Uniform,
-                    .minBindingSize = binding.bufferSize,
+                    .minBindingSize = binding.resource.buffer.bufferSize,
                 };
                 break;
             case ShaderAsset::ResourceType::ReadOnlyStorage:
                 entry.buffer = wgpu::BufferBindingLayout{
                     .type = wgpu::BufferBindingType::ReadOnlyStorage,
-                    .minBindingSize = binding.bufferSize,
+                    .minBindingSize = binding.resource.buffer.bufferSize,
                 };
                 break;
             case ShaderAsset::ResourceType::StorageBuffer:
                 entry.buffer = wgpu::BufferBindingLayout{
                     .type = wgpu::BufferBindingType::Storage,
-                    .minBindingSize = binding.bufferSize,
+                    .minBindingSize = binding.resource.buffer.bufferSize,
                 };
                 break;
             case ShaderAsset::ResourceType::Sampler:
-                entry.sampler =
-                    wgpu::SamplerBindingLayout{// TODO!(Current baker don't create sampler info)
-                                               .type = wgpu::SamplerBindingType::Filtering};
+                entry.sampler = MapBindingToSampler(binding);
                 break;
             case ShaderAsset::ResourceType::Texture:
-                entry.texture =
-                    wgpu::TextureBindingLayout{// TODO!(Current baker don't create texture info)
-                                               .sampleType = wgpu::TextureSampleType::Float};
+                entry.texture = MapBindingToTexture(binding);
                 break;
             default:
                 break;

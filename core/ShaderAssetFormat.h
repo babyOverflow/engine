@@ -1,16 +1,45 @@
 #pragma once
 #include <expected>
-#include <span>
 #include <format>
 #include <iostream>
 #include <magic_enum/magic_enum.hpp>
+#include <span>
 
 #include "Common.h"
 
 namespace core {
 struct ShaderAsset {
     static constexpr uint32_t SHADER_ASSET_MAGIC = 0x52444853;
-    static constexpr uint32_t SHADER_ASSET_VERSION = 1;
+    static constexpr uint32_t SHADER_ASSET_VERSION = 2;
+
+    enum class SamplerType : uint8_t {
+        BindingNotUsed,
+        Undefined,
+        Filtering,
+        NonFiltering,
+        Comparison,
+    };
+
+    enum class ViewDimension : uint8_t {
+        Undefined,
+        e1D,
+        e2D,
+        e2DArray,
+        Cube,
+        CubeArray,
+        e3D,
+    };
+
+    enum class TextureType : uint8_t {
+        BindingNotUsed,
+        Undefined,
+        Float,
+        UnfilterableFloat,
+        Depth,
+        Sint,
+        Uint,
+        Bool,
+    };
 
     enum class ResourceType : uint8_t {
         UniformBuffer,
@@ -30,6 +59,27 @@ struct ShaderAsset {
         Compute = 0x4,
         All = Vertex | Fragment | Compute
     };
+    struct Sampler {
+        SamplerType type;
+    };
+
+    struct Texture {
+        TextureType type = TextureType::Undefined;
+        ViewDimension viewDimension = ViewDimension::Undefined;
+        uint8_t multiSampled = 0;
+    };
+
+    struct Buffer {
+        uint32_t bufferSize;
+    };
+
+    union Resource {
+        Sampler sampler;
+        Texture texture;
+        Buffer buffer;
+
+        static Resource Buffer(uint32_t size);
+    };
 
     struct alignas(32) Header {
         uint32_t magicNumber = SHADER_ASSET_MAGIC;
@@ -38,17 +88,17 @@ struct ShaderAsset {
         uint32_t shaderSize;
         uint32_t threadGroupSize[3];
     };
+
     /**
      * @brief Flattened Resource's binding information
      *
-     * @note If Resource type is a Uniform or Storage buffer bufferSize must be set.
      */
     struct alignas(64) Binding {
         uint32_t set;
         uint32_t binding;
-        uint32_t bufferSize;
         ResourceType resourceType;
         ShaderVisibility visibility;
+        Resource resource = {.buffer = {0}};
         char name[50];
     };
 

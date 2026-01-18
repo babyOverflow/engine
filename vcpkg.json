@@ -1,12 +1,12 @@
 {
-  "builtin-baseline": "d1ff36c6520ee43f1a656c03cd6425c2974a449e",
-  "dependencies": [
-    "dawn",
-    "glfw3",
-    "glm",
-    "magic-enum",
-    "shader-slang",
-    "tinygltf",
-    "gtest"
-  ]
+    "builtin-baseline": "2fa7118fb2ce0c27ab73e08ab1991f4cb67af880",
+    "dependencies": [
+        "dawn",
+        "glfw3",
+        "glm",
+        "magic-enum",
+        "shader-slang",
+        "tinygltf",
+        "gtest"
+    ]
 }

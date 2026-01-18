@@ -2,6 +2,7 @@
 
 namespace core {
 
+
 std::expected<ShaderAsset, Error> core::ShaderAsset::LoadFromMemory(
     std::span<const uint8_t> memory) {
     using Header = ShaderAsset::Header;
@@ -50,6 +51,14 @@ std::expected<ShaderAsset, Error> core::ShaderAsset::LoadFromMemory(
     }
 
     return shaderAsset;
+}
+
+core::ShaderAsset::Resource core::ShaderAsset::Resource::Buffer(uint32_t size)
+{
+    using sa = core::ShaderAsset;
+
+    sa::Buffer buffer{size};
+    return sa::Resource{.buffer = buffer};
 }
 
 }  // namespace core
