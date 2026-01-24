@@ -130,8 +130,10 @@ class StridedSpan {
     iterator begin() { return iterator(m_data, 0, m_stride); }
     iterator end() { return iterator(m_data + (m_count * m_stride), m_count, m_stride); }
 
-    const_iterator begin() const { return const_iterator(m_data,0, m_stride); }
-    const_iterator end() const { return const_iterator(m_data + (m_count * m_stride),m_count, m_stride); }
+    const_iterator begin() const { return const_iterator(m_data, 0, m_stride); }
+    const_iterator end() const {
+        return const_iterator(m_data + (m_count * m_stride), m_count, m_stride);
+    }
 
     size_type size() const { return m_count; }
     uint32_t stride() const { return m_stride; }
