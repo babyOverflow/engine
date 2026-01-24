@@ -34,6 +34,7 @@
     "wgx/hash.h"
     "ShaderAssetFormat.h"
     "ShaderAssetFormat.cpp" "Common.h" "render/util.cpp" 
+     "import/GLTFImporter.h" "import/GLTFImporter.cpp"
 )
 
 

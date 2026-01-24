@@ -54,14 +54,13 @@ class AssetManager {
     AssetManager() = delete;
 
     Handle LoadModel(std::string filePath);
+    Handle StoreModel(render::Model&& model);
     render::Model* GetModel(Handle handle);
 
     Handle LoadShader(const std::string & shaderPath);
     render::GpuShaderModule* GetShaderModule(Handle handle);
 
   private:
-    std::expected<render::Model, int> LoadModelGLTFInternal(std::string filePath);
-
     AssetManager(render::Device* device) : m_device(device) {}
     render::Device* m_device;
 
