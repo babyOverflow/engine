@@ -45,5 +45,5 @@ struct WgpuShaderBindingLayoutInfo {
                                                        const WgpuShaderBindingLayoutInfo& b);
 };
 
-WgpuShaderBindingLayoutInfo MapShdrBindToWgpu(std::span<const ShaderAsset::Binding> shdrBinding);
+WgpuShaderBindingLayoutInfo MapShdrBindToWgpu(std::span<const ShaderAssetFormat::Binding> shdrBinding);
 }  // namespace core::util

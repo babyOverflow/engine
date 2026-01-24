@@ -4,9 +4,16 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "AssetManager.h"
 #include "ShaderAssetFormat.h"
+#include "asset/StandardPBR_FS.h"
+#include "asset/StandardPBR_VS.h"
 #include "render/util.h"
 
 #include <slang.h>
+
+const std::string kGltfPosition = "POSITION";
+const std::string kGltfTexCoord0 = "TEXCOORD_0";
+const std::string kGltfNormal = "NORMAL";
+const std::string kGltfTangent = "TANGENT";
 
 using namespace slang;
 
@@ -15,10 +22,121 @@ AssetManager AssetManager::Create(render::Device* device) {
     return AssetManager(device);
 }
 
-const std::string kGltfPosition = "POSITION";
-const std::string kGltfTexCoord0 = "TEXCOORD_0";
-const std::string kGltfNormal = "NORMAL";
-const std::string kGltfTangent = "TANGENT";
+AssetManager::AssetManager(render::Device* device) : m_device(device) {
+    auto vtxShdrOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_VS_Data);
+    auto frgShdrOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_FS_Data);
+
+    if (!vtxShdrOrError.has_value()) {
+        assert(false && "Failed to load standard PBR vertex shader");
+    }
+    if (!frgShdrOrError.has_value()) {
+        assert(false && "Failed to load standard PBR fragment shader");
+    }
+
+    render::ShaderAsset vtxShaderAsset;
+    {
+        ShaderAssetFormat vtxShdr = vtxShdrOrError.value();
+        std::string_view wgslCode(reinterpret_cast<const char*>(vtxShdr.code.data()),
+                                  vtxShdr.code.size());
+        wgpu::ShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
+        vtxShaderAsset = render::ShaderAsset::CreateShaderAsset(
+            shader, vtxShdr.header.entryShaderStage, std::move(vtxShdr.bindings));
+    }
+
+    render::ShaderAsset frgShaderAsset;
+    {
+        ShaderAssetFormat frgShdr = frgShdrOrError.value();
+        std::string_view wgslCode(reinterpret_cast<const char*>(frgShdr.code.data()),
+                                  frgShdr.code.size());
+        wgpu::ShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
+        frgShaderAsset = render::ShaderAsset::CreateShaderAsset(
+            shader, frgShdr.header.entryShaderStage, std::move(frgShdr.bindings));
+    }
+    auto renderShaderOrError =
+        render::ShaderAsset::MergeShaderAsset(vtxShaderAsset, frgShaderAsset);
+    if (!renderShaderOrError.has_value()) {
+        assert(false && "Failed to merge vtx frag shaders");
+    }
+
+    Handle handle = m_shaderPool.Attach(std::move(renderShaderOrError.value()));
+    m_shaderCache[std::string(kStandardShader)] = handle;
+}
+
+Handle AssetManager::LoadTexture(tinygltf::Model& model, const tinygltf::Image& image) {
+    wgpu::TextureDescriptor desc;
+    desc.size.width = image.width;
+    desc.size.height = image.height;
+    desc.size.depthOrArrayLayers = 1;
+    desc.mipLevelCount = 1;
+    desc.sampleCount = 1;
+    desc.dimension = wgpu::TextureDimension::e2D;
+
+    switch (image.pixel_type) {
+        case TINYGLTF_COMPONENT_TYPE_BYTE:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+            desc.format = wgpu::TextureFormat::RGBA8Unorm;
+            break;
+        case TINYGLTF_COMPONENT_TYPE_SHORT:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+            desc.format = wgpu::TextureFormat::RGBA16Uint;
+            break;
+        case TINYGLTF_COMPONENT_TYPE_FLOAT:
+            desc.format = wgpu::TextureFormat::RGBA32Float;
+            break;
+        default:
+            desc.format = wgpu::TextureFormat::RGBA8Unorm;
+            break;
+    }
+    desc.usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst;
+
+    core::memory::StridedSpan<const uint8_t> imageData{
+        image.image.data(), 1, static_cast<size_t>(image.width * image.height * 4)};
+    render::GpuTexture texture = m_device->CreateTextureFromData(desc, imageData);
+
+    texture.SetDesc(desc.usage, desc.dimension, desc.format, desc.size);
+
+    auto handle = m_texturePool.Attach(std::move(texture));
+
+    return handle;
+}
+
+Handle AssetManager::LoadMaterial(tinygltf::Model& model, const tinygltf::Material& gltfMaterial) {
+    render::Material material = m_materialSystem.CreateMaterialFromShader(
+        m_shaderPool.Get(m_shaderCache[std::string(kStandardShader)]));
+
+    const auto tryAppendTexture = [&](const auto& textureInfo, const std::string& name) {
+        if (textureInfo.index < 0) {
+            return;
+        }
+        tinygltf::Texture texture = model.textures[textureInfo.index];
+        tinygltf::Image image = model.images[texture.source];
+        Handle textureHandle = LoadTexture(model, image);
+        material.SetTexture(name, textureHandle);
+    };
+
+    tryAppendTexture(gltfMaterial.pbrMetallicRoughness.baseColorTexture, "u_BaseColorTexture");
+    tryAppendTexture(gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture,
+                     "u_MetallicRoughnessTexture");
+    tryAppendTexture(gltfMaterial.normalTexture, "u_NormalTexture");
+    tryAppendTexture(gltfMaterial.occlusionTexture, "u_OcclusionTexture");
+    tryAppendTexture(gltfMaterial.emissiveTexture, "u_EmissiveTexture");
+
+    material.SetVariable("u_BaseColorFactor",
+                         glm::vec4(gltfMaterial.pbrMetallicRoughness.baseColorFactor[0],
+                                   gltfMaterial.pbrMetallicRoughness.baseColorFactor[1],
+                                   gltfMaterial.pbrMetallicRoughness.baseColorFactor[2],
+                                   gltfMaterial.pbrMetallicRoughness.baseColorFactor[3]));
+    material.SetVariable("u_EmissiveFactor",
+                         glm::vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1],
+                                   gltfMaterial.emissiveFactor[2]));
+    material.SetVariable("u_NormalScale", gltfMaterial.normalTexture.scale);
+
+    material.SetVariable("u_MetallicFactor", gltfMaterial.pbrMetallicRoughness.metallicFactor);
+    material.SetVariable("u_RoughnessFactor", gltfMaterial.pbrMetallicRoughness.roughnessFactor);
+
+    Handle handle = m_materialPool.Attach(std::move(material));
+    return handle;
+}
 
 std::expected<render::Model, int> core::AssetManager::LoadModelGLTFInternal(std::string filePath) {
     using render::Vertex;
@@ -120,32 +238,33 @@ render::Model* AssetManager::GetModel(Handle handle) {
     return m_modelPool.Get(handle);
 }
 
-
 Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
+    using sa = ShaderAssetFormat;
+
     auto it = m_shaderCache.find(shaderPath);
     if (it != m_shaderCache.end() && it->second.IsValid()) {
         return it->second;
     }
 
-    const auto shrdOrError = util::ReadFileToByte(shaderPath).and_then(ShaderAsset::LoadFromMemory);
+    const auto shrdOrError =
+        util::ReadFileToByte(shaderPath).and_then(ShaderAssetFormat::LoadFromMemory);
     if (!shrdOrError.has_value()) {
         return Handle();
     }
     const auto shdr = shrdOrError.value();
 
-    std::string_view wgslCode(reinterpret_cast<const char*> (shdr.code.data()), shdr.code.size());
-    render::GpuShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
+    std::string_view wgslCode(reinterpret_cast<const char*>(shdr.code.data()), shdr.code.size());
+    wgpu::ShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
 
-     util::WgpuShaderBindingLayoutInfo entries =
-        core::util::MapShdrBindToWgpu(shdr.bindings);
-    shader.SetBindGroupEntries(entries);
+    render::ShaderAsset shaderAsset =
+        render::ShaderAsset::CreateShaderAsset(shader, shdr.header.entryShaderStage, shdr.bindings);
 
-    Handle handle = m_shaderPool.Attach(std::move(shader));
+    Handle handle = m_shaderPool.Attach(std::move(shaderAsset));
     m_shaderCache[shaderPath] = handle;
     return handle;
 }
 
-render::GpuShaderModule* AssetManager::GetShaderModule(Handle handle) {
+render::ShaderAsset* core::AssetManager::GetShaderAsset(Handle handle) {
     return m_shaderPool.Get(handle);
 }
 

@@ -11,7 +11,7 @@
 
 using namespace slangCompiler;
 
-using sa = core::ShaderAsset;
+using sa = core::ShaderAssetFormat;
 
 class SlangCompilerTest : public testing::Test {
   protected:
@@ -46,7 +46,7 @@ TEST_F(SlangCompilerTest, NoBinding) {
     ASSERT_TRUE(result.has_value()) << result.error().message;
 
     CompileResult shrd = result.value();
-    EXPECT_EQ(shrd.header.magicNumber, core::ShaderAsset::SHADER_ASSET_MAGIC);
+    EXPECT_EQ(shrd.header.magicNumber, core::ShaderAssetFormat::SHADER_ASSET_MAGIC);
     EXPECT_EQ(shrd.header.bindingCount, kExpectedNoBindBindingNum);
     EXPECT_EQ(shrd.bindings.size(), kExpectedNoBindBindingNum);
 }
@@ -56,7 +56,7 @@ TEST_F(SlangCompilerTest, DebugCodeCompilation) {
     ASSERT_TRUE(result.has_value()) << result.error().message;
 
     CompileResult shrd = result.value();
-    EXPECT_EQ(shrd.header.magicNumber, core::ShaderAsset::SHADER_ASSET_MAGIC);
+    EXPECT_EQ(shrd.header.magicNumber, core::ShaderAssetFormat::SHADER_ASSET_MAGIC);
     ASSERT_EQ(shrd.header.bindingCount, kDebugCodeExpectedBindingNumber);
     EXPECT_EQ(shrd.header.bindingCount, shrd.bindings.size());
 

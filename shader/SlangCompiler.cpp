@@ -7,7 +7,7 @@
 
 using Slang::ComPtr;
 using namespace slang;
-using sa = core::ShaderAsset;
+using sa = core::ShaderAssetFormat;
 
 namespace slangCompiler {
 
@@ -162,33 +162,33 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
     SlangResourceShape shape = varLayout->getTypeLayout()->getType()->getResourceShape();
     switch (shape) {
         case SLANG_TEXTURE_1D:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::e1D;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e1D;
             break;
         case SLANG_TEXTURE_2D:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::e2D;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e2D;
             break;
         case SLANG_TEXTURE_2D_ARRAY:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::e2DArray;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e2DArray;
             break;
         case SLANG_TEXTURE_CUBE:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::Cube;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::Cube;
             break;
         case SLANG_TEXTURE_CUBE_ARRAY:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::CubeArray;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::CubeArray;
             break;
         case SLANG_TEXTURE_3D:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::e3D;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e3D;
             break;
         case SLANG_TEXTURE_2D_MULTISAMPLE:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::e2D;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e2D;
             textureBinding.multiSampled = 1;
             break;
         case SLANG_TEXTURE_2D_MULTISAMPLE_ARRAY:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::e2DArray;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e2DArray;
             textureBinding.multiSampled = 1;
             break;
         default:
-            textureBinding.viewDimension = sa::ShaderAsset::ViewDimension::Undefined;
+            textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::Undefined;
             break;
     }
     TypeReflection* resultType = type->getResourceResultType();
@@ -198,20 +198,20 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
         case TypeReflection::ScalarType::Float16:
         case TypeReflection::ScalarType::Float32:
         case TypeReflection::ScalarType::Float64:
-            textureBinding.type = sa::ShaderAsset::TextureType::Float;
+            textureBinding.type = sa::ShaderAssetFormat::TextureType::Float;
             break;
         case TypeReflection::ScalarType::UInt16:
         case TypeReflection::ScalarType::UInt32:
         case TypeReflection::ScalarType::UInt64:
-            textureBinding.type = sa::ShaderAsset::TextureType::Uint;
+            textureBinding.type = sa::ShaderAssetFormat::TextureType::Uint;
             break;
         case TypeReflection::ScalarType::Int16:
         case TypeReflection::ScalarType::Int32:
         case TypeReflection::ScalarType::Int64:
-            textureBinding.type = sa::ShaderAsset::TextureType::Sint;
+            textureBinding.type = sa::ShaderAssetFormat::TextureType::Sint;
             break;
         case TypeReflection::ScalarType::Bool:
-            textureBinding.type = sa::ShaderAsset::TextureType::Bool;
+            textureBinding.type = sa::ShaderAssetFormat::TextureType::Bool;
             break;
         default:
             break;
@@ -220,7 +220,7 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
     const char* typeName = type->getName();
     std::string_view typeNameView(typeName ? typeName : "");
     if (typeNameView.contains("DepthTexture")) {
-        textureBinding.type = sa::ShaderAsset::TextureType::Depth;
+        textureBinding.type = sa::ShaderAssetFormat::TextureType::Depth;
     }
 
     return textureBinding;
@@ -231,7 +231,7 @@ sa::Sampler CreateSamplerBinding(VariableLayoutReflection* varLayout,
     sa::Sampler samplerBinding{};
     // Slang의 SamplerState는 Filtering, NonFiltering, Comparison 등의 세부 타입을 가질 수 있음
     // 여기서는 단순히 Filtering 타입으로 매핑
-    samplerBinding.type = sa::ShaderAsset::SamplerType::Filtering;
+    samplerBinding.type = sa::ShaderAssetFormat::SamplerType::Filtering;
     return samplerBinding;
 }
 
@@ -459,6 +459,7 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
     sa::Header header = {
         .bindingCount = static_cast<uint16_t>(bindings.size()),
         .shaderSize = static_cast<uint32_t>(code.size()),
+        .entryShaderStage = visibility,
     };
     // temp return
     return std::expected<CompileResult, Error>(CompileResult{
