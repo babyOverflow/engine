@@ -34,7 +34,7 @@ class StridedSpan {
             std::conditional_t<std::is_const_v<U>, const unsigned char*, unsigned char*>;
 
         IteratorImpl() : m_ptr(nullptr), m_stride(0), m_index(0) {}
-        IteratorImpl(unsigned char* ptr, size_type index, uint32_t stride)
+        IteratorImpl(IterInternalPtr ptr, size_type index, uint32_t stride)
             : m_ptr(ptr), m_stride(stride), m_index(index) {}
 
         template <typename OtherU>
