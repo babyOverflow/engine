@@ -36,8 +36,8 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     auto fsHandle =  assetManager->LoadShader("assets/tri_FS.shdr");
 
     core::render::PipelineDesc pipelineDesc{
-        .vertexShader = assetManager->GetShaderModule(vsHandle),
-        .fragmentShader = assetManager->GetShaderModule(fsHandle),
+        .vertexShader = assetManager->GetShaderAsset(vsHandle),
+        .fragmentShader = assetManager->GetShaderAsset(fsHandle),
         .vertexType = core::render::VertexType::StandardMesh,
         .blendState = wgx::BlendState::kReplace,
     };

@@ -75,7 +75,7 @@ inline std::size_t Hash(const wgpu::DepthStencilState& s) {
     hash_combine(seed, std::hash<bool>{}(s.depthWriteEnabled));
     hash_combine(seed, std::hash<int>{}(static_cast<int>(s.depthCompare)));
 
-    hash_combine(seed, std::hash<float>{}(s.depthBias));
+    hash_combine(seed, std::hash<int>{}(s.depthBias));
     hash_combine(seed, std::hash<float>{}(s.depthBiasSlopeScale));
     hash_combine(seed, std::hash<float>{}(s.depthBiasClamp));
 

@@ -33,6 +33,8 @@ wgpu::VertexBufferLayout core::render::MapVertexDesc(VertexType type) {
             return Vertex::GetWgpuVertexLayout();
         case VertexType::None:
             return {};
+        default:
+            return {};
     }
 }
 

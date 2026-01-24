@@ -67,14 +67,14 @@ std::unique_ptr<Device> core::render::Device::Create(Window& window) {
     return std::unique_ptr<Device>(new Device(instance, adapter, device, surface, config));
 }
 
-GpuShaderModule Device::CreateShaderModuleFromWGSL(const std::string_view wgslCode) {
+wgpu::ShaderModule Device::CreateShaderModuleFromWGSL(const std::string_view wgslCode) {
     wgpu::ShaderSourceWGSL wgslSource{{.code = wgpu::StringView(wgslCode)}};
     wgpu::ShaderModuleDescriptor descriptor{
         .nextInChain = &wgslSource,
     };
 
     wgpu::ShaderModule shaderModule = m_device.CreateShaderModule(&descriptor);
-    return GpuShaderModule(shaderModule);
+    return shaderModule;
 }
 
 GpuShaderModule Device::CreateShaderModuleFromSPIRV(const std::vector<uint32_t>& spirvCode) {
@@ -119,12 +119,40 @@ GpuPipelineLayout Device::CreatePipelineLayout(const wgpu::PipelineLayoutDescrip
 
 GpuRenderPipeline Device::CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor) {
     wgpu::RenderPipeline pipeline = m_device.CreateRenderPipeline(&descriptor);
-    return GpuRenderPipeline(pipeline); 
+    return GpuRenderPipeline(pipeline);
 }
 
-void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void*data, uint64_t size ) {
+void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, uint64_t size) {
     m_device.GetQueue().WriteBuffer(buffer.GetHandle(), offset, data, size);
 }
+
+template <TextureDataFormat T>
+GpuTexture Device::CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
+                                 core::memory::StridedSpan<const T> data) {
+    wgpu::Texture texture = m_device.CreateTexture(&descriptor);
+    wgpu::TexelCopyTextureInfo destination{
+        .texture = texture,
+    };
+    wgpu::TexelCopyBufferLayout copyInfo{
+        .offset = 0,
+        .bytesPerRow = data.stride(),
+        .rowsPerImage = descriptor.size.height,
+    };
+    m_device.GetQueue().WriteTexture(&destination, &*data.begin(), data.size() * data.stride(),
+                                     &copyInfo, &descriptor.size);
+    return GpuTexture(texture);
+}
+
+template GpuTexture Device::CreateTextureFromData<uint8_t>(const wgpu::TextureDescriptor& desc,
+                                                   core::memory::StridedSpan<const uint8_t> data);
+// template GpuTexture Device::CreateTexture<uint16_t>(const wgpu::TextureDescriptor& desc,
+//                                                     core::memory::StridedSpan<const uint16_t>
+//                                                     data);
+// template GpuTexture Device::CreateTexture<uint32_t>(const wgpu::TextureDescriptor& desc,
+//                                                     core::memory::StridedSpan<const uint32_t>
+//                                                     data);
+// template GpuTexture Device::CreateTexture<float>(const wgpu::TextureDescriptor& desc,
+//                                                  core::memory::StridedSpan<const float> data);
 
 void Device::Present() {
     m_surface.Present();

@@ -3,7 +3,7 @@
 add_library(shader    "SlangCompiler.h" "SlangCompiler.cpp")
 
 target_compile_features(shader PUBLIC cxx_std_23)
-target_link_libraries(shader PUBLIC slang::slang core)
+target_link_libraries(shader PUBLIC slang::slang common)
 target_include_directories(shader PUBLIC "./")
 
 add_executable(shaderCompiler "main.cpp")

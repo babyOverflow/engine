@@ -5,6 +5,9 @@
 #include "ResourcePool.h"
 #include "memory/StridedSpan.h"
 #include "render/Mesh.h"
+#include "render/ShaderAsset.h"
+#include "render/Material.h"
+
 #include "util/Load.h"
 
 
@@ -48,26 +51,41 @@ static auto GetAttributePtr(tinygltf::Model& model,
     return GetAttributePtrImpl<T>(model, primitive, name);
 }
 
+constexpr std::string_view kStandardShader("StandardPBR");
+
 class AssetManager {
   public:
     static AssetManager Create(render::Device* device);
     AssetManager() = delete;
 
+    Handle LoadTexture(tinygltf::Model& model, const tinygltf::Image& image);
+
+    Handle LoadMaterial(tinygltf::Model& model, const tinygltf::Material& material);
+
     Handle LoadModel(std::string filePath);
     render::Model* GetModel(Handle handle);
 
     Handle LoadShader(const std::string & shaderPath);
-    render::GpuShaderModule* GetShaderModule(Handle handle);
+    render::ShaderAsset* GetShaderAsset(Handle handle);
 
   private:
     std::expected<render::Model, int> LoadModelGLTFInternal(std::string filePath);
 
-    AssetManager(render::Device* device) : m_device(device) {}
+    AssetManager(render::Device* device);
     render::Device* m_device;
+    render::MaterialSystem m_materialSystem;
 
-    ResourcePool<render::Model> m_modelPool;
+    ResourcePool<render::ShaderAsset> m_shaderPool;
+    ResourcePool<render::GpuTexture> m_texturePool;
+    ResourcePool<render::Material> m_materialPool;
     // TODO!(m_modelCache)
-    ResourcePool<render::GpuShaderModule> m_shaderPool;
-    std::unordered_map<std::string, Handle> m_shaderCache;
+    ResourcePool<render::Model> m_modelPool;
+    std::unordered_map<std::string,
+                       Handle,
+                       std::hash<std::string_view>,  
+                       std::equal_to<>>
+        m_shaderCache;
+
+
 };
 }  // namespace core
