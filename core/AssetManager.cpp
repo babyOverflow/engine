@@ -4,8 +4,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "AssetManager.h"
 #include "ShaderAssetFormat.h"
-#include "render/util.h"
 #include "import/GLTFImporter.h"
+#include "render/util.h"
 
 #include <slang.h>
 
@@ -33,7 +33,6 @@ render::Model* AssetManager::GetModel(Handle handle) {
     return m_modelPool.Get(handle);
 }
 
-
 Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
     auto it = m_shaderCache.find(shaderPath);
     if (it != m_shaderCache.end() && it->second.IsValid()) {
@@ -46,11 +45,10 @@ Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
     }
     const auto shdr = shrdOrError.value();
 
-    std::string_view wgslCode(reinterpret_cast<const char*> (shdr.code.data()), shdr.code.size());
+    std::string_view wgslCode(reinterpret_cast<const char*>(shdr.code.data()), shdr.code.size());
     render::GpuShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
 
-     util::WgpuShaderBindingLayoutInfo entries =
-        core::util::MapShdrBindToWgpu(shdr.bindings);
+    util::WgpuShaderBindingLayoutInfo entries = core::util::MapShdrBindToWgpu(shdr.bindings);
     shader.SetBindGroupEntries(entries);
 
     Handle handle = m_shaderPool.Attach(std::move(shader));
