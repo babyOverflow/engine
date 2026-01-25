@@ -8,10 +8,10 @@
 #include <iostream>
 #include <memory>
 
-#include "wgx.h"
 #include "GpuResource.h"
-#include "Window.h"
 #include "ShaderInterop.h"
+#include "Window.h"
+#include "wgx.h"
 
 namespace core {
 namespace render {
@@ -69,8 +69,6 @@ class Device {
 
 bool IsSRGB(wgpu::TextureFormat format);
 
-
-
 wgpu::Buffer CreateBufferFromData(wgpu::Device& device,
                                   const void* data,
                                   size_t size,
@@ -80,7 +78,6 @@ std::expected<std::string, int> LoadShaderCode(std::string_view path);
 
 std::expected<wgpu::ShaderModule, int> LoadShaderModuleFromString(wgpu::Device& device,
                                                                   std::string_view shaderCode);
-
 
 }  // namespace render
 

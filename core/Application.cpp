@@ -39,9 +39,9 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     auto assetManager = AssetManager::Create(device.get());
     auto globalBindGroupLayout = GetGlobalLayouDesc();
     auto pipelineManager = render::PipelineManager(device.get(), globalBindGroupLayout);
-    
 
-    render::RenderGraph renderGraph(device.get(), pipelineManager.GetBindGroupLayout(globalBindGroupLayout));
+    render::RenderGraph renderGraph(device.get(),
+                                    pipelineManager.GetBindGroupLayout(globalBindGroupLayout));
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
                        std::move(eventDispatcher), std::move(renderGraph),

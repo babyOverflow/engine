@@ -89,7 +89,9 @@ GpuShaderModule Device::CreateShaderModuleFromSPIRV(const std::vector<uint32_t>&
     return GpuShaderModule(shaderModule);
 }
 
-GpuBuffer Device::CreateBufferFromData(const void* data, size_t size, wgpu::BufferUsage usage) const {
+GpuBuffer Device::CreateBufferFromData(const void* data,
+                                       size_t size,
+                                       wgpu::BufferUsage usage) const {
     wgpu::BufferDescriptor bufferDesc{
         .usage = usage | wgpu::BufferUsage::CopyDst,
         .size = size,
@@ -119,10 +121,10 @@ GpuPipelineLayout Device::CreatePipelineLayout(const wgpu::PipelineLayoutDescrip
 
 GpuRenderPipeline Device::CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor) {
     wgpu::RenderPipeline pipeline = m_device.CreateRenderPipeline(&descriptor);
-    return GpuRenderPipeline(pipeline); 
+    return GpuRenderPipeline(pipeline);
 }
 
-void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void*data, uint64_t size ) {
+void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, uint64_t size) {
     m_device.GetQueue().WriteBuffer(buffer.GetHandle(), offset, data, size);
 }
 
