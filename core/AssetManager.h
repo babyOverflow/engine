@@ -10,13 +10,12 @@
 
 #include "util/Load.h"
 
-
 namespace core {
 
 template <typename T, typename ModuleT>
 static auto GetAttributePtrImpl(ModuleT& model,
-                            const tinygltf::Primitive& primitive,
-                            const std::string& name)
+                                const tinygltf::Primitive& primitive,
+                                const std::string& name)
     -> std::expected<core::memory::StridedSpan<T>, int> {
     using ElementT = std::conditional_t<std::is_const_v<ModuleT>, const T, T>;
     using ReturnT = std::expected<core::memory::StridedSpan<ElementT>, int>;
@@ -32,7 +31,7 @@ static auto GetAttributePtrImpl(ModuleT& model,
     auto* ptr = reinterpret_cast<core::memory::StridedSpan<T>::InternalPtr>(
         buffer.data.data() + bufferView.byteOffset + accessor.byteOffset);
 
-    return ReturnT (core::memory::StridedSpan<ElementT>(ptr, stride, accessor.count));
+    return ReturnT(core::memory::StridedSpan<ElementT>(ptr, stride, accessor.count));
 }
 
 template <typename T>
@@ -63,15 +62,14 @@ class AssetManager {
     Handle LoadMaterial(tinygltf::Model& model, const tinygltf::Material& material);
 
     Handle LoadModel(std::string filePath);
+    Handle StoreModel(render::Model&& model);
     render::Model* GetModel(Handle handle);
 
     Handle LoadShader(const std::string & shaderPath);
     render::ShaderAsset* GetShaderAsset(Handle handle);
 
   private:
-    std::expected<render::Model, int> LoadModelGLTFInternal(std::string filePath);
-
-    AssetManager(render::Device* device);
+    AssetManager(render::Device* device) : m_device(device) {}
     render::Device* m_device;
     render::MaterialSystem m_materialSystem;
 
