@@ -4,6 +4,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "AssetManager.h"
 #include "ShaderAssetFormat.h"
+#include "import/GLTFImporter.h"
 #include "asset/StandardPBR_FS.h"
 #include "asset/StandardPBR_VS.h"
 #include "render/util.h"
@@ -183,55 +184,13 @@ std::expected<render::Model, int> core::AssetManager::LoadModelGLTFInternal(std:
 
             std::vector<Vertex> packedPositions;
 
-            packedPositions.reserve(posSpan.size());
-            for (size_t i = 0; i < posSpan.size(); ++i) {
-                Vertex v{.position = posSpan[i],
-                         .normal = norSpan[i],
-                         .uv = texSpan[i],
-                         .tangent = tanSpan[i]};
-                packedPositions.push_back(v);
-            }
-
-            const auto& indexAccessor = gltfModel.accessors[primitive.indices];
-            const auto& indexBufferView = gltfModel.bufferViews[indexAccessor.bufferView];
-            const auto& indexBuffer = gltfModel.buffers[indexBufferView.buffer];
-
-            const void* indices =
-                &indexBuffer.data[indexBufferView.byteOffset + indexAccessor.byteOffset];
-            size_t indexSize = tinygltf::GetComponentSizeInBytes(indexAccessor.componentType) *
-                               indexAccessor.count;
-            wgpu::IndexFormat indexFormat = wgpu::IndexFormat::Undefined;
-            if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) {
-                indexFormat = wgpu::IndexFormat::Uint32;
-            } else if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
-                indexFormat = wgpu::IndexFormat::Uint16;
-            } else {
-                continue;
-            }
-
-            render::SubMesh subMesh{
-                .vertexBuffer = m_device->CreateBufferFromData(
-                    packedPositions.data(), packedPositions.size() * sizeof(Vertex),
-                    wgpu::BufferUsage::Vertex),
-                .indexBuffer =
-                    m_device->CreateBufferFromData(indices, indexSize, wgpu::BufferUsage::Index),
-                .indexCount = indexAccessor.count,
-                .indexFormat = indexFormat,
-            };
-            model.subMeshes.emplace_back(std::move(subMesh));
-        }
-    }
-    return model;
-}
-
 Handle AssetManager::LoadModel(std::string filePath) {
-    auto model = LoadModelGLTFInternal(filePath);
+    auto model = import::GLTFImporter::ImportFromFile(this, m_device, filePath);
     if (!model.has_value()) {
-        // TODO! err
+        // TODO! expected error handling
         return Handle();
     }
-    auto m = std::move(*model);
-    return m_modelPool.Attach(std::move(m));
+    return model.value();
 }
 
 render::Model* AssetManager::GetModel(Handle handle) {

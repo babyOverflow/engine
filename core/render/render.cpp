@@ -89,7 +89,9 @@ GpuShaderModule Device::CreateShaderModuleFromSPIRV(const std::vector<uint32_t>&
     return GpuShaderModule(shaderModule);
 }
 
-GpuBuffer Device::CreateBufferFromData(const void* data, size_t size, wgpu::BufferUsage usage) {
+GpuBuffer Device::CreateBufferFromData(const void* data,
+                                       size_t size,
+                                       wgpu::BufferUsage usage) const {
     wgpu::BufferDescriptor bufferDesc{
         .usage = usage | wgpu::BufferUsage::CopyDst,
         .size = size,

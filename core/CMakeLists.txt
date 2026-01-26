@@ -35,7 +35,9 @@
     "wgx.h"
     "wgx/hash.h"
     "render/util.cpp" 
- "wgx/convert.h")
+    "import/GLTFImporter.h" "import/GLTFImporter.cpp"
+    "render/util.cpp" 
+    "wgx/convert.h")
 
 include (../cmake/ShaderCompiler.cmake)
 
