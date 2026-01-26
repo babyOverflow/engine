@@ -2,17 +2,9 @@
 #include <queue>
 #include <vector>
 
-namespace core {
-struct Handle {
-    static constexpr uint32_t kInvalidGen = -1;
-    uint32_t index = 0;
-    uint32_t generation = kInvalidGen;
-    bool operator==(const Handle& other) const {
-        return index == other.index && generation == other.generation;
-    }
-    bool IsValid() const { return generation != kInvalidGen; }
-};
+#include "Common.h"
 
+namespace core {
 template <typename T>
 class ResourcePool {
   public:

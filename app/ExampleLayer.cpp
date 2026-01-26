@@ -32,12 +32,12 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
 
     using namespace core::render;
 
-    auto vsHandle =  assetManager->LoadShader("assets/tri_VS.shdr");
-    auto fsHandle =  assetManager->LoadShader("assets/tri_FS.shdr");
+    auto vsHandle = assetManager->LoadShader("assets/tri_VS.shdr");
+    auto fsHandle = assetManager->LoadShader("assets/tri_FS.shdr");
 
     core::render::PipelineDesc pipelineDesc{
-        .vertexShader = assetManager->GetShaderAsset(vsHandle),
-        .fragmentShader = assetManager->GetShaderAsset(fsHandle),
+        .vertexShader = assetManager->GetShaderModule(vsHandle).Get(),
+        .fragmentShader = assetManager->GetShaderModule(fsHandle).Get(),
         .vertexType = core::render::VertexType::StandardMesh,
         .blendState = wgx::BlendState::kReplace,
     };
