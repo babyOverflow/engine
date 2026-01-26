@@ -54,10 +54,10 @@ class AssetManager {
 
     Handle LoadModel(std::string filePath);
     Handle StoreModel(render::Model&& model);
-    render::Model* GetModel(Handle handle);
+    AssetView<render::Model> GetModel(Handle handle);
 
     Handle LoadShader(const std::string& shaderPath);
-    render::GpuShaderModule* GetShaderModule(Handle handle);
+    AssetView<render::GpuShaderModule> GetShaderModule(Handle handle);
 
   private:
     AssetManager(render::Device* device) : m_device(device) {}
