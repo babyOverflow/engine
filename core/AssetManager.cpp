@@ -193,8 +193,8 @@ Handle AssetManager::LoadModel(std::string filePath) {
     return model.value();
 }
 
-render::Model* AssetManager::GetModel(Handle handle) {
-    return m_modelPool.Get(handle);
+AssetView<render::Model> core::AssetManager::GetModel(Handle handle) {
+    return {m_modelPool.Get(handle), handle};
 }
 
 Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
@@ -223,8 +223,8 @@ Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
     return handle;
 }
 
-render::ShaderAsset* core::AssetManager::GetShaderAsset(Handle handle) {
-    return m_shaderPool.Get(handle);
+AssetView<render::ShaderAsset> core::AssetManager::GetShaderAsset(Handle handle) {
+    return { m_shaderPool.Get(handle), handle };
 }
 
 }  // namespace core
