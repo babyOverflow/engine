@@ -3,63 +3,70 @@
 
 namespace core::render {
 
-void Material::SetVariable(const std::string& name, float value) {
-    auto it = m_variableInfo.find(name);
-    if (it == m_variableInfo.end()) {
-        return;
-    }
-    size_t offset = it->second;
-    std::memcpy(m_variableBufferData.data() + offset, &value, sizeof(float));
+
+
+void Material::UpdateUniform() {
+    m_device->WriteBuffer(m_uniformBuffer, 0, m_cpuVariableBufferData.data(),
+                          m_cpuVariableBufferData.size());
+    m_isDirty = false;
 }
 
-void Material::SetVariable(const std::string& name, const glm::vec3& value) {
-    auto it = m_variableInfo.find(name);
-    if (it == m_variableInfo.end()) {
-        return;
-    }
-    size_t offset = it->second;
-    std::memcpy(m_variableBufferData.data() + offset, &value, sizeof(glm::vec3));
-}
+void Material::RebuildBindGroup() {
+    const auto& bindGroupLayout = m_shaderView->GetBindGroupLayout(kSetNumberMaterial);
+    const auto& reflection = m_shaderView->GetReflection();
+    const auto& entryInfos = reflection.GetGroup(kSetNumberMaterial);
+    const auto& uniformInfo = reflection.GetMaterialVariableInfos();
 
-void Material::SetVariable(const std::string& name, const glm::vec4& value) {
-    auto it = m_variableInfo.find(name);
-    if (it == m_variableInfo.end()) {
-        return;
-    }
-    size_t offset = it->second;
-    std::memcpy(m_variableBufferData.data() + offset, &value, sizeof(glm::vec4));
-}
+    std::vector<wgpu::BindGroupEntry> entries;
+    for (uint32_t i = 0; i < entryInfos.size(); ++i) {
+        const auto& entryInfo = entryInfos[i];
+        switch (entryInfo.resourceType) {
+            case core::ShaderAssetFormat::ResourceType::UniformBuffer: {
+                wgpu::BindGroupEntry bufferEntry{
+                    .binding = entryInfo.binding,
+                    .buffer = m_uniformBuffer,
+                    .offset = 0,
+                    .size = reflection.materialUniformSize,
+                };
+                entries.push_back(bufferEntry);
+                break;
+            }
+            case core::ShaderAssetFormat::ResourceType::Texture: {
+                auto it = m_textures.find(entryInfo.id);
+                if (it == m_textures.end()) {
+                    it = m_textures.find(ToPropertyID(kDefaultTexture));
+                }
+                const auto& texture = it->second;
+                wgpu::BindGroupEntry textureEntry{
+                    .binding = entryInfo.binding,
+                    .textureView = texture->GetView(),
+                };
+                entries.push_back(textureEntry);
+                break;
+            }
+            case core::ShaderAssetFormat::ResourceType::Sampler: {
+                assert(false && "Sampler in material is not supported yet.");
+            }
+            default:
+                assert(false && "not supported resource type.");
 
-MaterialSystem::MaterialSystem(Device* device,
-                                 LayoutCache* layoutCache,
-                                 PipelineManager* piplineManager)
-    : m_device(device), m_layoutCache(layoutCache), m_pipelineManager(piplineManager) {}
-
-void MaterialSystem::RegisterShader(ShaderAsset* shaderAsset) {
-    // Implementation would go here
-    const auto & bindings = shaderAsset->GetBindings();
-
-    auto wgpuBindings =  util::MapShdrBindToWgpu(bindings);
-
-    std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts{};
-
-    for (size_t i = 0; i < bindGroupLayouts.size(); ++i)     {
-        auto group = wgpuBindings.GetGroup(static_cast<uint32_t>(i));
-        if (group.size() == 0) {
-            continue;
+                break;
         }
-        wgpu::BindGroupLayoutDescriptor bglDesc{};
-        bglDesc.entryCount = group.size();
-        bglDesc.entries = group.data();
-        bindGroupLayouts[i] = m_layoutCache->GetBindGroupLayout(bglDesc);
     }
 
-    auto materialLayout = bindGroupLayouts[kMaterialBindIndex];
+    wgpu::BindGroupDescriptor bindGroupDesc{
+        .layout = bindGroupLayout,
+        .entryCount = static_cast<uint32_t>(entries.size()),
+        .entries = entries.data(),
+    };
+    m_bindGroup = m_device->CreateBindGroup(bindGroupDesc);
+}
 
-    Material material(materialLayout, nullptr);
-
-
-
+std::expected<wgpu::BindGroup, Error> Material::GetBindGroup() {
+    if (m_bindGroup == nullptr) {
+        RebuildBindGroup();
+    }
+    return m_bindGroup;
 }
 
 }  // namespace core::render

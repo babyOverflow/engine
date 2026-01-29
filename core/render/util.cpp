@@ -114,7 +114,7 @@ static wgpu::ShaderStage MapStageToWgpu(ShaderAssetFormat::ShaderVisibility visi
     }
 }
 
-static wgpu::SamplerBindingLayout MapBindingToSampler(const ShaderAssetFormat::Binding& binding) {
+static wgpu::SamplerBindingLayout MapBindingToSampler(const render::BindingInfo& binding) {
     const auto& sampler = binding.resource.sampler;
     switch (sampler.type) {
         case ShaderAssetFormat::SamplerType::Filtering:
@@ -142,7 +142,7 @@ static wgpu::SamplerBindingLayout MapBindingToSampler(const ShaderAssetFormat::B
     }
 }
 
-static wgpu::TextureBindingLayout MapBindingToTexture(const ShaderAssetFormat::Binding& binding) {
+static wgpu::TextureBindingLayout MapBindingToTexture(render::BindingInfo& binding) {
     const auto& texture = binding.resource.texture;
 
     wgpu::TextureBindingLayout layout{};
@@ -207,61 +207,40 @@ static wgpu::TextureBindingLayout MapBindingToTexture(const ShaderAssetFormat::B
     return layout;
 }
 
-WgpuShaderBindingLayoutInfo core::util::MapShdrBindToWgpu(
-    std::span<const ShaderAssetFormat::Binding> shdrBinding) {
-    constexpr uint32_t kMaxBindGroups = 4;
-
-    std::vector<wgpu::BindGroupLayoutEntry> entries;
-    entries.reserve(shdrBinding.size());
-    std::array<WgpuShaderBindingLayoutInfo::GroupRange, kMaxBindGroups> groups;
-
-    for (uint32_t idx = 0; idx < shdrBinding.size(); ++idx) {
-        const auto& binding = shdrBinding[idx];
-
-        // TODO!(replace with DebugAssert)
-        assert(entries.empty() || entries.back().binding <= binding.binding ||
-               shdrBinding[idx - 1].set < binding.set);
-
-        wgpu::BindGroupLayoutEntry entry{
-            .binding = binding.binding,
-            .visibility = MapStageToWgpu(binding.visibility),
-        };
-        switch (binding.resourceType) {
-            case ShaderAssetFormat::ResourceType::UniformBuffer:
-                entry.buffer = wgpu::BufferBindingLayout{
-                    .type = wgpu::BufferBindingType::Uniform,
-                    .minBindingSize = binding.resource.buffer.bufferSize,
-                };
-                break;
-            case ShaderAssetFormat::ResourceType::ReadOnlyStorage:
-                entry.buffer = wgpu::BufferBindingLayout{
-                    .type = wgpu::BufferBindingType::ReadOnlyStorage,
-                    .minBindingSize = binding.resource.buffer.bufferSize,
-                };
-                break;
-            case ShaderAssetFormat::ResourceType::StorageBuffer:
-                entry.buffer = wgpu::BufferBindingLayout{
-                    .type = wgpu::BufferBindingType::Storage,
-                    .minBindingSize = binding.resource.buffer.bufferSize,
-                };
-                break;
-            case ShaderAssetFormat::ResourceType::Sampler:
-                entry.sampler = MapBindingToSampler(binding);
-                break;
-            case ShaderAssetFormat::ResourceType::Texture:
-                entry.texture = MapBindingToTexture(binding);
-                break;
-            default:
-                break;
-        }
-        entries.push_back(entry);
-
-        if (groups[binding.set].count == 0) {
-            groups[binding.set].offset = entries.size() - 1;
-        }
-        groups[binding.set].count++;
+wgpu::BindGroupLayoutEntry core::util::MapBindingInfoToWgpu(render::BindingInfo binding) {
+    wgpu::BindGroupLayoutEntry entry{
+        .binding = binding.binding,
+        .visibility = MapStageToWgpu(binding.visibility),
+    };
+    switch (binding.resourceType) {
+        case ShaderAssetFormat::ResourceType::UniformBuffer:
+            entry.buffer = wgpu::BufferBindingLayout{
+                .type = wgpu::BufferBindingType::Uniform,
+                .minBindingSize = binding.resource.buffer.bufferSize,
+            };
+            break;
+        case ShaderAssetFormat::ResourceType::ReadOnlyStorage:
+            entry.buffer = wgpu::BufferBindingLayout{
+                .type = wgpu::BufferBindingType::ReadOnlyStorage,
+                .minBindingSize = binding.resource.buffer.bufferSize,
+            };
+            break;
+        case ShaderAssetFormat::ResourceType::StorageBuffer:
+            entry.buffer = wgpu::BufferBindingLayout{
+                .type = wgpu::BufferBindingType::Storage,
+                .minBindingSize = binding.resource.buffer.bufferSize,
+            };
+            break;
+        case ShaderAssetFormat::ResourceType::Sampler:
+            entry.sampler = MapBindingToSampler(binding);
+            break;
+        case ShaderAssetFormat::ResourceType::Texture:
+            entry.texture = MapBindingToTexture(binding);
+            break;
+        default:
+            break;
     }
-    return WgpuShaderBindingLayoutInfo{entries, groups};
+    return entry;
 }
 
 const std::span<const wgpu::BindGroupLayoutEntry> core::util::WgpuShaderBindingLayoutInfo::GetGroup(

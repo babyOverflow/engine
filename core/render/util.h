@@ -16,7 +16,7 @@
 #include <GLFW/glfw3native.h>
 #include <dawn/webgpu_cpp.h>
 #include <libloaderapi.h>
-#include "ShaderAssetFormat.h"
+#include "ShaderAsset.h"
 #include "Window.h"
 
 namespace core::util {
@@ -27,7 +27,7 @@ wgpu::Surface CreateSurfaceForWGPU(wgpu::Instance instance, Window& window);
 bool IsSRGB(wgpu::TextureFormat format);
 wgpu::TextureFormat SelectSurfaceFormat(const wgpu::Adapter& adapter, const wgpu::Surface& surface);
 
-struct WgpuShaderBindingLayoutInfo {
+struct [[deprecated]] WgpuShaderBindingLayoutInfo {
     std::vector<wgpu::BindGroupLayoutEntry> entries;
 
     struct GroupRange {
@@ -40,10 +40,8 @@ struct WgpuShaderBindingLayoutInfo {
     std::array<GroupRange, 4> groups;
 
     const std::span<const wgpu::BindGroupLayoutEntry> GetGroup(uint32_t setIdx) const;
-
-    static WgpuShaderBindingLayoutInfo MergeVisibility(const WgpuShaderBindingLayoutInfo& a,
-                                                       const WgpuShaderBindingLayoutInfo& b);
 };
 
-WgpuShaderBindingLayoutInfo MapShdrBindToWgpu(std::span<const ShaderAssetFormat::Binding> shdrBinding);
+[[deprecated]]
+wgpu::BindGroupLayoutEntry MapBindingInfoToWgpu(render::BindingInfo bind);
 }  // namespace core::util

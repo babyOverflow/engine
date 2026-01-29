@@ -65,12 +65,17 @@ class GpuTexture : public GpuResource<wgpu::Texture> {
     wgpu::TextureDimension GetDimension() const { return m_dimension; }
     wgpu::TextureFormat GetFormat() const { return m_format; }
     wgpu::Extent3D GetSize() const { return m_size; }
+    void CreateDefaultView(const wgpu::TextureViewDescriptor* descriptor) {
+        m_textureView = this->GetHandle().CreateView(descriptor);
+    }
+    wgpu::TextureView GetView() { return m_textureView; }
 
   private:
     wgpu::TextureUsage m_usage = wgpu::TextureUsage::None;
     wgpu::TextureDimension m_dimension = wgpu::TextureDimension::e2D;
     wgpu::TextureFormat m_format = wgpu::TextureFormat::Undefined;
     wgpu::Extent3D m_size = {0, 0, 0};
+    wgpu::TextureView m_textureView;
 };
 
 using GpuBuffer = GpuResource<wgpu::Buffer>;

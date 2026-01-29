@@ -35,9 +35,14 @@
     "wgx.h"
     "wgx/hash.h"
     "render/util.cpp" 
-    "import/GLTFImporter.h" "import/GLTFImporter.cpp"
     "render/util.cpp" 
-    "wgx/convert.h")
+    "wgx/convert.h" 
+    "import/Importer.h"
+    "import/GLTFImporter.h" "import/GLTFImporter.cpp"
+    "import/ShdrImporter.h" "import/ShdrImporter.cpp"
+    "import/ShdrImporter.h" "import/ShdrImporter.cpp"
+    "render/ShaderSystem.h" "render/ShaderSystem.cpp"
+ "render/MaterialSystem.h" "render/MaterialSytem.cpp")
 
 include (../cmake/ShaderCompiler.cmake)
 

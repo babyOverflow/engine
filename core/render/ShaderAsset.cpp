@@ -2,9 +2,10 @@
 
 namespace core::render {
 
-ShaderAsset core::render::ShaderAsset::CreateShaderAsset(wgpu::ShaderModule shaderModule,
-                                                         sa::ShaderVisibility shaderStage,
-                                                         const std::vector<sa::Binding> bindings) {
+ShaderAsset ShaderAsset::Create(wgpu::ShaderModule shaderModule,
+                                sa::ShaderVisibility shaderStage,
+                                ShaderReflectionData reflection,
+                                std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts) {
     wgpu::ShaderModule vertexModule = nullptr;
     wgpu::ShaderModule fragmentModule = nullptr;
     wgpu::ShaderModule computeModule = nullptr;
@@ -18,67 +19,63 @@ ShaderAsset core::render::ShaderAsset::CreateShaderAsset(wgpu::ShaderModule shad
         computeModule = shaderModule;
     }
 
-    return ShaderAsset(vertexModule, fragmentModule, computeModule, shaderStage, std::move(bindings));
+    return ShaderAsset(vertexModule, fragmentModule, computeModule, shaderStage, reflection,
+                       bindGroupLayouts);
 }
 
-std::expected<ShaderAsset, Error> ShaderAsset::MergeShaderAsset(const ShaderAsset& a,
-                                                                const ShaderAsset& b) {
-    if (a.m_shaderStage & b.m_shaderStage)
-    {
-        return std::unexpected(
-            Error::AssetParsing("Cannot merge two ShaderAssets with the same shader stage."));
-    }
+std::expected<ShaderReflectionData, Error> ShaderReflectionData::MergeReflectionData(
+    const ShaderReflectionData& a,
+                                                               const ShaderReflectionData& b) {
+    using sa = core::ShaderAssetFormat;
 
-    wgpu::ShaderModule vertexModule =
-        a.m_vertexModule != nullptr ? a.m_vertexModule : b.m_vertexModule;
-    wgpu::ShaderModule fragmentModule =
-        a.m_fragmentModule != nullptr ? a.m_fragmentModule : b.m_fragmentModule;
-    wgpu::ShaderModule computeModule =
-        a.m_computeModule != nullptr ? a.m_computeModule : b.m_computeModule;
-    sa::ShaderVisibility shaderStage = static_cast<sa::ShaderVisibility>(
-        static_cast<uint8_t>(a.m_shaderStage) | static_cast<uint8_t>(b.m_shaderStage));
+    ShaderReflectionData mergedData;
+    mergedData.bindings.reserve(a.bindings.size());
+    auto aIt = a.bindings.begin();
+    auto bIt = b.bindings.begin();
 
-    const std::vector<sa::Binding>& aBindings = a.m_bindings;
-    const std::vector<sa::Binding>& bBindings = b.m_bindings;
-
-    auto aIt = aBindings.begin();
-    auto bIt = bBindings.begin();
-    std::vector<sa::Binding> mergedBindings;
-
-    while (aIt != aBindings.end() && bIt != bBindings.end()) {
+    while (aIt != a.bindings.end() && bIt != b.bindings.end()) {
         if (aIt->set == bIt->set && aIt->binding == bIt->binding) {
             if (aIt->resourceType != bIt->resourceType) {
                 return std::unexpected(Error::AssetParsing(
                     "Binding Conflict: Same binding index but incompatible resource types!"));
             }
-            sa::Binding mergedBinding = *aIt;
+            BindingInfo mergedBinding = *aIt;
             mergedBinding.visibility = static_cast<sa::ShaderVisibility>(
                 static_cast<uint8_t>(aIt->visibility) | static_cast<uint8_t>(bIt->visibility));
-            mergedBindings.push_back(mergedBinding);
+            mergedData.bindings.push_back(mergedBinding);
             ++aIt;
             ++bIt;
-        } else if (aIt->set < bIt->set ||
-                   (aIt->set == bIt->set && aIt->binding < bIt->binding)) {
-            mergedBindings.push_back(*aIt);
+        } else if (aIt->set < bIt->set || (aIt->set == bIt->set && aIt->binding < bIt->binding)) {
+            mergedData.bindings.push_back(*aIt);
             ++aIt;
         } else {
-            mergedBindings.push_back(*bIt);
+            mergedData.bindings.push_back(*bIt);
             ++bIt;
         }
     }
 
-    while (aIt != aBindings.end()) {
-        mergedBindings.push_back(*aIt);
+    while (aIt != a.bindings.end()) {
+        mergedData.bindings.push_back(*aIt);
         ++aIt;
     }
-    while (bIt != bBindings.end()) {
-        mergedBindings.push_back(*bIt);
+    while (bIt != b.bindings.end()) {
+        mergedData.bindings.push_back(*bIt);
         ++bIt;
     }
 
-    return ShaderAsset(vertexModule, fragmentModule, computeModule, shaderStage,
-                       std::move(mergedBindings));
+    mergedData.groups = {};
+    for (uint32_t i = 0; i < mergedData.bindings.size(); ++i) {
+        const auto& binding = mergedData.bindings[i];
+
+        if (mergedData.groups[binding.set].count == 0) {
+            mergedData.groups[binding.set].offset = i;
+        }
+        mergedData.groups[binding.set].count++;
+    }
+    // TODO!(Now mergedData.materialVariables parsing logic is not implemented. it should be append
+    // after that)
+
+    return mergedData;
 }
 
-
-}
+}  // namespace core::render
