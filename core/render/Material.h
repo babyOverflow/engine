@@ -1,4 +1,5 @@
 #pragma once
+#include <concepts>
 #include <map>
 
 #include "LayoutCache.h"
@@ -8,7 +9,15 @@
 
 namespace core::render {
 
+template <typename T>
+concept ValidMaterialVariableType =
+    std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> ||
+    std::is_same_v<T, glm::vec2> || std::is_same_v<T, glm::vec3> || std::is_same_v<T, glm::vec4> ||
+    std::is_same_v<T, glm::mat4>;
+
 class Material {
+    friend class MaterialSystem;
+
   public:
     Material() = default;
     ~Material() = default;
@@ -19,54 +28,57 @@ class Material {
     Material(Material&&) noexcept = default;
     Material& operator=(Material&&) noexcept = default;
 
-    Material(wgpu::BindGroupLayout bindGroupLayout)
-        : m_bindGroupLayout(bindGroupLayout) {}
+    void SetTexture(const std::string& name, AssetView<GpuTexture> texture);
+    void SetTexture(PropertyId id, AssetView<GpuTexture> texture);
 
+    template <ValidMaterialVariableType T>
+    void SetVariable(PropertyId id, const T value) {
+        auto it = m_variableInfo.find(id);
+        if (it == m_variableInfo.end()) {
+            return;
+        }
+        size_t offset = it->second.offset;
+        std::memcpy(m_cpuVariableBufferData.data() + offset, &value, sizeof(T));
+    }
 
-    void SetShader(ShaderAsset* shaderModule);
+    template <ValidMaterialVariableType T>
+    void SetVariable(const std::string& name, const T value) {
+        SetVariable(ToPropertyID(name), value);
+    }
 
-    void SetTexture(const std::string& name, Handle textureHandle);
-    void SetVariable(const std::string& name, float value);
-    void SetVariable(const std::string& name, const glm::vec3& value);
-    void SetVariable(const std::string& name, const glm::vec4& value);
+    void UpdateUniform();
+
+    std::expected<wgpu::BindGroup, Error> GetBindGroup();
 
   private:
-    ShaderAsset* m_shaderAsset = nullptr;
-    wgpu::BindGroupLayout m_bindGroupLayout;
-    wgpu::TextureView m_textureView;
-    GpuBindGroup* m_bindGroup = nullptr;
-
-    std::map<std::string, Handle> m_textureHandles;
-
     struct VariableInfo {
         size_t offset;
         size_t size;
     };
-    std::map<std::string, size_t> m_variableInfo;
-    std::vector<std::byte> m_variableBufferData;
 
-};
+    Material(Device* device,
+             AssetView<ShaderAsset> shaderView,
+             wgpu::Buffer unifromBuffer = nullptr,
+             std::vector<std::byte> cpuData = {},
+             std::unordered_map<PropertyId, VariableInfo> variableInfo = {})
+        : m_device(device),
+          m_shaderView(shaderView),
+          m_uniformBuffer(unifromBuffer),
+          m_cpuVariableBufferData(cpuData),
+          m_variableInfo(variableInfo) {}
 
-class MaterialSystem {
-  public:
-    MaterialSystem() = delete;
-    MaterialSystem(Device* device,
-                            LayoutCache* layoutCache,
-                            PipelineManager* piplineManager);
-    ~MaterialSystem() = default;
-    MaterialSystem(const MaterialSystem&) = delete;
-    MaterialSystem& operator=(const MaterialSystem&) = delete;
-    MaterialSystem(MaterialSystem&&) noexcept = default;
-    MaterialSystem& operator=(MaterialSystem&&) noexcept = default;
+    void RebuildBindGroup();
 
-    void RegisterShader(ShaderAsset* shaderModule);
-
-    Material CreateMaterialFromShader(const ShaderAsset* shaderAsset);
-
-  private:
+    bool m_isDirty = true;
     Device* m_device;
-    LayoutCache* m_layoutCache;
-    PipelineManager* m_pipelineManager;
+    wgpu::BindGroup m_bindGroup = nullptr;
+    AssetView<ShaderAsset> m_shaderView;
+
+    wgpu::Buffer m_uniformBuffer;
+    std::vector<std::byte> m_cpuVariableBufferData;
+    std::unordered_map<PropertyId, VariableInfo> m_variableInfo;
+
+    std::unordered_map<PropertyId, AssetView<GpuTexture>> m_textures;
 };
 
 }  // namespace core::render

@@ -100,10 +100,11 @@ struct ShaderAssetFormat {
     struct alignas(64) Binding {
         uint32_t set;
         uint32_t binding;
+        uint32_t id;
         ResourceType resourceType;
         ShaderVisibility visibility;
         Resource resource = {.buffer = {0}};
-        char name[50];
+        char name[32];
     };
 
     Header header;

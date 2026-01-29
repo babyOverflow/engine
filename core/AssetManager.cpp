@@ -4,9 +4,10 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "AssetManager.h"
 #include "ShaderAssetFormat.h"
-#include "import/GLTFImporter.h"
 #include "asset/StandardPBR_FS.h"
 #include "asset/StandardPBR_VS.h"
+#include "import/GLTFImporter.h"
+#include "render/ShaderSystem.h"
 #include "render/util.h"
 
 #include <slang.h>
@@ -24,40 +25,39 @@ AssetManager AssetManager::Create(render::Device* device) {
 }
 
 AssetManager::AssetManager(render::Device* device) : m_device(device) {
-    auto vtxShdrOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_VS_Data);
-    auto frgShdrOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_FS_Data);
+    auto vtxBlobOrError =
+        ShaderAssetFormat::LoadFromMemory(kStandardPBR_VS_Data).and_then([&](const auto& shdr) {
+            return core::importer::ShdrImporter::ShdrImport(m_device, shdr);
+        });
+    auto frgBlobOrError =
+        ShaderAssetFormat::LoadFromMemory(kStandardPBR_FS_Data).and_then([&](const auto& shdr) {
+            return core::importer::ShdrImporter::ShdrImport(m_device, shdr);
+        });
 
-    if (!vtxShdrOrError.has_value()) {
+    if (!vtxBlobOrError.has_value()) {
         assert(false && "Failed to load standard PBR vertex shader");
     }
-    if (!frgShdrOrError.has_value()) {
+    if (!frgBlobOrError.has_value()) {
         assert(false && "Failed to load standard PBR fragment shader");
     }
 
-    render::ShaderAsset vtxShaderAsset;
-    {
-        ShaderAssetFormat vtxShdr = vtxShdrOrError.value();
-        std::string_view wgslCode(reinterpret_cast<const char*>(vtxShdr.code.data()),
-                                  vtxShdr.code.size());
-        wgpu::ShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
-        vtxShaderAsset = render::ShaderAsset::CreateShaderAsset(
-            shader, vtxShdr.header.entryShaderStage, std::move(vtxShdr.bindings));
-    }
+    core::importer::ShaderBlob& vtxBlob = vtxBlobOrError.value();
+    core::importer::ShaderBlob& frgBlob = frgBlobOrError.value();
 
-    render::ShaderAsset frgShaderAsset;
-    {
-        ShaderAssetFormat frgShdr = frgShdrOrError.value();
-        std::string_view wgslCode(reinterpret_cast<const char*>(frgShdr.code.data()),
-                                  frgShdr.code.size());
-        wgpu::ShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
-        frgShaderAsset = render::ShaderAsset::CreateShaderAsset(
-            shader, frgShdr.header.entryShaderStage, std::move(frgShdr.bindings));
+    // ShaderSystem's layout caching logic relies on reflection data. Merging reflections reduces
+    // unused layout cache entries.
+    auto reflectionOrError =
+        render::ShaderReflectionData::MergeReflectionData(vtxBlob.reflection, frgBlob.reflection);
+    if (!reflectionOrError.has_value()) {
+        assert(false && "Failed to load standard PBR shader");
     }
-    auto renderShaderOrError =
-        render::ShaderAsset::MergeShaderAsset(vtxShaderAsset, frgShaderAsset);
-    if (!renderShaderOrError.has_value()) {
-        assert(false && "Failed to merge vtx frag shaders");
-    }
+    vtxBlob.reflection = reflectionOrError.value();
+    frgBlob.reflection = reflectionOrError.value();
+
+    render::ShaderAsset vtxShader = m_shaderSystem->CreateFromShaderSource(vtxBlob);
+    render::ShaderAsset frgShader = m_shaderSystem->CreateFromShaderSource(frgBlob);
+
+    auto renderShaderOrError = m_shaderSystem->MergeShaderAsset(vtxShader, frgShader);
 
     Handle handle = m_shaderPool.Attach(std::move(renderShaderOrError.value()));
     m_shaderCache[std::string(kStandardShader)] = handle;
@@ -102,8 +102,9 @@ Handle AssetManager::LoadTexture(tinygltf::Model& model, const tinygltf::Image& 
 }
 
 Handle AssetManager::LoadMaterial(tinygltf::Model& model, const tinygltf::Material& gltfMaterial) {
-    render::Material material = m_materialSystem.CreateMaterialFromShader(
-        m_shaderPool.Get(m_shaderCache[std::string(kStandardShader)]));
+    AssetView<render::ShaderAsset> shaderAsset =
+        GetShaderAsset(m_shaderCache[std::string(kStandardShader)]);
+    render::Material material = m_materialSystem->CreateMaterialFromShader(shaderAsset);
 
     const auto tryAppendTexture = [&](const auto& textureInfo, const std::string& name) {
         if (textureInfo.index < 0) {
@@ -112,6 +113,9 @@ Handle AssetManager::LoadMaterial(tinygltf::Model& model, const tinygltf::Materi
         tinygltf::Texture texture = model.textures[textureInfo.index];
         tinygltf::Image image = model.images[texture.source];
         Handle textureHandle = LoadTexture(model, image);
+
+        AssetView tex = GetTexture(textureHandle);
+
         material.SetTexture(name, textureHandle);
     };
 
@@ -139,53 +143,8 @@ Handle AssetManager::LoadMaterial(tinygltf::Model& model, const tinygltf::Materi
     return handle;
 }
 
-std::expected<render::Model, int> core::AssetManager::LoadModelGLTFInternal(std::string filePath) {
-    using render::Vertex;
-
-    tinygltf::Model gltfModel;
-    tinygltf::TinyGLTF loader;
-    std::string err;
-    std::string warm;
-
-    bool ret = loader.LoadASCIIFromFile(&gltfModel, &err, &warm, filePath);
-    if (!ret) {
-        // TODO! log
-        return std::unexpected(-1);
-    }
-    render::Model model;
-    for (const auto& mesh : gltfModel.meshes) {
-        for (const auto& primitive : mesh.primitives) {
-            if (primitive.attributes.find(kGltfTexCoord0) == primitive.attributes.end()) {
-                continue;
-            }
-            if (primitive.indices < 0) {
-                continue;
-            }
-            const auto posResult = GetAttributePtr<glm::vec3>(gltfModel, primitive, kGltfPosition);
-            const auto texResult =
-                GetAttributePtr<const glm::vec2>(gltfModel, primitive, kGltfTexCoord0);
-            const auto norResult =
-                GetAttributePtr<const glm::vec3>(gltfModel, primitive, kGltfNormal);
-            const auto tanResult =
-                GetAttributePtr<const glm::vec4>(gltfModel, primitive, kGltfTangent);
-            if (!posResult.has_value() || !texResult.has_value()) {
-                continue;
-            }
-            auto posSpan = posResult.value();
-            auto texSpan = texResult.value();
-            auto norSpan =
-                norResult.has_value()
-                    ? norResult.value()
-                    : core::memory::StridedSpan<const glm::vec3>::MakeZero(posSpan.size());
-            auto tanSpan =
-                tanResult.has_value()
-                    ? tanResult.value()
-                    : core::memory::StridedSpan<const glm::vec4>::MakeZero(posSpan.size());
-
-            std::vector<Vertex> packedPositions;
-
 Handle AssetManager::LoadModel(std::string filePath) {
-    auto model = import::GLTFImporter::ImportFromFile(this, m_device, filePath);
+    auto model = importer::GLTFImporter::ImportFromFile(this, m_device, filePath);
     if (!model.has_value()) {
         // TODO! expected error handling
         return Handle();
@@ -198,25 +157,16 @@ AssetView<render::Model> core::AssetManager::GetModel(Handle handle) {
 }
 
 Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
-    using sa = ShaderAssetFormat;
-
-    auto it = m_shaderCache.find(shaderPath);
-    if (it != m_shaderCache.end() && it->second.IsValid()) {
-        return it->second;
+    if (m_shaderCache.find(shaderPath) != m_shaderCache.end()) {
+        return m_shaderCache.at(shaderPath);
     }
-
-    const auto shrdOrError =
-        util::ReadFileToByte(shaderPath).and_then(ShaderAssetFormat::LoadFromMemory);
-    if (!shrdOrError.has_value()) {
+    auto shaderBlobOrError = importer::ShdrImporter::ShdrImport(m_device, shaderPath);
+    if (!shaderBlobOrError.has_value()) {
         return Handle();
     }
-    const auto shdr = shrdOrError.value();
-
-    std::string_view wgslCode(reinterpret_cast<const char*>(shdr.code.data()), shdr.code.size());
-    wgpu::ShaderModule shader = m_device->CreateShaderModuleFromWGSL(wgslCode);
 
     render::ShaderAsset shaderAsset =
-        render::ShaderAsset::CreateShaderAsset(shader, shdr.header.entryShaderStage, shdr.bindings);
+        m_shaderSystem->CreateFromShaderSource(shaderBlobOrError.value());
 
     Handle handle = m_shaderPool.Attach(std::move(shaderAsset));
     m_shaderCache[shaderPath] = handle;
@@ -224,7 +174,7 @@ Handle core::AssetManager::LoadShader(const std::string& shaderPath) {
 }
 
 AssetView<render::ShaderAsset> core::AssetManager::GetShaderAsset(Handle handle) {
-    return { m_shaderPool.Get(handle), handle };
+    return {m_shaderPool.Get(handle), handle};
 }
 
 }  // namespace core

@@ -36,16 +36,23 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
 
     Window window = std::move(re.value());
     std::unique_ptr<render::Device> device = render::Device::Create(window);
-    auto assetManager = AssetManager::Create(device.get());
+    auto assetManager = std::make_unique<AssetManager>(AssetManager::Create(device.get()));
+    auto layoutCache = std::make_unique<render::LayoutCache>(device.get());
     auto globalBindGroupLayout = GetGlobalLayouDesc();
-    auto pipelineManager = render::PipelineManager(device.get(), globalBindGroupLayout);
+    auto pipelineManager = std::make_unique<render::PipelineManager>(
+        device.get(), layoutCache.get(), globalBindGroupLayout);
+    auto shaderSystem = std::make_unique<render::ShaderSystem>(device.get(), layoutCache.get());
+    auto materialSystem = std::make_unique<render::MaterialSystem>(device.get(), layoutCache.get(),
+                                                                   pipelineManager.get());
 
     render::RenderGraph renderGraph(device.get(),
-                                    pipelineManager.GetBindGroupLayout(globalBindGroupLayout));
+                                    pipelineManager->GetBindGroupLayout(globalBindGroupLayout));
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
                        std::move(eventDispatcher), std::move(renderGraph),
-                       std::move(pipelineManager));
+
+                       std::move(pipelineManager), std::move(layoutCache), std::move(shaderSystem),
+                       std::move(materialSystem));
 }
 
 core::Application::~Application() {}

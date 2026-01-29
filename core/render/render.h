@@ -45,10 +45,11 @@ class Device {
     wgpu::ShaderModule CreateShaderModuleFromWGSL(const std::string_view wgslCode);
     GpuShaderModule CreateShaderModuleFromSPIRV(const std::vector<uint32_t>& spirvCode);
 
-    GpuBuffer CreateBufferFromData(const void* data, size_t size, wgpu::BufferUsage usage) const;
+    wgpu::Buffer CreateBuffer(const wgpu::BufferDescriptor& desc) const;
+    wgpu::Buffer CreateBufferFromData(const void* data, size_t size, wgpu::BufferUsage usage) const;
 
     GpuBindGroupLayout CreateBindGroupLayout(const wgpu::BindGroupLayoutDescriptor& descriptor);
-    GpuBindGroup CreateBindGroup(const wgpu::BindGroupDescriptor& descriptor);
+    wgpu::BindGroup CreateBindGroup(const wgpu::BindGroupDescriptor& descriptor);
 
     GpuPipelineLayout CreatePipelineLayout(const wgpu::PipelineLayoutDescriptor& descriptor);
     GpuRenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);

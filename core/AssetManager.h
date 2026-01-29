@@ -4,9 +4,10 @@
 
 #include "ResourcePool.h"
 #include "memory/StridedSpan.h"
+#include "render/Material.h"
 #include "render/Mesh.h"
 #include "render/ShaderAsset.h"
-#include "render/Material.h"
+#include "render/ShaderSystem.h"
 
 #include "util/Load.h"
 
@@ -58,6 +59,7 @@ class AssetManager {
     AssetManager() = delete;
 
     Handle LoadTexture(tinygltf::Model& model, const tinygltf::Image& image);
+    AssetView<render::GpuTexture> GetTexture(Handle handle);
 
     Handle LoadMaterial(tinygltf::Model& model, const tinygltf::Material& material);
 
@@ -65,25 +67,23 @@ class AssetManager {
     Handle StoreModel(render::Model&& model);
     AssetView<render::Model> GetModel(Handle handle);
 
-    Handle LoadShader(const std::string & shaderPath);
+    Handle LoadShader(const std::string& shaderPath);
     AssetView<render::ShaderAsset> GetShaderAsset(Handle handle);
+    AssetView<render::ShaderAsset> GetStandardPBRShader() {
+        return GetShaderAsset(m_shaderCache[std::string(kStandardShader)]);
+    }
 
   private:
     AssetManager(render::Device* device) : m_device(device) {}
     render::Device* m_device;
-    render::MaterialSystem m_materialSystem;
+
 
     ResourcePool<render::ShaderAsset> m_shaderPool;
     ResourcePool<render::GpuTexture> m_texturePool;
     ResourcePool<render::Material> m_materialPool;
     // TODO!(m_modelCache)
     ResourcePool<render::Model> m_modelPool;
-    std::unordered_map<std::string,
-                       Handle,
-                       std::hash<std::string_view>,  
-                       std::equal_to<>>
+    std::unordered_map<std::string, Handle, std::hash<std::string_view>, std::equal_to<>>
         m_shaderCache;
-
-
 };
 }  // namespace core
