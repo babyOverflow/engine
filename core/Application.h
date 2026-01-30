@@ -7,6 +7,7 @@
 #include "Window.h"
 #include "render/PipelineManager.h"
 #include "render/ShaderSystem.h"
+#include "render/MaterialSystem.h"
 #include "render/render.h"
 
 namespace core {
@@ -66,6 +67,7 @@ class Application {
     std::unique_ptr<render::PipelineManager> m_pipelineManager;
     std::unique_ptr<render::ShaderSystem> m_shaderManager;
     render::RenderGraph m_renderGraph;
+    std::unique_ptr<render::MaterialSystem> m_materialSystem;
 
     std::vector<std::unique_ptr<Layer>> m_Layers;
     bool m_souldColose = false;

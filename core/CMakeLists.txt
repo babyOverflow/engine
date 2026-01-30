@@ -26,6 +26,7 @@
     "render/PipelineManager.cpp"
     "render/ShaderAsset.h" "render/ShaderAsset.cpp"
     "render/ShaderSystem.h" "render/ShaderSystem.cpp"
+    "render/Material.h" "render/Material.cpp"
     "memory/StridedSpan.h"
     "memory/StridedSpan.cpp" 
     "util/Load.h" 
@@ -39,6 +40,7 @@
     "import/Importer.h"
     "import/GLTFImporter.h" "import/GLTFImporter.cpp"
     "import/ShdrImporter.h" "import/ShdrImporter.cpp"
+    "render/MaterialSystem.h" "render/MaterialSystem.cpp"
 )
 
 include (../cmake/ShaderCompiler.cmake)

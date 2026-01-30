@@ -17,7 +17,7 @@ std::expected<ShaderBlob, Error> core::importer::ShdrImporter::ShdrImport(
 }
 
 std::expected<ShaderBlob, Error> ShdrImporter::ShdrImport(core::render::Device* device,
-                                                          const core::ShaderAssetFormat& shdr) {
+                                            const core::ShaderAssetFormat& shdr) {
     using Fmt = ShaderAssetFormat;
 
     std::string_view wgslCode(reinterpret_cast<const char*>(shdr.code.data()), shdr.code.size());

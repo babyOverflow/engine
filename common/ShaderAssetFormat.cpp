@@ -2,6 +2,7 @@
 
 namespace core {
 
+
 std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(
     std::span<const uint8_t> memory) {
     using Header = ShaderAssetFormat::Header;
@@ -30,7 +31,7 @@ std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(
     if (header.version != ShaderAssetFormat::SHADER_ASSET_VERSION) {
         return std::unexpected(Error::AssetParsing(
             std::format("Unsupported Version: version {} is not supported (current: {}).",
-                        header.version, ShaderAssetFormat::SHADER_ASSET_VERSION)));
+            header.version, ShaderAssetFormat::SHADER_ASSET_VERSION)));
     }
 
     const size_t CodeOffset = BindingsOffset + BindingsStride * header.bindingCount;

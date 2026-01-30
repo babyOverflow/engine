@@ -47,7 +47,6 @@ VertexStageOutput vertexMain(AssembledVertex assembledVertex) {
 }
 
 // Fragment Shader
-
 [shader("fragment")]
 Fragment fragmentMain(CoarseVertex coarseVertex: CoarseVertex) : SV_Target {
     float3 color = coarseVertex.color;
