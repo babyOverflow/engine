@@ -134,22 +134,22 @@ float4 vertexMain(AssembledVertex vertex) {
 )";
 
 constexpr uint32_t kParameterBlockExpectedBindingSize = 3;
-const std::array<core::ShaderAsset::Binding, kParameterBlockExpectedBindingSize>
+const std::array<core::ShaderAssetFormat::Binding, kParameterBlockExpectedBindingSize>
     kParameterBlockExpectedResourceTypes{
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             .set = 0,
             .binding = 0,
-            .resourceType = core::ShaderAsset::ResourceType::UniformBuffer,
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             .set = 0,
             .binding = 1,
-            .resourceType = core::ShaderAsset::ResourceType::Texture,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             .set = 0,
             .binding = 2,
-            .resourceType = core::ShaderAsset::ResourceType::Sampler,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
         },
     };
 const char* kParameterBlock = R"(
@@ -170,51 +170,51 @@ float4 vertexMain(AssembledVertex vertex) {
 )";
 
 constexpr uint32_t kComplexTestExpectedBindingSize = 7;
-const std::array<core::ShaderAsset::Binding, kComplexTestExpectedBindingSize>
+const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSize>
     kComplexTestExpectedBindings{
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             // cbuffer PerFrameUniforms
             .set = 0,
             .binding = 0,
             .bufferSize = 80,
-            .resourceType = core::ShaderAsset::ResourceType::UniformBuffer,
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             // TextureSet gExtraTextures : register(space0) .albedoMap
             .set = 0,
             .binding = 1,
-            .resourceType = core::ShaderAsset::ResourceType::Texture,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             // TextureSet gExtraTextures : register(space0) .normalMap
             .set = 0,
             .binding = 2,
-            .resourceType = core::ShaderAsset::ResourceType::Texture,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             // ParameterBlock<MaterialData> gMaterial : register(space1) auto generated Uniform
             .set = 1,
             .binding = 0,
             .bufferSize = 16,
-            .resourceType = core::ShaderAsset::ResourceType::UniformBuffer,
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             // ParameterBlock<MaterialData> gMaterial : register(space1) .textures.albedoMap
             .set = 1,
             .binding = 1,
-            .resourceType = core::ShaderAsset::ResourceType::Texture,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             // ParameterBlock<MaterialData> gMaterial : register(space1) .textures.normalMap
             .set = 1,
             .binding = 2,
-            .resourceType = core::ShaderAsset::ResourceType::Texture,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
-        core::ShaderAsset::Binding{
+        core::ShaderAssetFormat::Binding{
             // ParameterBlock<MaterialData> gMaterial : register(space1) .smapler
             .set = 1,
             .binding = 3,
-            .resourceType = core::ShaderAsset::ResourceType::Sampler,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
         },
 
     };

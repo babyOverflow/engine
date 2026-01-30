@@ -29,15 +29,14 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     core::render::Device* device = app->GetDevice();
     core::render::PipelineManager* pipelineManager = app->GetPipelineManager();
     core::AssetManager* assetManager = app->GetAssetManager();
+    core::render::ShaderSystem* shaderManager = app->GetShaderManager();
 
     using namespace core::render;
 
-    auto vsHandle = assetManager->LoadShader("assets/tri_VS.shdr");
-    auto fsHandle = assetManager->LoadShader("assets/tri_FS.shdr");
+    auto shader = shaderManager->GetStandardShader();
 
     core::render::PipelineDesc pipelineDesc{
-        .vertexShader = assetManager->GetShaderModule(vsHandle).Get(),
-        .fragmentShader = assetManager->GetShaderModule(fsHandle).Get(),
+        .shaderAsset = shader.Get(),
         .vertexType = core::render::VertexType::StandardMesh,
         .blendState = wgx::BlendState::kReplace,
     };

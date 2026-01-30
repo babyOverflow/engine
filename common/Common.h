@@ -56,4 +56,18 @@ struct AssetView {
 
     T* Get() const { return data; }
 };
+
+using PropertyId = uint32_t;
+constexpr PropertyId ToPropertyID(std::string_view name) {
+    // Simple hash function for demonstration purposes
+    PropertyId hash = 0;
+    for (char c : name) {
+        hash = hash * 31 + static_cast<unsigned char>(c);
+    }
+    return hash;
+}
+
+constexpr uint32_t kSetNumberGlobal = 0;
+constexpr uint32_t kSetNumberMaterial = 1;
+constexpr uint32_t kSetNumberInstance = 2;
 }  // namespace core
