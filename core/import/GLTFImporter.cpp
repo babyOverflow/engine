@@ -1,6 +1,7 @@
 #include "GLTFImporter.h"
 
 #include "AssetManager.h"
+#include "render/Material.h"
 
 namespace core::importer {
 
@@ -9,10 +10,49 @@ const std::string kGltfTexCoord0 = "TEXCOORD_0";
 const std::string kGltfNormal = "NORMAL";
 const std::string kGltfTangent = "TANGENT";
 
+std::expected<render::Material, Error> ImportMaterial(AssetManager* assetManger,
+                                                      render::MaterialSystem* materialSystem,
+                                                      tinygltf::Model& model,
+                                                      const tinygltf::Material& gltfMaterial) {
+    AssetView<render::ShaderAsset> pbrShader = assetManger->GetStandardPBRShader();
+    render::Material material = materialSystem->CreateMaterialFromShader(pbrShader);
 
+    const auto tryAppendTexture = [&](const auto& textureInfo, const std::string& name) {
+        if (textureInfo.index < 0) {
+            return;
+        }
+        tinygltf::Texture texture = model.textures[textureInfo.index];
+        tinygltf::Image image = model.images[texture.source];
+        Handle textureHandle = assetManger->LoadTexture(model, image);
+
+
+        material.SetTexture(name, textureHandle);
+    };
+
+        tryAppendTexture(gltfMaterial.pbrMetallicRoughness.baseColorTexture, "u_BaseColorTexture");
+    tryAppendTexture(gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture,
+                     "u_MetallicRoughnessTexture");
+    tryAppendTexture(gltfMaterial.normalTexture, "u_NormalTexture");
+    tryAppendTexture(gltfMaterial.occlusionTexture, "u_OcclusionTexture");
+    tryAppendTexture(gltfMaterial.emissiveTexture, "u_EmissiveTexture");
+
+    material.SetVariable("u_BaseColorFactor",
+                         glm::vec4(gltfMaterial.pbrMetallicRoughness.baseColorFactor[0],
+                                   gltfMaterial.pbrMetallicRoughness.baseColorFactor[1],
+                                   gltfMaterial.pbrMetallicRoughness.baseColorFactor[2],
+                                   gltfMaterial.pbrMetallicRoughness.baseColorFactor[3]));
+    material.SetVariable("u_EmissiveFactor",
+                         glm::vec3(gltfMaterial.emissiveFactor[0], gltfMaterial.emissiveFactor[1],
+                                   gltfMaterial.emissiveFactor[2]));
+    material.SetVariable("u_NormalScale", gltfMaterial.normalTexture.scale);
+
+    material.SetVariable("u_MetallicFactor", gltfMaterial.pbrMetallicRoughness.metallicFactor);
+    material.SetVariable("u_RoughnessFactor", gltfMaterial.pbrMetallicRoughness.roughnessFactor);
+}
 
 std::expected<Handle, Error> core::importer::GLTFImporter::ImportFromFile(
     AssetManager* assetManager,
+    render::MaterialSystem* materialSystem,
     const render::Device* device,
     const std::string& filePath) {
     using render::Vertex;

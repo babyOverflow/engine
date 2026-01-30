@@ -7,6 +7,7 @@
 #include "ShaderAssetFormat.h"
 #include "render.h"
 
+
 namespace core::render {
 
 struct BindingInfo {

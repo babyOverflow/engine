@@ -25,7 +25,7 @@ ShaderAsset ShaderAsset::Create(wgpu::ShaderModule shaderModule,
 
 std::expected<ShaderReflectionData, Error> ShaderReflectionData::MergeReflectionData(
     const ShaderReflectionData& a,
-    const ShaderReflectionData& b) {
+                                                               const ShaderReflectionData& b) {
     using sa = core::ShaderAssetFormat;
 
     ShaderReflectionData mergedData;

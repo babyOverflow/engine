@@ -4,6 +4,7 @@
 
 #include "ResourcePool.h"
 #include "memory/StridedSpan.h"
+#include "render/Material.h"
 #include "render/Mesh.h"
 #include "render/ShaderAsset.h"
 #include "util/Load.h"
@@ -64,9 +65,11 @@ class AssetManager {
     AssetManager(render::Device* device);
     render::Device* m_device;
 
-    ResourcePool<render::Model> m_modelPool;
-    // TODO!(m_modelCache)
+
     ResourcePool<render::ShaderAsset> m_shaderPool;
-    std::unordered_map<std::string, Handle> m_shaderCache;
+    ResourcePool<render::GpuTexture> m_texturePool;
+    ResourcePool<render::Material> m_materialPool;
+    // TODO!(m_modelCache)
+    ResourcePool<render::Model> m_modelPool;
 };
 }  // namespace core
