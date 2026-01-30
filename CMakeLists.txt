@@ -42,6 +42,8 @@ find_package(GTest CONFIG REQUIRED)
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 
 # 하위 프로젝트를 포함합니다.
-add_subdirectory("core")
+add_subdirectory("common")
 add_subdirectory("shader")
+add_subdirectory("core")
 add_subdirectory("app")
+

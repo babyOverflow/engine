@@ -6,7 +6,7 @@
 #include "SlangCompiler.h"
 
 namespace fs = std::filesystem;
-using sa = core::ShaderAsset;
+using sa = core::ShaderAssetFormat;
 using namespace slang;
 using namespace slangCompiler;
 

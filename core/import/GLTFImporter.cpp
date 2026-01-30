@@ -2,14 +2,16 @@
 
 #include "AssetManager.h"
 
-namespace core::import {
+namespace core::importer {
 
 const std::string kGltfPosition = "POSITION";
 const std::string kGltfTexCoord0 = "TEXCOORD_0";
 const std::string kGltfNormal = "NORMAL";
 const std::string kGltfTangent = "TANGENT";
 
-std::expected<Handle, Error> core::import::GLTFImporter::ImportFromFile(
+
+
+std::expected<Handle, Error> core::importer::GLTFImporter::ImportFromFile(
     AssetManager* assetManager,
     const render::Device* device,
     const std::string& filePath) {
@@ -97,4 +99,4 @@ std::expected<Handle, Error> core::import::GLTFImporter::ImportFromFile(
     return assetManager->StoreModel(std::move(model));
 }
 
-}  // namespace core::import
+}  // namespace core::importer

@@ -99,41 +99,41 @@ wgpu::TextureFormat SelectSurfaceFormat(const wgpu::Adapter& adapter,
     return surface_format;
 }
 
-static wgpu::ShaderStage MapStageToWgpu(ShaderAsset::ShaderVisibility visibility) {
+static wgpu::ShaderStage MapStageToWgpu(ShaderAssetFormat::ShaderVisibility visibility) {
     switch (visibility) {
-        case ShaderAsset::ShaderVisibility::Vertex:
+        case ShaderAssetFormat::ShaderVisibility::Vertex:
             return wgpu::ShaderStage::Vertex;
-        case ShaderAsset::ShaderVisibility::Fragment:
+        case ShaderAssetFormat::ShaderVisibility::Fragment:
             return wgpu::ShaderStage::Fragment;
-        case ShaderAsset::ShaderVisibility::Compute:
+        case ShaderAssetFormat::ShaderVisibility::Compute:
             return wgpu::ShaderStage::Compute;
-        case ShaderAsset::ShaderVisibility::All:
+        case ShaderAssetFormat::ShaderVisibility::All:
             return wgpu::ShaderStage::Fragment | wgpu::ShaderStage::Vertex;
-        case ShaderAsset::ShaderVisibility::None:
+        case ShaderAssetFormat::ShaderVisibility::None:
             return wgpu::ShaderStage::None;
     }
 }
 
-static wgpu::SamplerBindingLayout MapBindingToSampler(const ShaderAsset::Binding& binding) {
+static wgpu::SamplerBindingLayout MapBindingToSampler(const render::BindingInfo& binding) {
     const auto& sampler = binding.resource.sampler;
     switch (sampler.type) {
-        case ShaderAsset::SamplerType::Filtering:
+        case ShaderAssetFormat::SamplerType::Filtering:
             return wgpu::SamplerBindingLayout{
                 .type = wgpu::SamplerBindingType::Filtering,
             };
-        case ShaderAsset::SamplerType::NonFiltering:
+        case ShaderAssetFormat::SamplerType::NonFiltering:
             return wgpu::SamplerBindingLayout{
                 .type = wgpu::SamplerBindingType::NonFiltering,
             };
-        case ShaderAsset::SamplerType::Comparison:
+        case ShaderAssetFormat::SamplerType::Comparison:
             return wgpu::SamplerBindingLayout{
                 .type = wgpu::SamplerBindingType::Comparison,
             };
-        case ShaderAsset::SamplerType::Undefined:
+        case ShaderAssetFormat::SamplerType::Undefined:
             return wgpu::SamplerBindingLayout{
                 .type = wgpu::SamplerBindingType::Undefined,
             };
-        case ShaderAsset::SamplerType::BindingNotUsed:
+        case ShaderAssetFormat::SamplerType::BindingNotUsed:
             return wgpu::SamplerBindingLayout{
                 .type = wgpu::SamplerBindingType::BindingNotUsed,
             };
@@ -142,30 +142,30 @@ static wgpu::SamplerBindingLayout MapBindingToSampler(const ShaderAsset::Binding
     }
 }
 
-static wgpu::TextureBindingLayout MapBindingToTexture(const ShaderAsset::Binding& binding) {
+static wgpu::TextureBindingLayout MapBindingToTexture(render::BindingInfo& binding) {
     const auto& texture = binding.resource.texture;
 
     wgpu::TextureBindingLayout layout{};
     switch (texture.type) {
-        case ShaderAsset::TextureType::Float:
+        case ShaderAssetFormat::TextureType::Float:
             layout.sampleType = wgpu::TextureSampleType::Float;
             break;
-        case ShaderAsset::TextureType::UnfilterableFloat:
+        case ShaderAssetFormat::TextureType::UnfilterableFloat:
             layout.sampleType = wgpu::TextureSampleType::UnfilterableFloat;
             break;
-        case ShaderAsset::TextureType::Depth:
+        case ShaderAssetFormat::TextureType::Depth:
             layout.sampleType = wgpu::TextureSampleType::Depth;
             break;
-        case ShaderAsset::TextureType::Sint:
+        case ShaderAssetFormat::TextureType::Sint:
             layout.sampleType = wgpu::TextureSampleType::Sint;
             break;
-        case ShaderAsset::TextureType::Uint:
+        case ShaderAssetFormat::TextureType::Uint:
             layout.sampleType = wgpu::TextureSampleType::Uint;
             break;
-        case ShaderAsset::TextureType::Undefined:
+        case ShaderAssetFormat::TextureType::Undefined:
             layout.sampleType = wgpu::TextureSampleType::Undefined;
             break;
-        case ShaderAsset::TextureType::BindingNotUsed:
+        case ShaderAssetFormat::TextureType::BindingNotUsed:
             layout.sampleType = wgpu::TextureSampleType::BindingNotUsed;
             break;
         default:
@@ -173,25 +173,25 @@ static wgpu::TextureBindingLayout MapBindingToTexture(const ShaderAsset::Binding
     }
 
     switch (texture.viewDimension) {
-        case ShaderAsset::ViewDimension::e1D:
+        case ShaderAssetFormat::ViewDimension::e1D:
             layout.viewDimension = wgpu::TextureViewDimension::e1D;
             break;
-        case ShaderAsset::ViewDimension::e2D:
+        case ShaderAssetFormat::ViewDimension::e2D:
             layout.viewDimension = wgpu::TextureViewDimension::e2D;
             break;
-        case ShaderAsset::ViewDimension::e2DArray:
+        case ShaderAssetFormat::ViewDimension::e2DArray:
             layout.viewDimension = wgpu::TextureViewDimension::e2DArray;
             break;
-        case ShaderAsset::ViewDimension::Cube:
+        case ShaderAssetFormat::ViewDimension::Cube:
             layout.viewDimension = wgpu::TextureViewDimension::Cube;
             break;
-        case ShaderAsset::ViewDimension::CubeArray:
+        case ShaderAssetFormat::ViewDimension::CubeArray:
             layout.viewDimension = wgpu::TextureViewDimension::CubeArray;
             break;
-        case ShaderAsset::ViewDimension::e3D:
+        case ShaderAssetFormat::ViewDimension::e3D:
             layout.viewDimension = wgpu::TextureViewDimension::e3D;
             break;
-        case ShaderAsset::ViewDimension::Undefined:
+        case ShaderAssetFormat::ViewDimension::Undefined:
             layout.viewDimension = wgpu::TextureViewDimension::Undefined;
             break;
         default:
@@ -207,119 +207,41 @@ static wgpu::TextureBindingLayout MapBindingToTexture(const ShaderAsset::Binding
     return layout;
 }
 
-WgpuShaderBindingLayoutInfo core::util::MapShdrBindToWgpu(
-    std::span<const ShaderAsset::Binding> shdrBinding) {
-    constexpr uint32_t kMaxBindGroups = 4;
-
-    std::vector<wgpu::BindGroupLayoutEntry> entries;
-    entries.reserve(shdrBinding.size());
-    std::array<WgpuShaderBindingLayoutInfo::GroupRange, kMaxBindGroups> groups;
-
-    for (uint32_t idx = 0; idx < shdrBinding.size(); ++idx) {
-        const auto& binding = shdrBinding[idx];
-
-        // TODO!(replace with DebugAssert)
-        assert(entries.empty() || entries.back().binding <= binding.binding ||
-               shdrBinding[idx - 1].set < binding.set);
-
-        wgpu::BindGroupLayoutEntry entry{
-            .binding = binding.binding,
-            .visibility = MapStageToWgpu(binding.visibility),
-        };
-        switch (binding.resourceType) {
-            case ShaderAsset::ResourceType::UniformBuffer:
-                entry.buffer = wgpu::BufferBindingLayout{
-                    .type = wgpu::BufferBindingType::Uniform,
-                    .minBindingSize = binding.resource.buffer.bufferSize,
-                };
-                break;
-            case ShaderAsset::ResourceType::ReadOnlyStorage:
-                entry.buffer = wgpu::BufferBindingLayout{
-                    .type = wgpu::BufferBindingType::ReadOnlyStorage,
-                    .minBindingSize = binding.resource.buffer.bufferSize,
-                };
-                break;
-            case ShaderAsset::ResourceType::StorageBuffer:
-                entry.buffer = wgpu::BufferBindingLayout{
-                    .type = wgpu::BufferBindingType::Storage,
-                    .minBindingSize = binding.resource.buffer.bufferSize,
-                };
-                break;
-            case ShaderAsset::ResourceType::Sampler:
-                entry.sampler = MapBindingToSampler(binding);
-                break;
-            case ShaderAsset::ResourceType::Texture:
-                entry.texture = MapBindingToTexture(binding);
-                break;
-            default:
-                break;
-        }
-        entries.push_back(entry);
-
-        if (groups[binding.set].count == 0) {
-            groups[binding.set].offset = entries.size() - 1;
-        }
-        groups[binding.set].count++;
+wgpu::BindGroupLayoutEntry core::util::MapBindingInfoToWgpu(render::BindingInfo binding) {
+    wgpu::BindGroupLayoutEntry entry{
+        .binding = binding.binding,
+        .visibility = MapStageToWgpu(binding.visibility),
+    };
+    switch (binding.resourceType) {
+        case ShaderAssetFormat::ResourceType::UniformBuffer:
+            entry.buffer = wgpu::BufferBindingLayout{
+                .type = wgpu::BufferBindingType::Uniform,
+                .minBindingSize = binding.resource.buffer.bufferSize,
+            };
+            break;
+        case ShaderAssetFormat::ResourceType::ReadOnlyStorage:
+            entry.buffer = wgpu::BufferBindingLayout{
+                .type = wgpu::BufferBindingType::ReadOnlyStorage,
+                .minBindingSize = binding.resource.buffer.bufferSize,
+            };
+            break;
+        case ShaderAssetFormat::ResourceType::StorageBuffer:
+            entry.buffer = wgpu::BufferBindingLayout{
+                .type = wgpu::BufferBindingType::Storage,
+                .minBindingSize = binding.resource.buffer.bufferSize,
+            };
+            break;
+        case ShaderAssetFormat::ResourceType::Sampler:
+            entry.sampler = MapBindingToSampler(binding);
+            break;
+        case ShaderAssetFormat::ResourceType::Texture:
+            entry.texture = MapBindingToTexture(binding);
+            break;
+        default:
+            break;
     }
-    return WgpuShaderBindingLayoutInfo{entries, groups};
+    return entry;
 }
 
-const std::span<const wgpu::BindGroupLayoutEntry> core::util::WgpuShaderBindingLayoutInfo::GetGroup(
-    uint32_t setIdx) const {
-    if (setIdx >= groups.size() || groups[setIdx].count == 0) {
-        return {};
-    }
-    const auto& range = groups[setIdx];
-    return {entries.data() + range.offset, range.count};
-}
-
-WgpuShaderBindingLayoutInfo WgpuShaderBindingLayoutInfo::MergeVisibility(
-    const WgpuShaderBindingLayoutInfo& a,
-    const WgpuShaderBindingLayoutInfo& b) {
-    constexpr uint32_t kMaxBindGroups = 4;
-    WgpuShaderBindingLayoutInfo info;
-
-    info.entries.reserve(a.entries.size() + b.entries.size());
-
-    for (uint32_t i = 0; i < kMaxBindGroups; ++i) {
-        info.groups[i].offset = static_cast<uint32_t>(info.entries.size());
-
-        auto groupA = a.GetGroup(i);
-        auto groupB = b.GetGroup(i);
-
-        auto itA = groupA.begin();
-        auto itB = groupB.begin();
-        const auto endA = groupA.end();
-        const auto endB = groupB.end();
-
-        while (itA != endA || itB != endB) {
-            if (itA == endA) {
-                info.entries.push_back(*itB++);
-            } else if (itB == endB) {
-                info.entries.push_back(*itA++);
-            } else {
-                if (itA->binding < itB->binding) {
-                    info.entries.push_back(*itA++);
-                } else if (itB->binding < itA->binding) {
-                    info.entries.push_back(*itB++);
-                } else {
-                    assert(wgx::IsCompatible(*itA, *itB) &&
-                           "Binding Conflict: Same binding index but incompatible types!");
-
-                    wgpu::BindGroupLayoutEntry mergedEntry = *itA;
-                    mergedEntry.visibility = itA->visibility | itB->visibility;
-
-                    info.entries.push_back(mergedEntry);
-                    itA++;
-                    itB++;
-                }
-            }
-        }
-
-        info.groups[i].count = static_cast<uint32_t>(info.entries.size()) - info.groups[i].offset;
-    }
-
-    return info;
-}
 
 }  // namespace core::util

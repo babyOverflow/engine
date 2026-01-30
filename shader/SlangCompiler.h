@@ -29,8 +29,8 @@ struct Error {
 };
 
 struct CompileResult {
-    core::ShaderAsset::Header header;
-    std::vector<core::ShaderAsset::Binding> bindings;
+    core::ShaderAssetFormat::Header header;
+    std::vector<core::ShaderAssetFormat::Binding> bindings;
     std::vector<uint8_t> sourceBlob;
     std::string warning;
 };

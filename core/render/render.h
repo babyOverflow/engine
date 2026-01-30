@@ -4,6 +4,7 @@
 #pragma once
 
 #include <dawn/webgpu_cpp.h>
+#include <concepts>
 #include <glm/glm.hpp>
 #include <iostream>
 #include <memory>
@@ -11,6 +12,7 @@
 #include "GpuResource.h"
 #include "ShaderInterop.h"
 #include "Window.h"
+#include "memory/StridedSpan.h"
 #include "wgx.h"
 
 namespace core {
@@ -23,6 +25,10 @@ struct CameraUniformData {
     alignas(16) glm::vec3 position;
 };
 
+template <typename T>
+concept TextureDataFormat = std::same_as<T, uint8_t> || std::same_as<T, uint16_t> ||
+                            std::same_as<T, uint32_t> || std::same_as<T, float>;
+
 class Device {
   public:
     Device() = delete;
@@ -33,18 +39,24 @@ class Device {
 
     const wgpu::Device& GetDeivce() { return m_device; }
     const wgpu::SurfaceConfiguration& GetSurfaceConfig() { return m_surfaceConfig; }
+
     wgpu::TextureView GetCurrentTextureView();
 
-    GpuShaderModule CreateShaderModuleFromWGSL(const std::string_view wgslCode);
-    GpuShaderModule CreateShaderModuleFromSPIRV(const std::vector<uint32_t>& spirvCode);
+    wgpu::ShaderModule CreateShaderModuleFromWGSL(const std::string_view wgslCode);
+    wgpu::ShaderModule CreateShaderModuleFromSPIRV(const std::vector<uint32_t>& spirvCode);
 
-    GpuBuffer CreateBufferFromData(const void* data, size_t size, wgpu::BufferUsage usage) const;
+    wgpu::Buffer CreateBuffer(const wgpu::BufferDescriptor& desc) const;
+    wgpu::Buffer CreateBufferFromData(const void* data, size_t size, wgpu::BufferUsage usage) const;
 
     GpuBindGroupLayout CreateBindGroupLayout(const wgpu::BindGroupLayoutDescriptor& descriptor);
-    GpuBindGroup CreateBindGroup(const wgpu::BindGroupDescriptor& descriptor);
+    wgpu::BindGroup CreateBindGroup(const wgpu::BindGroupDescriptor& descriptor);
 
     GpuPipelineLayout CreatePipelineLayout(const wgpu::PipelineLayoutDescriptor& descriptor);
     GpuRenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);
+
+    template <TextureDataFormat T>
+    GpuTexture CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
+                                     core::memory::StridedSpan<const T> data);
 
     void WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, uint64_t size);
 
@@ -78,6 +90,10 @@ std::expected<std::string, int> LoadShaderCode(std::string_view path);
 
 std::expected<wgpu::ShaderModule, int> LoadShaderModuleFromString(wgpu::Device& device,
                                                                   std::string_view shaderCode);
+
+extern template GpuTexture Device::CreateTextureFromData<uint8_t>(
+    const wgpu::TextureDescriptor& desc,
+    core::memory::StridedSpan<const uint8_t> data);
 
 }  // namespace render
 

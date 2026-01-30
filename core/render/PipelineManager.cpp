@@ -5,9 +5,10 @@
 
 namespace core::render {
 PipelineManager::PipelineManager(Device* device,
+                                 LayoutCache* layoutCache,
                                  wgpu::BindGroupLayoutDescriptor& globalBindGroupLayoutDesc)
-    : m_device(device), m_layoutCache(LayoutCache(device)) {
-    m_globalBindGroupLayout = m_layoutCache.GetBindGroupLayout(globalBindGroupLayoutDesc);
+    : m_device(device), m_layoutCache(layoutCache) {
+    m_globalBindGroupLayout = m_layoutCache->GetBindGroupLayout(globalBindGroupLayoutDesc);
 }
 
 const GpuRenderPipeline* PipelineManager::GetRenderPipeline(const PipelineDesc& desc) {
@@ -15,29 +16,16 @@ const GpuRenderPipeline* PipelineManager::GetRenderPipeline(const PipelineDesc& 
         return &m_pipelineCache.at(desc);
     }
 
-    const auto& vertexBindingInfo = desc.vertexShader->GetBindGroupEntries();
-    const auto& fragmantBindingInfo = desc.fragmentShader->GetBindGroupEntries();
-    const auto bindingInfo =
-        util::WgpuShaderBindingLayoutInfo::MergeVisibility(vertexBindingInfo, fragmantBindingInfo);
-
     std::vector<wgpu::BindGroupLayout> bindGroupLayouts{m_globalBindGroupLayout};
     for (uint32_t i = 1; i < 4; ++i) {
-        const auto entries = bindingInfo.GetGroup(i);
-
-        wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc{
-            .entryCount = entries.size(),
-            .entries = entries.data(),
-        };
-        const wgpu::BindGroupLayout bindGroupLayout =
-            m_layoutCache.GetBindGroupLayout(bindGroupLayoutDesc);
-        bindGroupLayouts.push_back(bindGroupLayout);
+        bindGroupLayouts.push_back(desc.shaderAsset->GetBindGroupLayout(i));
     }
 
     wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{
         .bindGroupLayoutCount = bindGroupLayouts.size(),
         .bindGroupLayouts = bindGroupLayouts.data()};
 
-    const auto& renderPipelineLayout = m_layoutCache.GetPipelineLayout(pipelineLayoutDesc);
+    const auto& renderPipelineLayout = m_layoutCache->GetPipelineLayout(pipelineLayoutDesc);
 
     wgpu::VertexBufferLayout bufferLayout = MapVertexDesc(desc.vertexType);
     std::array<wgpu::VertexBufferLayout, 1> vertexBufferLayouts{
@@ -47,14 +35,15 @@ const GpuRenderPipeline* PipelineManager::GetRenderPipeline(const PipelineDesc& 
     wgpu::ColorTargetState targets{.format = m_device->GetSurfaceConfig().format,
                                    .blend = &desc.blendState,
                                    .writeMask = wgpu::ColorWriteMask::All};
-    wgpu::FragmentState fragment = wgpu::FragmentState{.module = desc.fragmentShader->GetHandle(),
-                                                       .entryPoint = "fragmentMain",
-                                                       .targetCount = 1,
-                                                       .targets = &targets};
+    wgpu::FragmentState fragment =
+        wgpu::FragmentState{.module = desc.shaderAsset->GetFragmentModule(),
+                            .entryPoint = "fragmentMain",
+                            .targetCount = 1,
+                            .targets = &targets};
     GpuRenderPipeline renderPipeline =
         m_device->CreateRenderPipeline(wgpu::RenderPipelineDescriptor{
             .layout = renderPipelineLayout,
-            .vertex = wgpu::VertexState{.module = desc.vertexShader->GetHandle(),
+            .vertex = wgpu::VertexState{.module = desc.shaderAsset->GetVertexModule(),
                                         .entryPoint = "vertexMain",
                                         .bufferCount = vertexBufferLayouts.size(),
                                         .buffers = vertexBufferLayouts.data()},
@@ -64,10 +53,5 @@ const GpuRenderPipeline* PipelineManager::GetRenderPipeline(const PipelineDesc& 
 
     m_pipelineCache[desc] = std::move(renderPipeline);
     return &m_pipelineCache[desc];
-}
-
-wgpu::BindGroupLayout PipelineManager::GetBindGroupLayout(
-    wgpu::BindGroupLayoutDescriptor& bindGroupLayoutDesc) {
-    return m_layoutCache.GetBindGroupLayout(bindGroupLayoutDesc);
 }
 }  // namespace core::render

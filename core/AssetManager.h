@@ -5,6 +5,7 @@
 #include "ResourcePool.h"
 #include "memory/StridedSpan.h"
 #include "render/Mesh.h"
+#include "render/ShaderAsset.h"
 #include "util/Load.h"
 
 namespace core {
@@ -56,16 +57,16 @@ class AssetManager {
     Handle StoreModel(render::Model&& model);
     AssetView<render::Model> GetModel(Handle handle);
 
-    Handle LoadShader(const std::string& shaderPath);
-    AssetView<render::GpuShaderModule> GetShaderModule(Handle handle);
+    Handle StoreShaderAsset(render::ShaderAsset&& shader);
+    AssetView<render::ShaderAsset> GetShaderAsset(Handle handle);
 
   private:
-    AssetManager(render::Device* device) : m_device(device) {}
+    AssetManager(render::Device* device);
     render::Device* m_device;
 
     ResourcePool<render::Model> m_modelPool;
     // TODO!(m_modelCache)
-    ResourcePool<render::GpuShaderModule> m_shaderPool;
+    ResourcePool<render::ShaderAsset> m_shaderPool;
     std::unordered_map<std::string, Handle> m_shaderCache;
 };
 }  // namespace core
