@@ -6,6 +6,7 @@
 #include "memory/StridedSpan.h"
 #include "render/Material.h"
 #include "render/Mesh.h"
+#include "render/Texture.h"
 #include "render/ShaderAsset.h"
 #include "util/Load.h"
 
@@ -58,6 +59,8 @@ class AssetManager {
     Handle StoreModel(render::Model&& model);
     AssetView<render::Model> GetModel(Handle handle);
 
+    Handle StoreTexture(render::Texture&& texture);
+
     Handle StoreShaderAsset(render::ShaderAsset&& shader);
     AssetView<render::ShaderAsset> GetShaderAsset(Handle handle);
 
@@ -67,7 +70,7 @@ class AssetManager {
 
 
     ResourcePool<render::ShaderAsset> m_shaderPool;
-    ResourcePool<render::GpuTexture> m_texturePool;
+    ResourcePool<render::Texture> m_texturePool;
     ResourcePool<render::Material> m_materialPool;
     // TODO!(m_modelCache)
     ResourcePool<render::Model> m_modelPool;

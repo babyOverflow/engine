@@ -55,8 +55,8 @@ class Device {
     GpuRenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);
 
     template <TextureDataFormat T>
-    GpuTexture CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
-                                     core::memory::StridedSpan<const T> data);
+    wgpu::Texture CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
+                                        core::memory::StridedSpan<const T> data);
 
     void WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, uint64_t size);
 
