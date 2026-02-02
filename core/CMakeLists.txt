@@ -41,6 +41,8 @@
     "import/GLTFImporter.h" "import/GLTFImporter.cpp"
     "import/ShdrImporter.h" "import/ShdrImporter.cpp"
     "render/MaterialSystem.h" "render/MaterialSystem.cpp"
+    "render/Texture.h" 
+    "render/TextureManager.h" "render/TextureManager.cpp"
 )
 
 include (../cmake/ShaderCompiler.cmake)

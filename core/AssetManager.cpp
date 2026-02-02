@@ -49,4 +49,8 @@ Handle AssetManager::StoreShaderAsset(render::ShaderAsset&& shader) {
     return m_shaderPool.Attach(std::move(shader));
 }
 
+Handle AssetManager::StoreTexture(render::Texture&& texture) {
+    return m_texturePool.Attach(std::move(texture));
+}
+
 }  // namespace core
