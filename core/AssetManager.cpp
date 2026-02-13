@@ -1,7 +1,4 @@
 
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "AssetManager.h"
 #include "ShaderAssetFormat.h"
 
@@ -26,12 +23,13 @@ AssetManager AssetManager::Create(render::Device* device) {
 AssetManager::AssetManager(render::Device* device) : m_device(device) {}
 
 Handle AssetManager::LoadModel(std::string filePath) {
-    auto model = importer::GLTFImporter::ImportFromFile(this, m_device, filePath);
-    if (!model.has_value()) {
-        // TODO! expected error handling
-        return Handle();
-    }
-    return model.value();
+    //auto model = importer::GLTFImporter::ImportFromFile(this, m_device, filePath);
+    //if (!model.has_value()) {
+    //    // TODO! expected error handling
+    //    return Handle();
+    //}
+    //return model.value();
+    return Handle();
 }
 Handle AssetManager::StoreModel(render::Model&& model) {
     return m_modelPool.Attach(std::move(model));
@@ -53,4 +51,7 @@ Handle AssetManager::StoreTexture(render::Texture&& texture) {
     return m_texturePool.Attach(std::move(texture));
 }
 
+AssetView<render::Texture> AssetManager::GetTexture(Handle handle) {
+    return {m_texturePool.Get(handle), handle};
+}
 }  // namespace core

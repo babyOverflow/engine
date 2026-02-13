@@ -34,7 +34,7 @@ void Material::RebuildBindGroup() {
             case core::ShaderAssetFormat::ResourceType::Texture: {
                 auto it = m_textures.find(entryInfo.id);
                 if (it == m_textures.end()) {
-                    it = m_textures.find(ToPropertyID(kDefaultTexture));
+                    it = m_textures.find(ToPropertyID(Texture::kDefaultTexture.value));
                 }
                 const auto& texture = it->second;
                 wgpu::BindGroupEntry textureEntry{

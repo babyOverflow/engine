@@ -28,8 +28,8 @@ class Material {
     Material(Material&&) noexcept = default;
     Material& operator=(Material&&) noexcept = default;
 
-    void SetTexture(const std::string& name, AssetView<GpuTexture> texture);
-    void SetTexture(PropertyId id, AssetView<GpuTexture> texture);
+    void SetTexture(const std::string& name, AssetView<Texture> texture);
+    void SetTexture(PropertyId id, AssetView<Texture> texture);
 
     template <ValidMaterialVariableType T>
     void SetVariable(PropertyId id, const T value) {
@@ -78,7 +78,7 @@ class Material {
     std::vector<std::byte> m_cpuVariableBufferData;
     std::unordered_map<PropertyId, VariableInfo> m_variableInfo;
 
-    std::unordered_map<PropertyId, AssetView<GpuTexture>> m_textures;
+    std::unordered_map<PropertyId, AssetView<Texture>> m_textures;
 };
 
 }  // namespace core::render

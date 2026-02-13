@@ -1,6 +1,8 @@
 #pragma once
 #include <expected>
 
+#include "Common.h"
+#include "TextureAssetFormat.h"
 namespace core::render {
 class Device;
 }
@@ -13,3 +15,10 @@ class LayoutCache;
 namespace core {
 class AssetManager;
 }
+
+namespace core::importer {
+struct TextureResult {
+    TextureAssetFormat textureAsset;
+    AssetPath assetPath;
+};
+}  // namespace core::importer

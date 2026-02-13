@@ -60,6 +60,7 @@ class AssetManager {
     AssetView<render::Model> GetModel(Handle handle);
 
     Handle StoreTexture(render::Texture&& texture);
+    AssetView<render::Texture> GetTexture(Handle handle);
 
     Handle StoreShaderAsset(render::ShaderAsset&& shader);
     AssetView<render::ShaderAsset> GetShaderAsset(Handle handle);
