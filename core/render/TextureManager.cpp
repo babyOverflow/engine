@@ -3,7 +3,22 @@
 #include "util.h"
 
 namespace core::render {
-Handle TextureManager::LoadTexture(const TextureAssetFormat& assetData) {
+TextureManager::TextureManager(Device* device, AssetManager* assetRepo)
+    : m_device(device), m_assetRepo(assetRepo) {
+    core::importer::TextureResult defaultTextureResult{
+        .textureAsset = kDefaultTextureAsset,
+        .assetPath = Texture::kDefaultTexture,
+    };
+    LoadTexture(defaultTextureResult);
+}
+
+Handle TextureManager::LoadTexture(const core::importer::TextureResult& assetResult) {
+    if (m_textureCache.find(assetResult.assetPath) != m_textureCache.end()) {
+        return m_textureCache[assetResult.assetPath];
+    }
+
+    const auto& assetData = assetResult.textureAsset;
+
     wgpu::TextureDescriptor desc{
         .usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding,
         .dimension = util::ConvertTextureDimensionWgpu(assetData.dimension),
@@ -19,6 +34,21 @@ Handle TextureManager::LoadTexture(const TextureAssetFormat& assetData) {
     render::Texture texture(wgpuTexture);
     texture.CreateDefaultView(nullptr);
     texture.SetDesc(desc.usage, desc.dimension, desc.format, desc.size, assetData.mips);
-    return m_assetRepo->StoreTexture(std::move(texture));
+
+    Handle handle = m_assetRepo->StoreTexture(std::move(texture));
+    m_textureCache[assetResult.assetPath] = handle;
+    return handle;
+}
+
+AssetView<Texture> TextureManager::GetTexture(const AssetPath& assetPath) {
+    if (auto it = m_textureCache.find(assetPath); it != m_textureCache.end()) {
+        Handle handle = it->second;
+        return m_assetRepo->GetTexture(handle);
+    }
+    if (auto it = m_textureCache.find(Texture::kDefaultTexture); it != m_textureCache.end()) {
+        Handle handle = it->second;
+        return m_assetRepo->GetTexture(handle);
+    }
+    return AssetView<Texture>{};
 }
 }  // namespace core::render

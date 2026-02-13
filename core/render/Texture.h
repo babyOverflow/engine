@@ -1,10 +1,14 @@
 #pragma once
+#include <Common.h>
 #include <webgpu/webgpu_cpp.h>
+#include <string>
 
 namespace core::render {
 
 class Texture {
   public:
+    inline static AssetPath kDefaultTexture = {"__default_texture__"};
+
     Texture() = default;
     Texture(wgpu::Texture wgpuHandle) : m_texture(wgpuHandle) {}
 
