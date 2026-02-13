@@ -11,6 +11,7 @@
 
 #include "GpuResource.h"
 #include "ShaderInterop.h"
+#include "Texture.h"
 #include "Window.h"
 #include "memory/StridedSpan.h"
 #include "wgx.h"
@@ -91,7 +92,7 @@ std::expected<std::string, int> LoadShaderCode(std::string_view path);
 std::expected<wgpu::ShaderModule, int> LoadShaderModuleFromString(wgpu::Device& device,
                                                                   std::string_view shaderCode);
 
-extern template GpuTexture Device::CreateTextureFromData<uint8_t>(
+extern template wgpu::Texture Device::CreateTextureFromData<uint8_t>(
     const wgpu::TextureDescriptor& desc,
     core::memory::StridedSpan<const uint8_t> data);
 
