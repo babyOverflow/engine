@@ -54,4 +54,14 @@ Handle AssetManager::StoreTexture(render::Texture&& texture) {
 AssetView<render::Texture> AssetManager::GetTexture(Handle handle) {
     return {m_texturePool.Get(handle), handle};
 }
+
+Handle AssetManager::StoreMesh(render::Mesh&& mesh) {
+    return m_meshPool.Attach(std::move(mesh));
+}
+
+AssetView<render::Mesh> AssetManager::GetMesh(Handle handle) {
+    return {m_meshPool.Get(handle), handle};
+}
+
+
 }  // namespace core

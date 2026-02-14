@@ -65,6 +65,9 @@ class AssetManager {
     Handle StoreShaderAsset(render::ShaderAsset&& shader);
     AssetView<render::ShaderAsset> GetShaderAsset(Handle handle);
 
+    Handle StoreMesh(render::Mesh&& mesh);
+    AssetView<render::Mesh> GetMesh(Handle handle);
+
   private:
     AssetManager(render::Device* device);
     render::Device* m_device;
@@ -75,5 +78,6 @@ class AssetManager {
     ResourcePool<render::Material> m_materialPool;
     // TODO!(m_modelCache)
     ResourcePool<render::Model> m_modelPool;
+    ResourcePool<render::Mesh> m_meshPool;
 };
 }  // namespace core
