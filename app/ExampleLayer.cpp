@@ -46,29 +46,39 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     auto proj = common::Projection::Perspective(45, config.width, config.height, 0.1, 100.0);
     common::GameCamera gameCamera{glm::vec3(0.F, 0.F, 0.F), 0.F, 0.F, proj};
 
-    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, renderPipeline));
+    loader::GLTFLoader loader{
+        app->GetAssetManager(),
+        app->GetTextureManager(),
+        app->GetMeshManager(),
+    };
+
+    return std::unique_ptr<ExampleLayer>(
+        new ExampleLayer(app, device, gameCamera, renderPipeline, loader));
 }
 
 void ExampleLayer::OnAttach() {
-    auto assetManager = m_app->GetAssetManager();
-    m_modelHandle = assetManager->LoadModel("resources/microphone/scene.gltf");
-    if (!m_modelHandle.IsValid()) {
+    auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");
+    if (!modelOrError.has_value()) {
         std::println("failed to load");
     }
+    m_modelHandle = modelOrError.value();
 }
 
 void ExampleLayer::OnRender(core::render::FrameContext& context) {
     auto& d = m_device->GetDeivce();
     auto am = m_app->GetAssetManager();
-    auto model = am->GetModel(m_modelHandle);
+    auto modelView = am->GetModel(m_modelHandle);
 
     auto cameraData = m_gameCamera.GetCameraUniformData();
     context.SetCameraData(cameraData);
 
-    for (auto& mesh : model->subMeshes) {
+    for (auto& renderUnit : modelView->renderUnits) {
+        auto meshView = am->GetMesh(renderUnit.meshHandle);
+        auto mesh = meshView->submeshInfos[renderUnit.subMeshIndex];
+
         core::render::RenderPacket packet{.pipeline = m_renderPipeline->GetHandle(),
-                                          .vertexBuffer = mesh.vertexBuffer.GetHandle(),
-                                          .indexBuffer = mesh.indexBuffer.GetHandle(),
+                                          .vertexBuffer = meshView->vertexBuffer,
+                                          .indexBuffer = meshView->indexBuffer,
                                           .indexCount = mesh.indexCount};
         context.Submit(packet);
     }

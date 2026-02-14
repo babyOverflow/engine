@@ -3,7 +3,9 @@
 
 #include "Common.h"
 #include "MeshAssetFormat.h"
+#include "ModelAssetFormat.h"
 #include "TextureAssetFormat.h"
+
 namespace core::render {
 class Device;
 }

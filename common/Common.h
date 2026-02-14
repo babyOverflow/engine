@@ -27,7 +27,7 @@ struct Error {
 struct AssetPath {
     std::string value;
 
-    // í¸ì˜ë¥¼ ìœ„í•œ ë¹„êµ ì—°ì‚°ì
+    // ÆíÀÇ¸¦ À§ÇÑ ºñ±³ ¿¬»êÀÚ
     bool operator==(const AssetPath& other) const { return value == other.value; }
 };
 
@@ -79,7 +79,7 @@ constexpr uint32_t kSetNumberMaterial = 1;
 constexpr uint32_t kSetNumberInstance = 2;
 }  // namespace core
 
-// std::unordered_mapì˜ Keyë¡œ ì“°ê¸° ìœ„í•œ í•´ì‹œ íŠ¹ìˆ˜í™”
+// std::unordered_mapÀÇ Key·Î ¾²±â À§ÇÑ ÇØ½Ã Æ¯¼öÈ­
 template <>
 struct std::hash<core::AssetPath> {
     std::size_t operator()(const core::AssetPath& k) const {

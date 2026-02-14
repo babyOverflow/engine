@@ -22,15 +22,6 @@ AssetManager AssetManager::Create(render::Device* device) {
 
 AssetManager::AssetManager(render::Device* device) : m_device(device) {}
 
-Handle AssetManager::LoadModel(std::string filePath) {
-    //auto model = importer::GLTFImporter::ImportFromFile(this, m_device, filePath);
-    //if (!model.has_value()) {
-    //    // TODO! expected error handling
-    //    return Handle();
-    //}
-    //return model.value();
-    return Handle();
-}
 Handle AssetManager::StoreModel(render::Model&& model) {
     return m_modelPool.Attach(std::move(model));
 }

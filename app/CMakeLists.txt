@@ -1,4 +1,4 @@
-set(SOURCES "main.cpp" "ExampleLayer.h" "ExampleLayer.cpp"  "util.h" "Camera3D.h" "Camera3D.cpp")
+set(SOURCES "main.cpp" "ExampleLayer.h" "ExampleLayer.cpp"  "util.h" "Camera3D.h" "Camera3D.cpp" "ModelLoader.h" "ModelLoader.cpp")
 
 include (../cmake/ShaderCompiler.cmake)
 
