@@ -43,13 +43,19 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
         device.get(), layoutCache.get(), globalBindGroupLayout);
     auto shaderManager =
         std::make_unique<render::ShaderSystem>(device.get(), assetManager.get(), layoutCache.get());
+    auto meshManager = std::make_unique<render::MeshManager>(device.get(), assetManager.get());
+    auto textureManager =
+        std::make_unique<render::TextureManager>(device.get(), assetManager.get());
+
 
     render::RenderGraph renderGraph(device.get(),
                                     layoutCache->GetBindGroupLayout(globalBindGroupLayout));
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
                        std::move(eventDispatcher), std::move(renderGraph), std::move(layoutCache),
-                       std::move(pipelineManager), std::move(shaderManager));
+                       std::move(pipelineManager), std::move(shaderManager),
+                       std::move(textureManager),
+                       std::move(meshManager));
 }
 
 core::Application::~Application() {}

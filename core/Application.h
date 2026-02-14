@@ -5,9 +5,10 @@
 #include "AssetManager.h"
 #include "Layer.h"
 #include "Window.h"
+#include "render/MeshManager.h"
 #include "render/PipelineManager.h"
 #include "render/ShaderSystem.h"
-#include "render/MaterialSystem.h"
+#include "render/TextureManager.h"
 #include "render/render.h"
 
 namespace core {
@@ -30,6 +31,8 @@ class Application {
     AssetManager* GetAssetManager() { return m_assetManager.get(); }
     render::PipelineManager* GetPipelineManager() { return m_pipelineManager.get(); }
     render::ShaderSystem* GetShaderManager() { return m_shaderManager.get(); }
+    render::TextureManager* GetTextureManager() { return m_textureManager.get(); }
+    render::MeshManager* GetMeshManager() { return m_meshManager.get(); }
     render::Device* GetDevice() { return m_device.get(); }
 
     static wgpu::BindGroupLayoutDescriptor GetGlobalLayouDesc();
@@ -47,7 +50,9 @@ class Application {
                 render::RenderGraph renderGraph,
                 std::unique_ptr<render::LayoutCache> layoutCache,
                 std::unique_ptr<render::PipelineManager> pipelineManager,
-                std::unique_ptr<render::ShaderSystem> shaderManager)
+                std::unique_ptr<render::ShaderSystem> shaderManager,
+                std::unique_ptr<render::TextureManager> textureManager,
+                std::unique_ptr<render::MeshManager> meshManager)
         : m_window(std::move(window)),
           m_device(std::move(device)),
           m_assetManager(std::move(assetManager)),
@@ -55,7 +60,9 @@ class Application {
           m_renderGraph(std::move(renderGraph)),
           m_layoutCache(std::move(layoutCache)),
           m_pipelineManager(std::move(pipelineManager)),
-          m_shaderManager(std::move(shaderManager)) {}
+          m_shaderManager(std::move(shaderManager)),
+          m_textureManager(std::move(textureManager)),
+          m_meshManager(std::move(meshManager)) {}
 
     Window m_window;
     std::unique_ptr<render::Device> m_device;
@@ -65,9 +72,10 @@ class Application {
     // TODO!(make RenderSystem and replace these variables);
     std::unique_ptr<render::LayoutCache> m_layoutCache;
     std::unique_ptr<render::PipelineManager> m_pipelineManager;
+    std::unique_ptr<render::TextureManager> m_textureManager;
     std::unique_ptr<render::ShaderSystem> m_shaderManager;
+    std::unique_ptr<render::MeshManager> m_meshManager;
     render::RenderGraph m_renderGraph;
-    std::unique_ptr<render::MaterialSystem> m_materialSystem;
 
     std::vector<std::unique_ptr<Layer>> m_Layers;
     bool m_souldColose = false;
