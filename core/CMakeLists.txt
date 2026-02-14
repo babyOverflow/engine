@@ -43,6 +43,7 @@
     "render/MaterialSystem.h" "render/MaterialSystem.cpp"
     "render/Texture.h" 
     "render/TextureManager.h" "render/TextureManager.cpp"
+ "render/MeshManager.h"  "render/MeshManager.cpp"
 )
 
 include (../cmake/ShaderCompiler.cmake)
