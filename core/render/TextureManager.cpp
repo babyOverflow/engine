@@ -17,7 +17,7 @@ Handle TextureManager::LoadTexture(const core::importer::TextureResult& assetRes
         return m_textureCache[assetResult.assetPath];
     }
 
-    const auto& assetData = assetResult.textureAsset;
+    const TextureAssetFormat& assetData = assetResult.textureAsset;
 
     wgpu::TextureDescriptor desc{
         .usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding,
@@ -27,10 +27,14 @@ Handle TextureManager::LoadTexture(const core::importer::TextureResult& assetRes
         .mipLevelCount = assetData.mips,
     };
 
-    memory::StridedSpan<const uint8_t> data(assetData.pixelData.data(), assetData.channel,
-                                            assetData.pixelData.size());
+    wgpu::Texture wgpuTexture = m_device->CreateTextureFromData(
+        desc,
+        wgpu::TexelCopyBufferLayout{
+            .bytesPerRow = assetData.channel * assetData.width,
+            .rowsPerImage = assetData.height,
+        },
+        std::span<const uint8_t>((assetData.pixelData.data()), assetData.pixelData.size()));
 
-    wgpu::Texture wgpuTexture = m_device->CreateTextureFromData(desc, data);
     render::Texture texture(wgpuTexture);
     texture.CreateDefaultView(nullptr);
     texture.SetDesc(desc.usage, desc.dimension, desc.format, desc.size, assetData.mips);
