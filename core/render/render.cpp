@@ -131,26 +131,23 @@ void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, u
     m_device.GetQueue().WriteBuffer(buffer.GetHandle(), offset, data, size);
 }
 
-template <TextureDataFormat T>
 wgpu::Texture Device::CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
-                                            core::memory::StridedSpan<const T> data) {
+                                            const wgpu::TexelCopyBufferLayout& layout,
+                                            std::span<const uint8_t> data) {
     wgpu::Texture texture = m_device.CreateTexture(&descriptor);
+
     wgpu::TexelCopyTextureInfo destination{
         .texture = texture,
+        .mipLevel = 0,
+        .origin = {0, 0, 0},
+        .aspect = wgpu::TextureAspect::All,
     };
-    wgpu::TexelCopyBufferLayout copyInfo{
-        .offset = 0,
-        .bytesPerRow = data.stride(),
-        .rowsPerImage = descriptor.size.height,
-    };
-    m_device.GetQueue().WriteTexture(&destination, &*data.begin(), data.size() * data.stride(),
-                                     &copyInfo, &descriptor.size);
+
+    m_device.GetQueue().WriteTexture(&destination, data.data(), data.size_bytes(), &layout,
+                                     &descriptor.size);
     return texture;
 }
 
-template wgpu::Texture Device::CreateTextureFromData<uint8_t>(
-    const wgpu::TextureDescriptor& desc,
-    core::memory::StridedSpan<const uint8_t> data);
 // template GpuTexture Device::CreateTexture<uint16_t>(const wgpu::TextureDescriptor& desc,
 //                                                     core::memory::StridedSpan<const uint16_t>
 //                                                     data);
