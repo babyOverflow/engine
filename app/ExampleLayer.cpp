@@ -29,7 +29,7 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     core::render::Device* device = app->GetDevice();
     core::render::PipelineManager* pipelineManager = app->GetPipelineManager();
     core::AssetManager* assetManager = app->GetAssetManager();
-    core::render::ShaderSystem* shaderManager = app->GetShaderManager();
+    core::render::ShaderManager* shaderManager = app->GetShaderManager();
 
     using namespace core::render;
 

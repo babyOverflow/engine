@@ -1,4 +1,4 @@
-#include "ShaderSystem.h"
+#include "ShaderManager.h"
 #include <ranges>
 #include "asset/StandardPBR_FS.h"
 #include "asset/StandardPBR_VS.h"
@@ -6,7 +6,7 @@
 
 namespace core::render {
 
-std::array<wgpu::BindGroupLayout, 4> ShaderSystem::CreateGroupLayouts(
+std::array<wgpu::BindGroupLayout, 4> ShaderManager::CreateGroupLayouts(
     const core::render::ShaderReflectionData& reflection) {
     std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts;
 
@@ -25,16 +25,12 @@ std::array<wgpu::BindGroupLayout, 4> ShaderSystem::CreateGroupLayouts(
     return bindGroupLayouts;
 }
 
-ShaderSystem::ShaderSystem(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache)
+ShaderManager::ShaderManager(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache)
     : m_device(device), m_assetRepo(assetRepo), m_layoutCache(layoutCache) {
-    auto vtxBlobOrError =
-        ShaderAssetFormat::LoadFromMemory(kStandardPBR_VS_Data).and_then([&](const auto shdr) {
-            return core::importer::ShdrImporter::ShdrImport(m_device, shdr);
-        });
-    auto frgBlobOrError =
-        ShaderAssetFormat::LoadFromMemory(kStandardPBR_FS_Data).and_then([&](const auto& shdr) {
-            return core::importer::ShdrImporter::ShdrImport(m_device, shdr);
-        });
+    auto vtxBlobOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_VS_Data)
+                              .and_then(core::importer::ShdrImporter::ShdrConvert);
+    auto frgBlobOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_FS_Data)
+                              .and_then(core::importer::ShdrImporter::ShdrConvert);
 
     if (!vtxBlobOrError.has_value()) {
         assert(false && "Failed to load standard PBR vertex shader");
@@ -46,7 +42,7 @@ ShaderSystem::ShaderSystem(Device* device, AssetManager* assetRepo, LayoutCache*
     core::importer::ShaderBlob& vtxBlob = vtxBlobOrError.value();
     core::importer::ShaderBlob& frgBlob = frgBlobOrError.value();
 
-    // ShaderSystem's layout caching logic relies on reflection data. Merging reflections reduces
+    // ShaderManager's layout caching logic relies on reflection data. Merging reflections reduces
     // unused layout cache entries.
     auto reflectionOrError =
         render::ShaderReflectionData::MergeReflectionData(vtxBlob.reflection, frgBlob.reflection);
@@ -63,24 +59,27 @@ ShaderSystem::ShaderSystem(Device* device, AssetManager* assetRepo, LayoutCache*
 
     auto renderShaderOrError = MergeShaderAsset(vtxShader, frgShader);
 
-    if (!renderShaderOrError.has_value())
-    {
+    if (!renderShaderOrError.has_value()) {
         assert(false && "Failed to load standard PBR shader");
     }
 
     m_standardShader = m_assetRepo->StoreShaderAsset(std::move(renderShaderOrError.value()));
 }
 
-ShaderAsset ShaderSystem::CreateFromShaderSource(const core::importer::ShaderBlob& shaderBlob) {
+ShaderAsset ShaderManager::CreateFromShaderSource(const core::importer::ShaderBlob& shaderBlob) {
     const auto& reflection = shaderBlob.reflection;
+
+    std::string_view wgslCode(reinterpret_cast<const char*>(shaderBlob.shaderCode.data()),
+                              shaderBlob.shaderCode.size());
+    wgpu::ShaderModule shaderModule = m_device->CreateShaderModuleFromWGSL(wgslCode);
 
     std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts = CreateGroupLayouts(reflection);
 
-    return ShaderAsset::Create(shaderBlob.shaderModule, reflection.entryShaderStage, reflection,
+    return ShaderAsset::Create(shaderModule, reflection.entryShaderStage, reflection,
                                bindGroupLayouts);
 }
 
-std::expected<ShaderAsset, Error> ShaderSystem::MergeShaderAsset(const ShaderAsset& a,
+std::expected<ShaderAsset, Error> ShaderManager::MergeShaderAsset(const ShaderAsset& a,
                                                                  const ShaderAsset& b) {
     using Fmt = ShaderAssetFormat;
     if (a.m_shaderStage & b.m_shaderStage) {
@@ -111,7 +110,27 @@ std::expected<ShaderAsset, Error> ShaderSystem::MergeShaderAsset(const ShaderAss
                        bindGroupLayouts);
 }
 
-AssetView<ShaderAsset> ShaderSystem::GetShaderAsset(Handle shaderHandle) {
+AssetView<ShaderAsset> ShaderManager::GetShaderAsset(Handle shaderHandle) {
     return m_assetRepo->GetShaderAsset(shaderHandle);
 }
+
+AssetView<ShaderAsset> ShaderManager::GetShader(const AssetPath& shaderPath) {
+    const auto it = m_shaderCache.find(shaderPath);
+    if (it != m_shaderCache.end()) {
+        return m_assetRepo->GetShaderAsset(it->second);
+    }
+    return m_assetRepo->GetShaderAsset(m_standardShader);
+}
+
+Handle ShaderManager::LoadShader(const core::importer::ShaderImportResult& shaderResult) {
+    auto it = m_shaderCache.find(shaderResult.assetPath);
+    if (it != m_shaderCache.end()) {
+        return it->second;
+    }
+    core::render::ShaderAsset shaderAsset = CreateFromShaderSource(shaderResult.shaderBlob);
+    Handle handle = m_assetRepo->StoreShaderAsset(std::move(shaderAsset));
+    m_shaderCache[shaderResult.assetPath] = handle;
+    return handle;
+}
+
 }  // namespace core::render

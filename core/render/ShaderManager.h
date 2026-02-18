@@ -7,14 +7,15 @@
 
 namespace core::render {
 
-class ShaderSystem {
+class ShaderManager {
   public:
-    ShaderSystem(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache);
+    ShaderManager(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache);
 
     ShaderAsset CreateFromShaderSource(const core::importer::ShaderBlob &shaderBlob);
     std::expected<ShaderAsset, Error> MergeShaderAsset(const ShaderAsset& a, const ShaderAsset& b);
 
-    Handle LoadShader(const std::string& shaderPath);
+    Handle LoadShader(const core::importer::ShaderImportResult& shaderResult);
+    AssetView<ShaderAsset> GetShader(const AssetPath& shaderPath);
     AssetView<ShaderAsset> GetShaderAsset(Handle shaderHandle);
     AssetView<ShaderAsset> GetStandardShader() { return m_assetRepo->GetShaderAsset(m_standardShader); }
 
@@ -25,5 +26,7 @@ class ShaderSystem {
     AssetManager* m_assetRepo;
     LayoutCache* m_layoutCache;
     Handle m_standardShader;
+
+    std::unordered_map<AssetPath, Handle> m_shaderCache;
 };
 }  // namespace core::render
