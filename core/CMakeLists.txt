@@ -25,7 +25,7 @@
     "render/PipelineManager.h"
     "render/PipelineManager.cpp"
     "render/ShaderAsset.h" "render/ShaderAsset.cpp"
-    "render/ShaderSystem.h" "render/ShaderSystem.cpp"
+    "render/ShaderManager.h" "render/ShaderManager.cpp"
     "render/Material.h" "render/Material.cpp"
     "memory/StridedSpan.h"
     "memory/StridedSpan.cpp" 

@@ -1,9 +1,7 @@
-
 #include "AssetManager.h"
 #include "ShaderAssetFormat.h"
 
 #include "import/GLTFImporter.h"
-#include "render/ShaderSystem.h"
 #include "render/util.h"
 
 #include <slang.h>
