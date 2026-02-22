@@ -176,8 +176,8 @@ const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSi
             // cbuffer PerFrameUniforms
             .set = 0,
             .binding = 0,
-            .bufferSize = 80,
             .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(80),
         },
         core::ShaderAssetFormat::Binding{
             // TextureSet gExtraTextures : register(space0) .albedoMap
@@ -195,8 +195,8 @@ const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSi
             // ParameterBlock<MaterialData> gMaterial : register(space1) auto generated Uniform
             .set = 1,
             .binding = 0,
-            .bufferSize = 16,
             .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(16),
         },
         core::ShaderAssetFormat::Binding{
             // ParameterBlock<MaterialData> gMaterial : register(space1) .textures.albedoMap
@@ -219,6 +219,7 @@ const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSi
 
     };
 const char* kComplexTest = R"(
+#include <ShaderInterop.h>
 struct AssembledVertex {
     float3 vtx;
 };
@@ -240,15 +241,15 @@ struct MaterialData {
     float roughness;
 };
 
-[[vk::binding(0, 0)]]
+[[vk::binding(0, BindSlot::Global)]]
 cbuffer PerFrameUniforms {
     CameraData gCamera;
 };
 
-[[vk::binding(0, 1)]]
+[[vk::binding(0, BindSlot::Material)]]
 ParameterBlock<MaterialData> gMaterial; 
 
-[[vk::binding(1, 0)]]
+[[vk::binding(1, BindSlot::Global)]]
 TextureSet gExtraTextures;
 
 
@@ -267,4 +268,102 @@ float4 vertexMain(AssembledVertex vertex) : SV_Position {
 
     return pos;
 }
+)";
+
+const uint32_t kStandardPBR_VS_ExpectedBindingSize = 4;
+const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_VS_ExpectedBindingSize>
+    kStandardPBR_VS_ExpectedBindings{
+        core::ShaderAssetFormat::Binding{
+            .set = 0,
+            .binding = 0,
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(64),
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 0,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 1,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 2,
+            .binding = 0,
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(64),
+        },
+    };
+
+const char* kStandardPBR_VS_Data = R"(
+#include <ShaderInterop.h>
+
+[[vk::binding(0, BindSlot::Global)]]
+ConstantBuffer<GlobalUniforms> globalUniforms;
+
+// struct MaterialData {
+//    Texture2D<float4> baseColorTexture;
+//    SamplerState baseColorSampler;
+// };
+[[vk::binding(0, BindSlot::Material)]]
+Texture2D<float4> baseColorTexture;
+//ParameterBlock<MaterialData> materialData;
+[[vk::binding(1, BindSlot::Material)]]
+SamplerState baseColorSampler;
+
+[[vk::binding(0, BindSlot::Instance)]]
+ConstantBuffer<InstanceUniforms> instanceUniforms;
+
+// Per-vertex attributes to be assembled from bound vertex buffers.
+struct AssembledVertex {
+    [[vk::location(ShaderLoc::Position)]]
+    float3 position : POSITION;
+    [[vk::location(ShaderLoc::Normal)]]
+    float3 normal : NORMAL;
+    [[vk::location(ShaderLoc::UV)]]
+    float2 texcoord : TEXCOORD_0;
+    [[vk::location(ShaderLoc::Tangent)]]
+    float4 tangent : TANGENT;
+};
+
+// Output of the vertex shader, and input to the fragment shader.
+struct CoarseVertex {
+    float2 uv;
+};
+
+// Output of the fragment shader
+struct Fragment {
+    float4 color;
+};
+
+// Vertex  Shader
+struct VertexStageOutput {
+    CoarseVertex coarseVertex : CoarseVertex;
+    float4 sv_position : SV_Position;
+};
+
+[shader("vertex")]
+VertexStageOutput vertexMain(AssembledVertex assembledVertex) {
+    VertexStageOutput output;
+
+    float3 position = assembledVertex.position;
+    float3 color = assembledVertex.normal;
+
+    output.coarseVertex.uv = assembledVertex.texcoord;
+    output.sv_position = mul(globalUniforms.viewProj, float4(position, 1.0));
+
+    return output;
+}
+
+// Fragment Shader
+[shader("fragment")]
+Fragment fragmentMain(CoarseVertex coarseVertex: CoarseVertex) : SV_Target {
+    Fragment output;
+    output.color =
+        baseColorTexture.Sample(baseColorSampler, coarseVertex.uv);
+    return output;
+}
+
 )";
