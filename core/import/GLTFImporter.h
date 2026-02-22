@@ -15,6 +15,7 @@ namespace core::importer {
 
 struct GLTFImportResult {
     std::vector<TextureResult> textures;
+    std::vector<MaterialResult> materials;
     std::vector<MeshResult> meshes;
     ModelAssetFormat modelAsset;
 };
@@ -71,9 +72,13 @@ class GLTFImporter {
         const tinygltf::Image& image);
     static std::expected<MeshAssetFormat, Error> ImportMesh(const tinygltf::Model& model,
                                                             const tinygltf::Mesh& mesh);
+    static std::expected<MaterialAssetFormat, Error> ImportMaterial(
+        const tinygltf::Model& model,
+        const tinygltf::Material& gltfMaterial);
 
     static AssetPath ToTextureID(int gltfTextureIndex);
   private:
+    static AssetPath ToMaterialID(int gltfMaterialIndex);
     static AssetPath ToMeshId(int gltfMeshIndex);
 };
 }  // namespace core::importer
