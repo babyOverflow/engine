@@ -254,6 +254,7 @@ std::optional<sa::Binding> CreateLeafBinding(VariableLayoutReflection* varLayout
 
     binding.set = set;
     binding.binding = ctx.bindingOffset + varLayout->getBindingIndex();
+    binding.id = core::ToPropertyID(varLayout->getName());
 
     switch (kind) {
         case slang::TypeReflection::Kind::ParameterBlock: {
@@ -268,9 +269,10 @@ std::optional<sa::Binding> CreateLeafBinding(VariableLayoutReflection* varLayout
         }
         case slang::TypeReflection::Kind::ConstantBuffer: {
             TypeLayoutReflection* innerType = typeLayout->getElementTypeLayout();
-            if (innerType->getSize() > 0) {
-                binding.resource.buffer.bufferSize = static_cast<uint32_t>(innerType->getSize());
+            if (innerType->getSize() == 0) {
+                return std::nullopt;
             }
+            binding.resource.buffer.bufferSize = static_cast<uint32_t>(innerType->getSize());
             binding.resourceType = sa::ResourceType::UniformBuffer;
             break;
         }
@@ -310,7 +312,7 @@ std::optional<sa::Binding> CreateLeafBinding(VariableLayoutReflection* varLayout
             break;
         default:
             binding.resourceType = sa::ResourceType::Unknown;
-            break;
+            return std::nullopt;
     }
 
     binding.visibility = ctx.visibility;
@@ -395,8 +397,8 @@ std::vector<sa::Binding> GenerateBindingsFromLayout(slang::ProgramLayout* layout
         VariableLayoutReflection* varRefl = layout->getParameterByIndex(i);
         std::string empty("");
         // Search recursively binding info from slang reflection tree and store in the binsings.
-
-        auto result = ReflectRecursively(varRefl, ctx);
+        size_t spaceOffset = varRefl->getBindingSpace();
+        auto result = ReflectRecursively(varRefl, ctx.WithSet(spaceOffset));
         bindings.insert(bindings.end(), result.begin(), result.end());
     }
 
