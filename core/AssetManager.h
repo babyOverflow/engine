@@ -13,8 +13,6 @@
 
 namespace core {
 
-
-
 class AssetManager {
   public:
     static AssetManager Create(render::Device* device);
@@ -29,13 +27,15 @@ class AssetManager {
     Handle StoreShaderAsset(render::ShaderAsset&& shader);
     AssetView<render::ShaderAsset> GetShaderAsset(Handle handle);
 
+    Handle StoreMaterial(render::Material&& material);
+    AssetView<render::Material> GetMaterial(Handle handle);
+
     Handle StoreMesh(render::Mesh&& mesh);
     AssetView<render::Mesh> GetMesh(Handle handle);
 
   private:
     AssetManager(render::Device* device);
     render::Device* m_device;
-
 
     ResourcePool<render::ShaderAsset> m_shaderPool;
     ResourcePool<render::Texture> m_texturePool;

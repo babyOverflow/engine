@@ -52,5 +52,12 @@ AssetView<render::Mesh> AssetManager::GetMesh(Handle handle) {
     return {m_meshPool.Get(handle), handle};
 }
 
+Handle AssetManager::StoreMaterial(render::Material&& material) {
+    return m_materialPool.Attach(std::move(material));
+}
+
+AssetView<render::Material> AssetManager::GetMaterial(Handle handle) {
+    return {m_materialPool.Get(handle), handle};
+}
 
 }  // namespace core

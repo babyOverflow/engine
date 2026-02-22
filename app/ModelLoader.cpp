@@ -14,11 +14,15 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
     const auto& result = resultOrError.value();
 
     for (const core::importer::TextureResult& textureResult : result.textures) {
-        core::Handle handle = m_textureManger->LoadTexture(textureResult);
+        core::Handle _ = m_textureManger->LoadTexture(textureResult);
+    }
+
+    for (const auto& materialResult : result.materials) {
+        core::Handle _ = m_materialManager->LoadMaterial(materialResult);
     }
 
     for (const auto& meshResult : result.meshes) {
-        core::Handle handle = m_meshManager->LoadMesh(meshResult);
+        core::Handle _ = m_meshManager->LoadMesh(meshResult);
     }
 
     core::render::Model model;
@@ -35,7 +39,9 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
             renderUnit.meshHandle = meshHandle;
             renderUnit.subMeshIndex = static_cast<uint32_t>(i);
             if (i < node.materialIds.size()) {
-                // TODO! load material and set to render unit
+                core::Handle materialHandle =
+                    m_materialManager->GetMaterialHandle(node.materialIds[i]);
+                renderUnit.materialHandle = materialHandle;
             }
             renderUnit.modelMatrix = node.localMatrix;
             model.renderUnits.push_back(std::move(renderUnit));

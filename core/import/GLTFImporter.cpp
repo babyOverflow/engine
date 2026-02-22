@@ -19,8 +19,50 @@ AssetPath GLTFImporter::ToTextureID(int gltfTextureIndex) {
     return AssetPath{std::format("virtual://tex/{}", gltfTextureIndex)};
 }
 
+AssetPath GLTFImporter::ToMaterialID(int gltfMaterialIndex) {
+    return AssetPath{std::format("virtual://material/{}", gltfMaterialIndex)};
+}
+
 AssetPath GLTFImporter::ToMeshId(int gltfMeshIndex) {
     return AssetPath{std::format("virtual://mesh/{}", gltfMeshIndex)};
+}
+
+std::expected<MaterialAssetFormat, Error> GLTFImporter::ImportMaterial(
+    const tinygltf::Model& model,
+    const tinygltf::Material& gltfMaterial) {
+    MaterialAssetFormat assetFormat;
+
+    const auto tryAppendTexture = [&](const auto& textureInfo, const std::string& name) {
+        if (textureInfo.index < 0) {
+            return;
+        }
+        assetFormat.SetTexture(name, ToTextureID(textureInfo.index));
+    };
+
+    tryAppendTexture(gltfMaterial.pbrMetallicRoughness.baseColorTexture, "baseColorTexture");
+    tryAppendTexture(gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture,
+                     "metallicRoughnessTexture");
+    tryAppendTexture(gltfMaterial.normalTexture, "normalTexture");
+    tryAppendTexture(gltfMaterial.occlusionTexture, "occlusionTexture");
+    tryAppendTexture(gltfMaterial.emissiveTexture, "emissiveTexture");
+
+    assetFormat.SetUniform(
+        "baseColorFactor",
+        glm::vec<4, float>(gltfMaterial.pbrMetallicRoughness.baseColorFactor[0],
+                           gltfMaterial.pbrMetallicRoughness.baseColorFactor[1],
+                           gltfMaterial.pbrMetallicRoughness.baseColorFactor[2],
+                           gltfMaterial.pbrMetallicRoughness.baseColorFactor[3]));
+    assetFormat.SetUniform("emissiveFactor", glm::vec<3, float>(gltfMaterial.emissiveFactor[0],
+                                                                  gltfMaterial.emissiveFactor[1],
+                                                                  gltfMaterial.emissiveFactor[2]));
+    assetFormat.SetUniform("normalScale", static_cast<float>(gltfMaterial.normalTexture.scale));
+
+    assetFormat.SetUniform("metallicFactor",
+                           static_cast<float>(gltfMaterial.pbrMetallicRoughness.metallicFactor));
+    assetFormat.SetUniform("roughnessFactor",
+                           static_cast<float>(gltfMaterial.pbrMetallicRoughness.roughnessFactor));
+
+    return assetFormat;
 }
 
 glm::mat4 GetNodeMatrix(const tinygltf::Node& node) {
@@ -74,6 +116,11 @@ std::expected<GLTFImportResult, Error> GLTFImporter::ImportFromFile(const std::s
         result.textures.push_back(TextureResult{texAsset, ToTextureID(i)});
     }
 
+    for (const auto& [idx, material] : gltfModel.materials | std::views::enumerate) {
+        result.materials.push_back(
+            MaterialResult{ImportMaterial(gltfModel, material).value_or({}), ToMaterialID(idx)});
+    }
+
     for (const auto& [idx, gltfMesh] : gltfModel.meshes | std::views::enumerate) {
         auto meshAsset = ImportMesh(gltfModel, gltfMesh).value_or({});
         result.meshes.push_back(MeshResult{meshAsset, ToMeshId(idx)});
@@ -91,7 +138,11 @@ std::expected<GLTFImportResult, Error> GLTFImporter::ImportFromFile(const std::s
 
         const auto& gltfMesh = gltfModel.meshes[node.mesh];
         for (const auto& primitive : gltfMesh.primitives) {
-            // TODO! material
+            if (primitive.material >= 0) {
+                modelNode.materialIds.push_back(ToMaterialID(primitive.material));
+            } else {
+                modelNode.materialIds.push_back(AssetPath{"virtual://material/default"});
+        }
         }
 
         result.modelAsset.nodes.push_back(modelNode);

@@ -5,6 +5,7 @@
 #include "LayoutCache.h"
 #include "PipelineManager.h"
 #include "ShaderAsset.h"
+#include "Texture.h"
 #include "render.h"
 
 namespace core::render {
@@ -16,7 +17,7 @@ concept ValidMaterialVariableType =
     std::is_same_v<T, glm::mat4>;
 
 class Material {
-    friend class MaterialSystem;
+    friend class MaterialManager;
 
   public:
     Material() = default;
@@ -39,6 +40,7 @@ class Material {
         }
         size_t offset = it->second.offset;
         std::memcpy(m_cpuVariableBufferData.data() + offset, &value, sizeof(T));
+        m_isUniformDirty = true;
     }
 
     template <ValidMaterialVariableType T>
@@ -46,9 +48,11 @@ class Material {
         SetVariable(ToPropertyID(name), value);
     }
 
+    AssetView<ShaderAsset> GetShader() const { return m_shaderView; }
+
     void UpdateUniform();
 
-    std::expected<wgpu::BindGroup, Error> GetBindGroup();
+    wgpu::BindGroup GetBindGroup();
 
   private:
     struct VariableInfo {
@@ -60,16 +64,11 @@ class Material {
              AssetView<ShaderAsset> shaderView,
              wgpu::Buffer unifromBuffer = nullptr,
              std::vector<std::byte> cpuData = {},
-             std::unordered_map<PropertyId, VariableInfo> variableInfo = {})
-        : m_device(device),
-          m_shaderView(shaderView),
-          m_uniformBuffer(unifromBuffer),
-          m_cpuVariableBufferData(cpuData),
-          m_variableInfo(variableInfo) {}
+             std::unordered_map<PropertyId, VariableInfo> variableInfo = {});
 
     void RebuildBindGroup();
 
-    bool m_isDirty = true;
+    bool m_isUniformDirty = true;
     Device* m_device;
     wgpu::BindGroup m_bindGroup = nullptr;
     AssetView<ShaderAsset> m_shaderView;
@@ -79,6 +78,7 @@ class Material {
     std::unordered_map<PropertyId, VariableInfo> m_variableInfo;
 
     std::unordered_map<PropertyId, AssetView<Texture>> m_textures;
+    wgpu::Sampler m_sampler = nullptr;  // TODO: support sampler in material
 };
 
 }  // namespace core::render

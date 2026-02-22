@@ -40,7 +40,7 @@
     "import/Importer.h"
     "import/GLTFImporter.h" "import/GLTFImporter.cpp"
     "import/ShdrImporter.h" "import/ShdrImporter.cpp"
-    "render/MaterialSystem.h" "render/MaterialSystem.cpp"
+    "render/MaterialManager.h" "render/MaterialManager.cpp"
     "render/Texture.h" 
     "render/TextureManager.h" "render/TextureManager.cpp"
  "render/MeshManager.h"  "render/MeshManager.cpp"

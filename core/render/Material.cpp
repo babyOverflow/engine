@@ -3,12 +3,32 @@
 
 namespace core::render {
 
+Material::Material(Device* device,
+                   AssetView<ShaderAsset> shaderView,
+                   wgpu::Buffer unifromBuffer,
+                   std::vector<std::byte> cpuData,
+                   std::unordered_map<PropertyId, VariableInfo> variableInfo)
+    : m_device(device),
+      m_shaderView(shaderView),
+      m_uniformBuffer(unifromBuffer),
+      m_cpuVariableBufferData(cpuData),
+      m_variableInfo(variableInfo) {
+    wgpu::SamplerDescriptor samplerDesc{
+        .label = "Default Sampler",
+        .addressModeU = wgpu::AddressMode::Repeat,
+        .addressModeV = wgpu::AddressMode::Repeat,
+        .addressModeW = wgpu::AddressMode::Repeat,
+        .magFilter = wgpu::FilterMode::Linear,
+        .minFilter = wgpu::FilterMode::Linear,
+        .mipmapFilter = wgpu::MipmapFilterMode::Linear,
+    };
+    m_sampler = m_device->GetDeivce().CreateSampler(&samplerDesc);
 
-
+}
 void Material::UpdateUniform() {
     m_device->WriteBuffer(m_uniformBuffer, 0, m_cpuVariableBufferData.data(),
                           m_cpuVariableBufferData.size());
-    m_isDirty = false;
+    m_isUniformDirty = false;
 }
 
 void Material::RebuildBindGroup() {
@@ -45,7 +65,12 @@ void Material::RebuildBindGroup() {
                 break;
             }
             case core::ShaderAssetFormat::ResourceType::Sampler: {
-                assert(false && "Sampler in material is not supported yet.");
+                wgpu::BindGroupEntry samplerEntry{
+                    .binding = entryInfo.binding,
+                    .sampler = m_sampler,  // TODO: support sampler in material
+                };
+                entries.push_back(samplerEntry);
+                break;
             }
             default:
                 assert(false && "not supported resource type.");
@@ -62,11 +87,20 @@ void Material::RebuildBindGroup() {
     m_bindGroup = m_device->CreateBindGroup(bindGroupDesc);
 }
 
-std::expected<wgpu::BindGroup, Error> Material::GetBindGroup() {
+wgpu::BindGroup Material::GetBindGroup() {
     if (m_bindGroup == nullptr) {
         RebuildBindGroup();
     }
     return m_bindGroup;
+}
+
+void Material::SetTexture(const std::string& name, AssetView<Texture> texture) {
+    SetTexture(ToPropertyID(name), texture);
+}
+
+void Material::SetTexture(PropertyId id, AssetView<Texture> texture) {
+    m_textures[id] = texture;
+    m_bindGroup = nullptr;
 }
 
 }  // namespace core::render
