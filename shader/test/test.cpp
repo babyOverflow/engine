@@ -64,7 +64,7 @@ TEST_F(SlangCompilerTest, DebugCodeCompilation) {
 
     EXPECT_EQ(binding.binding, 0);
     EXPECT_EQ(binding.resourceType, sa::ResourceType::UniformBuffer);
-    EXPECT_EQ(binding.bufferSize, kDebugCodeExpectedUniformsBufferSize);
+    EXPECT_EQ(binding.resource.buffer.bufferSize, kDebugCodeExpectedUniformsBufferSize);
 }
 
 TEST_F(SlangCompilerTest, ThreeTextureInOneStruct) {
@@ -86,8 +86,7 @@ TEST_F(SlangCompilerTest, ParameterBlock) {
 
     CompileResult shrd = result.value();
     EXPECT_EQ(shrd.header.bindingCount, kParameterBlockExpectedBindingSize);
-    for (uint32_t i = 0; i < shrd.bindings.size(); ++i)
-    {
+    for (uint32_t i = 0; i < shrd.bindings.size(); ++i) {
         const auto& binding = shrd.bindings[i];
         const auto& expected = kParameterBlockExpectedResourceTypes[i];
         EXPECT_EQ(binding.set, expected.set);
@@ -96,8 +95,7 @@ TEST_F(SlangCompilerTest, ParameterBlock) {
     }
 }
 
-TEST_F(SlangCompilerTest, ComplexTest)
-{
+TEST_F(SlangCompilerTest, ComplexTest) {
     auto result = compiler->CompileFromString(kComplexTest, "vertexMain");
     ASSERT_TRUE(result.has_value()) << result.error().message;
 
@@ -111,8 +109,31 @@ TEST_F(SlangCompilerTest, ComplexTest)
             << "\033[32m" << actual.name << "\033[0m set number should be " << expected.set;
         EXPECT_EQ(actual.binding, expected.binding)
             << "\033[32m" << actual.name << "\033[0m binding number should be " << expected.binding;
-        EXPECT_EQ(actual.bufferSize, expected.bufferSize);
-        EXPECT_EQ(actual.resourceType, expected.resourceType);
+        ASSERT_EQ(actual.resourceType, expected.resourceType);
+        if (actual.resourceType == sa::ResourceType::UniformBuffer) {
+            EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize);
+        }
+    }
+}
+
+TEST_F(SlangCompilerTest, StardardPBR) {
+    auto result = compiler->CompileFromString(kStandardPBR_VS_Data, "vertexMain");
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    CompileResult shrd = result.value();
+    std::println("{}", shrd.warning);
+    EXPECT_EQ(shrd.header.bindingCount, kStandardPBR_VS_ExpectedBindingSize);
+    for (uint32_t i = 0; i < shrd.bindings.size(); ++i) {
+        const auto& actual = shrd.bindings[i];
+        const auto& expected = kStandardPBR_VS_ExpectedBindings[i];
+        EXPECT_EQ(actual.set, expected.set)
+            << "\033[32m" << actual.name << "\033[0m set number should be " << expected.set;
+        EXPECT_EQ(actual.binding, expected.binding)
+            << "\033[32m" << actual.name << "\033[0m binding number should be " << expected.binding;
+        ASSERT_EQ(actual.resourceType, expected.resourceType);
+        if (actual.resourceType == sa::ResourceType::UniformBuffer) {
+            EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize);
+        }
     }
 }
 
