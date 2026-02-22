@@ -31,4 +31,14 @@ struct ShaderLoc {
 
 struct BindSlot {
     static const uint Global = 0;
+    static const uint Material = 1;
+    static const uint Instance = 2;
+};
+
+struct GlobalUniforms {
+    float4x4 viewProj;  // Camera: ProjectionMatrix * ViewMatrix
+};
+
+struct InstanceUniforms {
+    float4x4 model;  // Object: Local-to-World Matrix
 };
