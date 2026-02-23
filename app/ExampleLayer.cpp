@@ -7,11 +7,6 @@
 #include "ExampleLayer.h"
 #include "util.h"
 
-using core::render::GpuBindGroup;
-using core::render::GpuBindGroupLayout;
-using core::render::GpuBuffer;
-using core::render::GpuPipelineLayout;
-
 struct Uniform {
     glm::mat4x4 modelViewProjection;
 };
@@ -29,47 +24,63 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     core::render::Device* device = app->GetDevice();
     core::render::PipelineManager* pipelineManager = app->GetPipelineManager();
     core::AssetManager* assetManager = app->GetAssetManager();
-    core::render::ShaderSystem* shaderManager = app->GetShaderManager();
+    core::render::ShaderManager* shaderManager = app->GetShaderManager();
 
     using namespace core::render;
 
     auto shader = shaderManager->GetStandardShader();
 
     core::render::PipelineDesc pipelineDesc{
-        .shaderAsset = shader.Get(),
+        .shaderAsset = shader,
         .vertexType = core::render::VertexType::StandardMesh,
         .blendState = wgx::BlendState::kReplace,
     };
-    const GpuRenderPipeline* renderPipeline = pipelineManager->GetRenderPipeline(pipelineDesc);
+    pipelineManager->GetRenderPipeline(pipelineDesc);
 
     auto config = device->GetSurfaceConfig();
     auto proj = common::Projection::Perspective(45, config.width, config.height, 0.1, 100.0);
     common::GameCamera gameCamera{glm::vec3(0.F, 0.F, 0.F), 0.F, 0.F, proj};
 
-    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, renderPipeline));
+    loader::GLTFLoader loader{
+        app->GetAssetManager(),
+        app->GetTextureManager(),
+         app->GetMaterialManager(),
+        app->GetMeshManager(),
+    };
+
+    return std::unique_ptr<ExampleLayer>(
+        new ExampleLayer(app, device, gameCamera,  loader));
 }
 
 void ExampleLayer::OnAttach() {
-    auto assetManager = m_app->GetAssetManager();
-    m_modelHandle = assetManager->LoadModel("resources/microphone/scene.gltf");
-    if (!m_modelHandle.IsValid()) {
+    auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");
+    if (!modelOrError.has_value()) {
         std::println("failed to load");
     }
+    m_modelHandle = modelOrError.value();
 }
 
 void ExampleLayer::OnRender(core::render::FrameContext& context) {
     auto& d = m_device->GetDeivce();
     auto am = m_app->GetAssetManager();
-    auto model = am->GetModel(m_modelHandle);
+    auto modelView = am->GetModel(m_modelHandle);
 
     auto cameraData = m_gameCamera.GetCameraUniformData();
     context.SetCameraData(cameraData);
 
-    for (auto& mesh : model->subMeshes) {
-        core::render::RenderPacket packet{.pipeline = m_renderPipeline->GetHandle(),
-                                          .vertexBuffer = mesh.vertexBuffer.GetHandle(),
-                                          .indexBuffer = mesh.indexBuffer.GetHandle(),
-                                          .indexCount = mesh.indexCount};
+    for (auto& renderUnit : modelView->renderUnits) {
+        auto meshView = am->GetMesh(renderUnit.meshHandle);
+        auto mesh = meshView->submeshInfos[renderUnit.subMeshIndex];
+
+        auto modelMatrix = renderUnit.modelMatrix;
+        auto material = am->GetMaterial(renderUnit.materialHandle);
+
+        core::render::RenderPacket packet{
+            .vertexBuffer = meshView->vertexBuffer,
+            .indexBuffer = meshView->indexBuffer,
+            .indexCount = mesh.indexCount,
+            .material = material,
+        };
         context.Submit(packet);
     }
 }

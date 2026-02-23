@@ -24,6 +24,13 @@ struct Error {
     }
 };
 
+struct AssetPath {
+    std::string value;
+
+    // 편의를 위한 비교 연산자
+    bool operator==(const AssetPath& other) const { return value == other.value; }
+};
+
 struct Handle {
     static constexpr uint32_t kInvalidGen = -1;
     uint32_t index = 0;
@@ -71,3 +78,18 @@ constexpr uint32_t kSetNumberGlobal = 0;
 constexpr uint32_t kSetNumberMaterial = 1;
 constexpr uint32_t kSetNumberInstance = 2;
 }  // namespace core
+
+// std::unordered_map의 Key로 쓰기 위한 해시 특수화
+template <>
+struct std::hash<core::AssetPath> {
+    std::size_t operator()(const core::AssetPath& k) const {
+        return std::hash<std::string>{}(k.value);
+    }
+};
+
+template <>
+struct std::hash<core::Handle> {
+    std::size_t operator()(const core::Handle& k) const {
+        return std::hash<uint32_t>{}(k.index) ^ (std::hash<uint32_t>{}(k.generation) << 1);
+    }
+};

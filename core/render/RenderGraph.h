@@ -4,16 +4,17 @@
 #include <string>
 
 #include "render.h"
+#include "PipelineManager.h"
+#include "Material.h"
 
 namespace core::render {
 
 struct RenderPacket {
-    wgpu::RenderPipeline pipeline;
     wgpu::Buffer vertexBuffer;
     wgpu::Buffer indexBuffer;
-    wgpu::BindGroup bindGroup;
-
     size_t indexCount;
+
+    AssetView<Material> material;
 };
 
 class FrameContext {
@@ -31,7 +32,9 @@ class FrameContext {
 
 class RenderGraph {
   public:
-    RenderGraph(Device* device, const wgpu::BindGroupLayout globalBindGroupLayout);
+    RenderGraph(Device* device,
+                PipelineManager* pipelineManager,
+                const wgpu::BindGroupLayout globalBindGroupLayout);
 
     RenderGraph(RenderGraph&& rhs) = default;
 
@@ -39,8 +42,11 @@ class RenderGraph {
 
   private:
     Device* m_device;
+    PipelineManager* m_pipelineManager;
 
-    GpuBindGroup m_globalBindGroup;
-    GpuBuffer m_globalUniformBuffer;
+    wgpu::BindGroup m_globalBindGroup;
+    wgpu::Buffer m_globalUniformBuffer;
+
+ 
 };
 }  // namespace core::render

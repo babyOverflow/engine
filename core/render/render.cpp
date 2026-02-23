@@ -122,35 +122,33 @@ GpuPipelineLayout Device::CreatePipelineLayout(const wgpu::PipelineLayoutDescrip
     return GpuPipelineLayout(layout);
 }
 
-GpuRenderPipeline Device::CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor) {
+wgpu::RenderPipeline Device::CreateRenderPipeline(
+    const wgpu::RenderPipelineDescriptor& descriptor) {
     wgpu::RenderPipeline pipeline = m_device.CreateRenderPipeline(&descriptor);
-    return GpuRenderPipeline(pipeline);
+    return pipeline;
 }
 
 void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, uint64_t size) {
     m_device.GetQueue().WriteBuffer(buffer.GetHandle(), offset, data, size);
 }
 
-template <TextureDataFormat T>
-GpuTexture Device::CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
-                                         core::memory::StridedSpan<const T> data) {
+wgpu::Texture Device::CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
+                                            const wgpu::TexelCopyBufferLayout& layout,
+                                            std::span<const uint8_t> data) {
     wgpu::Texture texture = m_device.CreateTexture(&descriptor);
+
     wgpu::TexelCopyTextureInfo destination{
         .texture = texture,
+        .mipLevel = 0,
+        .origin = {0, 0, 0},
+        .aspect = wgpu::TextureAspect::All,
     };
-    wgpu::TexelCopyBufferLayout copyInfo{
-        .offset = 0,
-        .bytesPerRow = data.stride(),
-        .rowsPerImage = descriptor.size.height,
-    };
-    m_device.GetQueue().WriteTexture(&destination, &*data.begin(), data.size() * data.stride(),
-                                     &copyInfo, &descriptor.size);
-    return GpuTexture(texture);
+
+    m_device.GetQueue().WriteTexture(&destination, data.data(), data.size_bytes(), &layout,
+                                     &descriptor.size);
+    return texture;
 }
 
-template GpuTexture Device::CreateTextureFromData<uint8_t>(
-    const wgpu::TextureDescriptor& desc,
-    core::memory::StridedSpan<const uint8_t> data);
 // template GpuTexture Device::CreateTexture<uint16_t>(const wgpu::TextureDescriptor& desc,
 //                                                     core::memory::StridedSpan<const uint16_t>
 //                                                     data);

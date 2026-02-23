@@ -243,5 +243,26 @@ wgpu::BindGroupLayoutEntry core::util::MapBindingInfoToWgpu(render::BindingInfo 
     return entry;
 }
 
+wgpu::TextureFormat ConvertTextureFormatWgpu(core::TextureFormat format) {
+    switch (format) {
+        case core::TextureFormat::RGBA8Unorm:
+            return wgpu::TextureFormat::RGBA8Unorm;
+        case core::TextureFormat::Unknown:
+            return wgpu::TextureFormat::Undefined;
+        default:
+            return wgpu::TextureFormat::Undefined;
+    }
+}
+
+wgpu::TextureDimension ConvertTextureDimensionWgpu(core::TextureDimension dimension) {
+    switch (dimension) {
+        case core::TextureDimension::e2D:
+            return wgpu::TextureDimension::e2D;
+        case core::TextureDimension::Unknown:
+            return wgpu::TextureDimension::Undefined;
+        default:
+            return wgpu::TextureDimension::Undefined;
+    }
+}
 
 }  // namespace core::util

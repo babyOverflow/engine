@@ -7,6 +7,7 @@
 #include "ShaderAssetFormat.h"
 #include "render.h"
 
+
 namespace core::render {
 
 struct BindingInfo {
@@ -55,7 +56,7 @@ struct ShaderReflectionData {
 };
 
 class ShaderAsset {
-    friend class ShaderSystem;
+    friend class ShaderManager;
 
   public:
     using sa = core::ShaderAssetFormat;
@@ -77,6 +78,10 @@ class ShaderAsset {
 
     wgpu::BindGroupLayout GetBindGroupLayout(uint32_t setNumber) const {
         return m_bindGroupLayouts[setNumber];
+    }
+
+    std::span<const wgpu::BindGroupLayout> GetBindGroupLayouts() const {
+        return m_bindGroupLayouts;
     }
 
     bool IsValidRenderShader() {

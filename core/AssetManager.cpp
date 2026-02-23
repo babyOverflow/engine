@@ -1,12 +1,7 @@
-
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "AssetManager.h"
 #include "ShaderAssetFormat.h"
 
 #include "import/GLTFImporter.h"
-#include "render/ShaderSystem.h"
 #include "render/util.h"
 
 #include <slang.h>
@@ -25,14 +20,6 @@ AssetManager AssetManager::Create(render::Device* device) {
 
 AssetManager::AssetManager(render::Device* device) : m_device(device) {}
 
-Handle AssetManager::LoadModel(std::string filePath) {
-    auto model = importer::GLTFImporter::ImportFromFile(this, m_device, filePath);
-    if (!model.has_value()) {
-        // TODO! expected error handling
-        return Handle();
-    }
-    return model.value();
-}
 Handle AssetManager::StoreModel(render::Model&& model) {
     return m_modelPool.Attach(std::move(model));
 }
@@ -47,6 +34,30 @@ AssetView<render::ShaderAsset> core::AssetManager::GetShaderAsset(Handle handle)
 
 Handle AssetManager::StoreShaderAsset(render::ShaderAsset&& shader) {
     return m_shaderPool.Attach(std::move(shader));
+}
+
+Handle AssetManager::StoreTexture(render::Texture&& texture) {
+    return m_texturePool.Attach(std::move(texture));
+}
+
+AssetView<render::Texture> AssetManager::GetTexture(Handle handle) {
+    return {m_texturePool.Get(handle), handle};
+}
+
+Handle AssetManager::StoreMesh(render::Mesh&& mesh) {
+    return m_meshPool.Attach(std::move(mesh));
+}
+
+AssetView<render::Mesh> AssetManager::GetMesh(Handle handle) {
+    return {m_meshPool.Get(handle), handle};
+}
+
+Handle AssetManager::StoreMaterial(render::Material&& material) {
+    return m_materialPool.Attach(std::move(material));
+}
+
+AssetView<render::Material> AssetManager::GetMaterial(Handle handle) {
+    return {m_materialPool.Get(handle), handle};
 }
 
 }  // namespace core

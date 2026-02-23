@@ -11,12 +11,14 @@ PipelineManager::PipelineManager(Device* device,
     m_globalBindGroupLayout = m_layoutCache->GetBindGroupLayout(globalBindGroupLayoutDesc);
 }
 
-const GpuRenderPipeline* PipelineManager::GetRenderPipeline(const PipelineDesc& desc) {
+ wgpu::RenderPipeline PipelineManager::GetRenderPipeline(const PipelineDesc& desc) {
     if (m_pipelineCache.contains(desc)) {
-        return &m_pipelineCache.at(desc);
+        return m_pipelineCache.at(desc);
     }
 
-    std::vector<wgpu::BindGroupLayout> bindGroupLayouts{m_globalBindGroupLayout};
+    std::vector<wgpu::BindGroupLayout> bindGroupLayouts{
+        m_globalBindGroupLayout,
+    };
     for (uint32_t i = 1; i < 4; ++i) {
         bindGroupLayouts.push_back(desc.shaderAsset->GetBindGroupLayout(i));
     }
@@ -40,7 +42,7 @@ const GpuRenderPipeline* PipelineManager::GetRenderPipeline(const PipelineDesc& 
                             .entryPoint = "fragmentMain",
                             .targetCount = 1,
                             .targets = &targets};
-    GpuRenderPipeline renderPipeline =
+    wgpu::RenderPipeline renderPipeline =
         m_device->CreateRenderPipeline(wgpu::RenderPipelineDescriptor{
             .layout = renderPipelineLayout,
             .vertex = wgpu::VertexState{.module = desc.shaderAsset->GetVertexModule(),
@@ -52,6 +54,6 @@ const GpuRenderPipeline* PipelineManager::GetRenderPipeline(const PipelineDesc& 
         });
 
     m_pipelineCache[desc] = std::move(renderPipeline);
-    return &m_pipelineCache[desc];
+    return m_pipelineCache[desc];
 }
 }  // namespace core::render

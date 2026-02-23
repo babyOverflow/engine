@@ -1,19 +1,19 @@
 #include "RenderGraph.h"
 #include <array>
 
-core::render::RenderGraph::RenderGraph(Device* device, const wgpu::BindGroupLayout globalBindGroupLayout)
-    : m_device(device) {
-
-
+core::render::RenderGraph::RenderGraph(Device* device,
+                                       PipelineManager* pipelineManager,
+                                       const wgpu::BindGroupLayout globalBindGroupLayout)
+    : m_device(device), m_pipelineManager(pipelineManager) {
     CameraUniformData cameraUniformData;
-    GpuBuffer globalUniform = device->CreateBufferFromData(&cameraUniformData.viewProj,
-                                                           sizeof(cameraUniformData.viewProj),
-                                                           wgpu::BufferUsage::Uniform);
+    wgpu::Buffer globalUniform = device->CreateBufferFromData(&cameraUniformData.viewProj,
+                                                              sizeof(cameraUniformData.viewProj),
+                                                              wgpu::BufferUsage::Uniform);
     m_globalUniformBuffer = std::move(globalUniform);
 
     std::array<wgpu::BindGroupEntry, 1> bindGroupEntries{wgpu::BindGroupEntry{
         .binding = 0,
-        .buffer = m_globalUniformBuffer.GetHandle(),
+        .buffer = m_globalUniformBuffer,
         .offset = 0,
         .size = sizeof(cameraUniformData.viewProj),
     }};
@@ -22,6 +22,7 @@ core::render::RenderGraph::RenderGraph(Device* device, const wgpu::BindGroupLayo
         .entryCount = bindGroupEntries.size(),
         .entries = bindGroupEntries.data(),
     });
+
 }
 
 void core::render::RenderGraph::Execute(FrameContext& frameContext) {
@@ -42,19 +43,25 @@ void core::render::RenderGraph::Execute(FrameContext& frameContext) {
     };
 
     auto& cameraData = frameContext.GetCameraUniformData();
-    d.GetQueue().WriteBuffer(m_globalUniformBuffer.GetHandle(), 0, &cameraData.viewProj,
+    d.GetQueue().WriteBuffer(m_globalUniformBuffer, 0, &cameraData.viewProj,
                              sizeof(cameraData.viewProj));
 
     auto commandEncoder = d.CreateCommandEncoder();
     auto pass = commandEncoder.BeginRenderPass(&renderPassDesc);
 
-    pass.SetBindGroup(0, m_globalBindGroup.GetHandle());
+    pass.SetBindGroup(0, m_globalBindGroup);
 
     auto packets = frameContext.GetQueue();
     for (auto& p : packets) {
-        pass.SetPipeline(p.pipeline);
+        wgpu::RenderPipeline pipeline = m_pipelineManager->GetRenderPipeline(PipelineDesc{
+            .shaderAsset = p.material->GetShader(),
+            .vertexType = VertexType::StandardMesh,
+        });
+        pass.SetPipeline(pipeline);
         pass.SetVertexBuffer(0, p.vertexBuffer);
         pass.SetIndexBuffer(p.indexBuffer, wgpu::IndexFormat::Uint32);
+        pass.SetBindGroup(1, p.material->GetBindGroup());
+        //pass.SetBindGroup(2, m_tempBindGroup.bindGroup);
 
         pass.DrawIndexed(p.indexCount);
     }

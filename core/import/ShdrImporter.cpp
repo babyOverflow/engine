@@ -5,25 +5,24 @@
 
 namespace core::importer {
 
-std::expected<ShaderBlob, Error> core::importer::ShdrImporter::ShdrImport(
-    core::render::Device* device,
+std::expected<ShaderImportResult, Error> core::importer::ShdrImporter::ShdrImport(
     const std::string& shaderPath) {
-    const auto shrdOrError =
-        util::ReadFileToByte(shaderPath).and_then(ShaderAssetFormat::LoadFromMemory);
-    if (!shrdOrError.has_value()) {
+    const auto blobOrError = util::ReadFileToByte(shaderPath)
+                                 .and_then(ShaderAssetFormat::LoadFromMemory)
+                                 .and_then(ShdrImporter::ShdrConvert);
+    if (!blobOrError.has_value()) {
         return std::unexpected(Error::Parse(""));
     }
-    return ShdrImport(device, shrdOrError.value());
+    return ShaderImportResult{
+        blobOrError.value(),
+        AssetPath{shaderPath},
+    };
 }
 
-std::expected<ShaderBlob, Error> ShdrImporter::ShdrImport(core::render::Device* device,
-                                                          const core::ShaderAssetFormat& shdr) {
+std::expected<ShaderBlob, Error> ShdrImporter::ShdrConvert(const core::ShaderAssetFormat& shdr) {
     using Fmt = ShaderAssetFormat;
 
-    std::string_view wgslCode(reinterpret_cast<const char*>(shdr.code.data()), shdr.code.size());
-    wgpu::ShaderModule shaderModule = device->CreateShaderModuleFromWGSL(wgslCode);
-
-    const auto& bindings = shdr.bindings;
+    const std::vector<Fmt::Binding>& bindings = shdr.bindings;
 
     render::ShaderReflectionData reflection;
 
@@ -43,6 +42,7 @@ std::expected<ShaderBlob, Error> ShdrImporter::ShdrImport(core::render::Device* 
         render::BindingInfo bindingInfo{
             .set = binding.set,
             .binding = binding.binding,
+            .id = binding.id,
             .resourceType = binding.resourceType,
             .visibility = binding.visibility,
             .resource = binding.resource,
@@ -56,7 +56,7 @@ std::expected<ShaderBlob, Error> ShdrImporter::ShdrImport(core::render::Device* 
     }
 
     return ShaderBlob{
-        .shaderModule = shaderModule,
+        .shaderCode = std::move(shdr.code),
         .reflection = std::move(reflection),
     };
 }

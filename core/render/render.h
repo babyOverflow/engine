@@ -11,6 +11,7 @@
 
 #include "GpuResource.h"
 #include "ShaderInterop.h"
+#include "Texture.h"
 #include "Window.h"
 #include "memory/StridedSpan.h"
 #include "wgx.h"
@@ -52,11 +53,11 @@ class Device {
     wgpu::BindGroup CreateBindGroup(const wgpu::BindGroupDescriptor& descriptor);
 
     GpuPipelineLayout CreatePipelineLayout(const wgpu::PipelineLayoutDescriptor& descriptor);
-    GpuRenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);
+    wgpu::RenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);
 
-    template <TextureDataFormat T>
-    GpuTexture CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
-                                     core::memory::StridedSpan<const T> data);
+    wgpu::Texture CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
+                                        const wgpu::TexelCopyBufferLayout& layout,
+                                        std::span<const uint8_t> data);
 
     void WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, uint64_t size);
 
@@ -90,10 +91,6 @@ std::expected<std::string, int> LoadShaderCode(std::string_view path);
 
 std::expected<wgpu::ShaderModule, int> LoadShaderModuleFromString(wgpu::Device& device,
                                                                   std::string_view shaderCode);
-
-extern template GpuTexture Device::CreateTextureFromData<uint8_t>(
-    const wgpu::TextureDescriptor& desc,
-    core::memory::StridedSpan<const uint8_t> data);
 
 }  // namespace render
 

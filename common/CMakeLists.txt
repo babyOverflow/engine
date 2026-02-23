@@ -2,6 +2,10 @@
 add_library(common STATIC 
 	"ShaderAssetFormat.h" "ShaderAssetFormat.cpp"
 	"Common.h"
+	"TextureAssetFormat.h" 
+	"MaterialAssetFormat.h"
+	"MeshAssetFormat.h"
+	"ModelAssetFormat.h"
 )
 target_include_directories(common INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
