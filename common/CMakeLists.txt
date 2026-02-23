@@ -2,7 +2,7 @@
 add_library(common STATIC 
 	"ShaderAssetFormat.h" "ShaderAssetFormat.cpp"
 	"Common.h"
- "TextureAssetFormat.h" 
+	"TextureAssetFormat.h" 
 	"MaterialAssetFormat.h"
 	"MeshAssetFormat.h"
 	"ModelAssetFormat.h"

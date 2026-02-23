@@ -122,9 +122,10 @@ GpuPipelineLayout Device::CreatePipelineLayout(const wgpu::PipelineLayoutDescrip
     return GpuPipelineLayout(layout);
 }
 
-GpuRenderPipeline Device::CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor) {
+wgpu::RenderPipeline Device::CreateRenderPipeline(
+    const wgpu::RenderPipelineDescriptor& descriptor) {
     wgpu::RenderPipeline pipeline = m_device.CreateRenderPipeline(&descriptor);
-    return GpuRenderPipeline(pipeline);
+    return pipeline;
 }
 
 void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, uint64_t size) {

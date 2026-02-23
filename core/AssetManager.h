@@ -6,9 +6,9 @@
 #include "memory/StridedSpan.h"
 #include "render/Material.h"
 #include "render/Mesh.h"
-#include "render/Texture.h"
-#include "render/ShaderAsset.h"
 #include "render/Model.h"
+#include "render/ShaderAsset.h"
+#include "render/Texture.h"
 #include "util/Load.h"
 
 namespace core {

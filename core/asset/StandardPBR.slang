@@ -1,9 +1,17 @@
 #include <ShaderInterop.h>
 
 [[vk::binding(0, BindSlot::Global)]]
-cbuffer Uniforms {
-    float4x4 modelViewProjection;
-}
+ConstantBuffer<GlobalUniforms> globalUniforms;
+
+struct MaterialData {
+    Texture2D<float4> baseColorTexture;
+    SamplerState baseColorSampler;
+};
+[[vk::binding(0, BindSlot::Material)]]
+ParameterBlock<MaterialData> materialData;
+
+// [[vk::binding(0, BindSlot::Instance)]]
+// ConstantBuffer<InstanceUniforms> instanceUniforms;
 
 // Per-vertex attributes to be assembled from bound vertex buffers.
 struct AssembledVertex {
@@ -19,7 +27,7 @@ struct AssembledVertex {
 
 // Output of the vertex shader, and input to the fragment shader.
 struct CoarseVertex {
-    float3 color;
+    float2 uv;
 };
 
 // Output of the fragment shader
@@ -40,8 +48,10 @@ VertexStageOutput vertexMain(AssembledVertex assembledVertex) {
     float3 position = assembledVertex.position;
     float3 color = assembledVertex.normal;
 
-    output.coarseVertex.color = color;
-    output.sv_position = mul(modelViewProjection, float4(position, 1.0));
+    output.coarseVertex.uv = assembledVertex.texcoord;
+
+    //float4 worldPosition = mul(instanceUniforms.model, float4(position, 1.0f));
+    output.sv_position = mul(globalUniforms.viewProj, float4(position, 1.0f));
 
     return output;
 }
@@ -49,9 +59,8 @@ VertexStageOutput vertexMain(AssembledVertex assembledVertex) {
 // Fragment Shader
 [shader("fragment")]
 Fragment fragmentMain(CoarseVertex coarseVertex: CoarseVertex) : SV_Target {
-    float3 color = coarseVertex.color;
-
     Fragment output;
-    output.color = float4(color, 1.0);
+    output.color =
+        materialData.baseColorTexture.Sample(materialData.baseColorSampler, coarseVertex.uv);
     return output;
 }

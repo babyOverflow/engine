@@ -53,7 +53,7 @@ class Device {
     wgpu::BindGroup CreateBindGroup(const wgpu::BindGroupDescriptor& descriptor);
 
     GpuPipelineLayout CreatePipelineLayout(const wgpu::PipelineLayoutDescriptor& descriptor);
-    GpuRenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);
+    wgpu::RenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);
 
     wgpu::Texture CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
                                         const wgpu::TexelCopyBufferLayout& layout,

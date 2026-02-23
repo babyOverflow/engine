@@ -42,6 +42,7 @@ std::expected<ShaderBlob, Error> ShdrImporter::ShdrConvert(const core::ShaderAss
         render::BindingInfo bindingInfo{
             .set = binding.set,
             .binding = binding.binding,
+            .id = binding.id,
             .resourceType = binding.resourceType,
             .visibility = binding.visibility,
             .resource = binding.resource,

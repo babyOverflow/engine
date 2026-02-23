@@ -21,12 +21,10 @@ class ExampleLayer : public core::Layer {
     ExampleLayer(core::Application* app,
                  core::render::Device* device,
                  common::GameCamera camera,
-                 const core::render::GpuRenderPipeline* renderPipeline,
                  loader::GLTFLoader loader)
         : m_app(app),
           m_gameCamera(camera),
           m_device(device),
-          m_renderPipeline(renderPipeline),
           m_loader(loader) {}
 
     common::GameCamera m_gameCamera;
@@ -34,7 +32,6 @@ class ExampleLayer : public core::Layer {
 
     core::Application* m_app;
     core::render::Device* m_device;
-    const core::render::GpuRenderPipeline* m_renderPipeline;
     loader::GLTFLoader m_loader;
 
     core::Handle m_modelHandle;

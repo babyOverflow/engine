@@ -86,3 +86,10 @@ struct std::hash<core::AssetPath> {
         return std::hash<std::string>{}(k.value);
     }
 };
+
+template <>
+struct std::hash<core::Handle> {
+    std::size_t operator()(const core::Handle& k) const {
+        return std::hash<uint32_t>{}(k.index) ^ (std::hash<uint32_t>{}(k.generation) << 1);
+    }
+};
