@@ -7,8 +7,9 @@
 #include "Window.h"
 #include "render/MeshManager.h"
 #include "render/PipelineManager.h"
-#include "render/ShaderSystem.h"
+#include "render/ShaderManager.h"
 #include "render/TextureManager.h"
+#include "render/MaterialManager.h"
 #include "render/render.h"
 
 namespace core {
@@ -30,8 +31,9 @@ class Application {
 
     AssetManager* GetAssetManager() { return m_assetManager.get(); }
     render::PipelineManager* GetPipelineManager() { return m_pipelineManager.get(); }
-    render::ShaderSystem* GetShaderManager() { return m_shaderManager.get(); }
+    render::ShaderManager* GetShaderManager() { return m_shaderManager.get(); }
     render::TextureManager* GetTextureManager() { return m_textureManager.get(); }
+    render::MaterialManager* GetMaterialManager() { return m_materialManager.get(); }
     render::MeshManager* GetMeshManager() { return m_meshManager.get(); }
     render::Device* GetDevice() { return m_device.get(); }
 
@@ -50,8 +52,9 @@ class Application {
                 render::RenderGraph renderGraph,
                 std::unique_ptr<render::LayoutCache> layoutCache,
                 std::unique_ptr<render::PipelineManager> pipelineManager,
-                std::unique_ptr<render::ShaderSystem> shaderManager,
+                std::unique_ptr<render::ShaderManager> shaderManager,
                 std::unique_ptr<render::TextureManager> textureManager,
+                 std::unique_ptr<render::MaterialManager> materialManager,
                 std::unique_ptr<render::MeshManager> meshManager)
         : m_window(std::move(window)),
           m_device(std::move(device)),
@@ -62,7 +65,8 @@ class Application {
           m_pipelineManager(std::move(pipelineManager)),
           m_shaderManager(std::move(shaderManager)),
           m_textureManager(std::move(textureManager)),
-          m_meshManager(std::move(meshManager)) {}
+          m_meshManager(std::move(meshManager)),
+          m_materialManager(std::move(materialManager)) {}
 
     Window m_window;
     std::unique_ptr<render::Device> m_device;
@@ -73,9 +77,10 @@ class Application {
     std::unique_ptr<render::LayoutCache> m_layoutCache;
     std::unique_ptr<render::PipelineManager> m_pipelineManager;
     std::unique_ptr<render::TextureManager> m_textureManager;
-    std::unique_ptr<render::ShaderSystem> m_shaderManager;
+    std::unique_ptr<render::ShaderManager> m_shaderManager;
     std::unique_ptr<render::MeshManager> m_meshManager;
     render::RenderGraph m_renderGraph;
+    std::unique_ptr<render::MaterialManager> m_materialManager;
 
     std::vector<std::unique_ptr<Layer>> m_Layers;
     bool m_souldColose = false;

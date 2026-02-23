@@ -7,11 +7,6 @@
 #include "ExampleLayer.h"
 #include "util.h"
 
-using core::render::GpuBindGroup;
-using core::render::GpuBindGroupLayout;
-using core::render::GpuBuffer;
-using core::render::GpuPipelineLayout;
-
 struct Uniform {
     glm::mat4x4 modelViewProjection;
 };
@@ -36,11 +31,11 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     auto shader = shaderManager->GetStandardShader();
 
     core::render::PipelineDesc pipelineDesc{
-        .shaderAsset = shader.Get(),
+        .shaderAsset = shader,
         .vertexType = core::render::VertexType::StandardMesh,
         .blendState = wgx::BlendState::kReplace,
     };
-    const GpuRenderPipeline* renderPipeline = pipelineManager->GetRenderPipeline(pipelineDesc);
+    pipelineManager->GetRenderPipeline(pipelineDesc);
 
     auto config = device->GetSurfaceConfig();
     auto proj = common::Projection::Perspective(45, config.width, config.height, 0.1, 100.0);
@@ -49,11 +44,12 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     loader::GLTFLoader loader{
         app->GetAssetManager(),
         app->GetTextureManager(),
+         app->GetMaterialManager(),
         app->GetMeshManager(),
     };
 
     return std::unique_ptr<ExampleLayer>(
-        new ExampleLayer(app, device, gameCamera, renderPipeline, loader));
+        new ExampleLayer(app, device, gameCamera,  loader));
 }
 
 void ExampleLayer::OnAttach() {
@@ -76,10 +72,15 @@ void ExampleLayer::OnRender(core::render::FrameContext& context) {
         auto meshView = am->GetMesh(renderUnit.meshHandle);
         auto mesh = meshView->submeshInfos[renderUnit.subMeshIndex];
 
-        core::render::RenderPacket packet{.pipeline = m_renderPipeline->GetHandle(),
-                                          .vertexBuffer = meshView->vertexBuffer,
-                                          .indexBuffer = meshView->indexBuffer,
-                                          .indexCount = mesh.indexCount};
+        auto modelMatrix = renderUnit.modelMatrix;
+        auto material = am->GetMaterial(renderUnit.materialHandle);
+
+        core::render::RenderPacket packet{
+            .vertexBuffer = meshView->vertexBuffer,
+            .indexBuffer = meshView->indexBuffer,
+            .indexCount = mesh.indexCount,
+            .material = material,
+        };
         context.Submit(packet);
     }
 }
