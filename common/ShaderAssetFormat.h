@@ -10,7 +10,15 @@
 namespace core {
 struct ShaderAssetFormat {
     static constexpr uint32_t SHADER_ASSET_MAGIC = 0x52444853;
-    static constexpr uint32_t SHADER_ASSET_VERSION = 3;
+    static constexpr uint32_t SHADER_ASSET_VERSION = 4;
+
+    enum class Kind : uint8_t {
+        None,
+        Scalar,
+        Vector,
+        Matrix,
+        Struct,
+    };
 
     enum class SamplerType : uint8_t {
         BindingNotUsed,
@@ -50,14 +58,24 @@ struct ShaderAssetFormat {
         Unknown = 0xFF,
     };
 
+    enum class ScalarType : uint8_t {
+        F32,
+        F16,
+        U32,
+        I32,
+        Bool,
+        Undefined,
+    };
+
     inline void PrintTo(ResourceType type, std::ostream* os) { *os << magic_enum::enum_name(type); }
 
     enum class ShaderVisibility : uint8_t {
         None = 0x0,
         Vertex = 0x1,
         Fragment = 0x2,
+        Render = 0x03,  // Vertex | Fragment
         Compute = 0x4,
-        All = Vertex | Fragment | Compute
+        All = 0x07,  // Vertex | Fragment | Compute
     };
 
     struct Sampler {
@@ -74,10 +92,12 @@ struct ShaderAssetFormat {
         uint32_t bufferSize;
     };
 
-    union Resource {
-        Sampler sampler;
-        Texture texture;
-        Buffer buffer;
+    struct Resource {
+        union {
+            Sampler sampler;
+            Texture texture;
+            Buffer buffer;
+        };
 
         static Resource Buffer(uint32_t size);
     };
@@ -85,38 +105,55 @@ struct ShaderAssetFormat {
     struct alignas(64) Header {
         uint32_t magicNumber = SHADER_ASSET_MAGIC;
         uint16_t version = SHADER_ASSET_VERSION;
+        uint16_t vertexInputCount;
+        uint16_t vertexOutputCount;
+        uint16_t fragmentOutputCount;
         uint16_t bindingCount;
         uint32_t shaderSize;
         uint32_t threadGroupSize[3];
         ShaderVisibility entryShaderStage;
+        char _padding[33];
     };
 
     /**
      * @brief Flattened Resource's binding information
      *
      */
-    struct alignas(64) Binding {
+    struct alignas(32) Binding {
         uint32_t set;
         uint32_t binding;
         uint32_t id;
+        uint32_t nameIdx;
+        Resource resource = {.buffer = {0}};
         ResourceType resourceType;
         ShaderVisibility visibility;
-        Resource resource = {.buffer = {0}};
-        char name[32];
+        char _padding[10];
+    };
+
+    struct Variable {
+        Kind kind;
+        ScalarType scalarType;
+        uint8_t rows;
+        uint8_t columns;
+        uint32_t nameIdx;
+    };
+
+    struct ShaderParameter {
+        Variable variable;
+        uint32_t location;
+        uint32_t semanticNameIdx;
     };
 
     Header header;
+    std::vector<ShaderParameter> vertexInputs;
+    std::vector<ShaderParameter> vertexOutputs;
+    std::vector<ShaderParameter> fragmentOutputs;
     std::vector<Binding> bindings;
     std::vector<uint8_t> code;
+    std::vector<std::string> nameTable;
 
     static std::expected<ShaderAssetFormat, Error> LoadFromMemory(std::span<const uint8_t> memory);
 };
-
-inline ShaderAssetFormat::ShaderVisibility operator|(ShaderAssetFormat::ShaderVisibility a,
-                                                     ShaderAssetFormat::ShaderVisibility b) {
-    return static_cast<ShaderAssetFormat::ShaderVisibility>(static_cast<uint8_t>(a) |
-                                                            static_cast<uint8_t>(b));
-}
 
 }  // namespace core
 
@@ -128,11 +165,17 @@ struct std::formatter<core::ShaderAssetFormat::ResourceType> : std::formatter<st
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, core::ShaderAssetFormat::ResourceType type) {
-    return os << std::format("{}", type);
+
+inline core::ShaderAssetFormat::ShaderVisibility operator|(
+    core::ShaderAssetFormat::ShaderVisibility a,
+    core::ShaderAssetFormat::ShaderVisibility b) {
+    return static_cast<core::ShaderAssetFormat::ShaderVisibility>(static_cast<uint8_t>(a) |
+                                                                  static_cast<uint8_t>(b));
 }
 
-inline uint8_t operator&(core::ShaderAssetFormat::ShaderVisibility a,
-                         core::ShaderAssetFormat::ShaderVisibility b) {
-    return (static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+inline core::ShaderAssetFormat::ShaderVisibility operator&(
+    core::ShaderAssetFormat::ShaderVisibility a,
+    core::ShaderAssetFormat::ShaderVisibility b) {
+    return static_cast<core::ShaderAssetFormat::ShaderVisibility>(static_cast<uint8_t>(a) &
+                                                                  static_cast<uint8_t>(b));
 }

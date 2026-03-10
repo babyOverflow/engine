@@ -153,6 +153,16 @@ struct ReflectionContext {
     }
 };
 
+struct CompilerBinding {
+    uint32_t set;
+    uint32_t binding;
+    uint32_t id;
+    sa::Resource resource = {.buffer = {0}};
+    sa::ResourceType resourceType;
+    sa::ShaderVisibility visibility;
+    std::string name;
+};
+
 sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
                                  const ReflectionContext& ctx) {
     slang::TypeLayoutReflection* typeLayout = varLayout->getTypeLayout();
@@ -235,7 +245,7 @@ sa::Sampler CreateSamplerBinding(VariableLayoutReflection* varLayout,
     return samplerBinding;
 }
 
-std::optional<sa::Binding> CreateLeafBinding(VariableLayoutReflection* varLayout,
+std::optional<CompilerBinding> CreateLeafBinding(VariableLayoutReflection* varLayout,
                                              const ReflectionContext& ctx) {
     TypeLayoutReflection* typeLayout = varLayout->getTypeLayout();
     TypeReflection::Kind kind = typeLayout->getKind();
@@ -250,7 +260,7 @@ std::optional<sa::Binding> CreateLeafBinding(VariableLayoutReflection* varLayout
         set = (spaceOffset != -SLANG_UNBOUNDED_SIZE) ? (uint32_t)spaceOffset : 0;
     }
 
-    sa::Binding binding{};
+    CompilerBinding binding{};
 
     binding.set = set;
     binding.binding = ctx.bindingOffset + varLayout->getBindingIndex();
@@ -316,19 +326,14 @@ std::optional<sa::Binding> CreateLeafBinding(VariableLayoutReflection* varLayout
     }
 
     binding.visibility = ctx.visibility;
-    if (!ctx.prefix.empty()) {
-        std::string_view nameView = ctx.prefix;
-        size_t copyLen = std::min(nameView.size(), sizeof(binding.name) - 1);
-        std::memcpy(binding.name, nameView.data(), copyLen);
-        binding.name[copyLen] = '\0';
-    }
+    binding.name = ctx.prefix;
     return binding;
 }
 
 }  // namespace
-std::vector<sa::Binding> ReflectRecursively(VariableLayoutReflection* varLayout,
+std::vector<CompilerBinding> ReflectRecursively(VariableLayoutReflection* varLayout,
                                             const ReflectionContext& ctx) {
-    std::vector<sa::Binding> results;
+    std::vector<CompilerBinding> results;
 
     TypeLayoutReflection* typeLayout = varLayout->getTypeLayout();
     TypeReflection::Kind kind = typeLayout->getKind();
@@ -386,23 +391,24 @@ std::vector<sa::Binding> ReflectRecursively(VariableLayoutReflection* varLayout,
     return results;
 }
 
-std::vector<sa::Binding> GenerateBindingsFromLayout(slang::ProgramLayout* layout,
-                                                    sa::ShaderVisibility visibility) {
-    std::vector<sa::Binding> bindings;
+std::vector<CompilerBinding> GenerateBindingsFromLayout(slang::ProgramLayout* layout,
+                                                        CompilationContext& compilationContext) {
+    std::vector<CompilerBinding> bindings;
     uint32_t paramCount = layout->getParameterCount();
     ReflectionContext ctx{
-        .visibility = visibility,
+        .visibility = compilationContext.visibility,
     };
     for (uint32_t i = 0; i < paramCount; ++i) {
         VariableLayoutReflection* varRefl = layout->getParameterByIndex(i);
         std::string empty("");
         // Search recursively binding info from slang reflection tree and store in the binsings.
         size_t spaceOffset = varRefl->getBindingSpace();
-        auto result = ReflectRecursively(varRefl, ctx.WithSet(spaceOffset));
+        const std::vector<CompilerBinding> result =
+            ReflectRecursively(varRefl, ctx.WithSet(spaceOffset));
         bindings.insert(bindings.end(), result.begin(), result.end());
     }
 
-    std::ranges::sort(bindings, [](sa::Binding& a, sa::Binding& b) -> bool {
+    std::ranges::sort(bindings, [](CompilerBinding& a, CompilerBinding& b) -> bool {
         if (a.set != b.set) {
             return a.set < b.set;
         }
@@ -448,13 +454,37 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
         }
     }
 
-    ProgramLayout* layout = linkedProgram->getLayout();
+    ProgramLayout* programLayout = linkedProgram->getLayout();
     sa::ShaderVisibility visibility = sa::ShaderVisibility::None;
-    if (layout->getEntryPointCount() > 0) {
-        visibility = GetVisibility(layout->getEntryPointByIndex(0)->getStage());
+    if (programLayout->getEntryPointCount() > 0) {
+        visibility = GetVisibility(programLayout->getEntryPointByIndex(0)->getStage());
     }
+    context.visibility = visibility;
+    std::vector<CompilerBinding> compilerBindings =
+        GenerateBindingsFromLayout(programLayout, context);
 
-    std::vector<sa::Binding> bindings = GenerateBindingsFromLayout(layout, visibility);
+    std::vector<std::string> nameTable;
+    std::vector<sa::Binding> bindings;
+    {
+        std::unordered_map<std::string, uint32_t> tempNameMap;
+        bindings.reserve(compilerBindings.size());
+        for (uint32_t i = 0; i < compilerBindings.size(); ++i) {
+            const auto& cb = compilerBindings[i];
+            const auto [it, inserted] = tempNameMap.try_emplace(cb.name, nameTable.size());
+            if (inserted) {
+                nameTable.push_back(cb.name);
+            }
+            bindings.push_back(sa::Binding{
+                .set = cb.set,
+                .binding = cb.binding,
+                .id = cb.id,
+                .nameIdx = it->second,
+                .resource = cb.resource,
+                .resourceType = cb.resourceType,
+                .visibility = cb.visibility,
+            });
+        }
+    }
 
     std::vector<uint8_t> code(codeBlob->getBufferSize());
     memcpy(code.data(), codeBlob->getBufferPointer(), codeBlob->getBufferSize());
