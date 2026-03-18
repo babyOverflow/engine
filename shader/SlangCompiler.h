@@ -29,12 +29,13 @@ struct Error {
 };
 
 struct CompileResult {
-    core::ShaderAssetFormat::Header header;
     std::vector<core::ShaderAssetFormat::ShaderParameter> parameters;
     std::vector<core::ShaderAssetFormat::Binding> bindings;
     std::vector<core::ShaderAssetFormat::Variable> variables;
+    std::vector<core::ShaderAssetFormat::EntryPoint> entryPoints;
     std::vector<uint8_t> sourceBlob;
     std::vector<std::string> nameTable;
+    std::vector<uint32_t> indices;
     std::string warning;
 };
 
@@ -42,7 +43,9 @@ struct CompilationContext {
     std::string message;
     core::ShaderAssetFormat::ShaderVisibility visibility =
         core::ShaderAssetFormat::ShaderVisibility::None;
-    std::vector<std::string> nameTable;
+
+    slang::IModule* module;
+    std::vector<slang::IEntryPoint*> entryPoints;
 
     bool Failed(SlangResult result, slang::IBlob* diagnosticBlob);
 
@@ -58,6 +61,7 @@ class SlangCompiler {
     static std::expected<SlangCompiler, Error> Create(const SlangCompilerDesc& desc);
     std::expected<CompileResult, Error> CompileFromString(const std::string& slangCode,
                                                           const std::string& entryName);
+    std::expected<CompileResult, Error> CompileFromString(const std::string& slangCode);
     std::expected<CompileResult, Error> Compile(const std::string& path,
                                                 const std::string& entryName);
 

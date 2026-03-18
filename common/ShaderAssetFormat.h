@@ -1,4 +1,5 @@
 #pragma once
+#include <compare>
 #include <expected>
 #include <format>
 #include <iostream>
@@ -11,6 +12,12 @@ namespace core {
 struct ShaderAssetFormat {
     static constexpr uint32_t SHADER_ASSET_MAGIC = 0x52444853;
     static constexpr uint32_t SHADER_ASSET_VERSION = 4;
+
+    static constexpr uint32_t kInvalidIdx = -1;
+
+    enum class Flag : uint16_t {  // Reserved
+        None,
+    };
 
     enum class Kind : uint8_t {
         None,
@@ -100,20 +107,37 @@ struct ShaderAssetFormat {
         };
 
         static Resource Buffer(uint32_t size);
+
+        bool operator==(const Resource& rhs) const {
+            return std::memcmp(this, &rhs, sizeof(Resource)) == 0;
+        }
+        std::strong_ordering operator<=>(const Resource& rhs) const {
+            int res = std::memcmp(this, &rhs, sizeof(Resource));
+            return res <=> 0;
+        }
     };
 
     struct alignas(64) Header {
         uint32_t magicNumber = SHADER_ASSET_MAGIC;
         uint16_t version = SHADER_ASSET_VERSION;
-        uint16_t vertexInputCount;
-        uint16_t vertexOutputCount;
-        uint16_t fragmentOutputCount;
+        uint16_t parameterCount;
         uint16_t bindingCount;
+        uint16_t entryPointCount;
+        uint16_t variableCount;  // reserved
+        uint16_t indexCount;
+        uint32_t nameTableSize;
         uint32_t shaderSize;
-        uint32_t threadGroupSize[3];
-        ShaderVisibility entryShaderStage;
-        char _padding[33];
+        uint32_t parameterOffset;
+        uint32_t bindingOffset;
+        uint32_t entryPointOffset;
+        uint32_t variableOffset;
+        uint32_t indexOffset;
+        uint32_t nameTableOffset;
+        uint32_t shaderOffset;
+        char _padding[12] = {0};
     };
+
+    static_assert(sizeof(Header) == 64);
 
     /**
      * @brief Flattened Resource's binding information
@@ -123,34 +147,92 @@ struct ShaderAssetFormat {
         uint32_t set;
         uint32_t binding;
         uint32_t id;
-        uint32_t nameIdx;
+        uint32_t nameIdx = kInvalidIdx;
         Resource resource = {.buffer = {0}};
         ResourceType resourceType;
         ShaderVisibility visibility;
-        char _padding[10];
+        char _padding[10] = {0};
+
+        std::strong_ordering operator<=>(const Binding&) const = default;
+    };
+
+    struct Scalar {};
+    struct Vector {
+        uint8_t length;
+    };
+    struct Matrix {
+        uint8_t rows;
+        uint8_t columns;
+    };
+
+    struct Shape {
+        union {
+            Scalar scalar;
+            Vector vector;
+            Matrix matrix;
+        };
+
+        static Shape Scalar() { return Shape{.scalar = {}}; }
+        static Shape Vector(uint8_t count);
+        static Shape Matrix(uint8_t rows, uint8_t columns);
     };
 
     struct Variable {
         Kind kind;
         ScalarType scalarType;
-        uint8_t rows;
-        uint8_t columns;
-        uint32_t nameIdx;
+        Shape shape;
+        uint32_t nameIdx = kInvalidIdx;
+
+        bool operator==(const Variable& rhs) const {
+            if (kind != rhs.kind || scalarType != rhs.scalarType || nameIdx != rhs.nameIdx) {
+                return false;
+            }
+
+            switch (kind) {
+                case Kind::Scalar:
+                    return true;
+                case Kind::Vector:
+                    return shape.vector.length == rhs.shape.vector.length;
+                case Kind::Matrix:
+                    return shape.matrix.rows == rhs.shape.matrix.rows &&
+                           shape.matrix.columns == rhs.shape.matrix.columns;
+                default:
+                    return true;
+            }
+        }
     };
 
     struct ShaderParameter {
         Variable variable;
         uint32_t location;
-        uint32_t semanticNameIdx;
+        uint32_t semanticNameIdx = kInvalidIdx;
+
+        std::strong_ordering operator<=>(const ShaderParameter&) const = default;
     };
 
+    struct EntryPoint {
+        ShaderVisibility stage;
+        uint32_t nameIdx;
+
+        uint32_t ioStartIndex;
+        uint32_t bindingStartIndex;
+
+        uint16_t ioCount;
+        uint16_t bindingCount;
+
+        uint32_t _padding;
+    };
+    static_assert(sizeof(EntryPoint) == 24, "EntryPoint size must be 24 bytes!");
+
     Header header;
-    std::vector<ShaderParameter> vertexInputs;
-    std::vector<ShaderParameter> vertexOutputs;
-    std::vector<ShaderParameter> fragmentOutputs;
+    std::vector<ShaderParameter> parameters;
     std::vector<Binding> bindings;
+    std::vector<Variable> variables;  // reserved
+    std::vector<EntryPoint> entryPoints;
     std::vector<uint8_t> code;
-    std::vector<std::string> nameTable;
+    std::string nameTableData;
+    std::vector<std::string_view> tokens;
+    std::vector<uint32_t> indices;
 
     static std::expected<ShaderAssetFormat, Error> LoadFromMemory(std::span<const uint8_t> memory);
 };
@@ -164,7 +246,6 @@ struct std::formatter<core::ShaderAssetFormat::ResourceType> : std::formatter<st
         return std::formatter<std::string_view>::format(name, ctx);
     }
 };
-
 
 inline core::ShaderAssetFormat::ShaderVisibility operator|(
     core::ShaderAssetFormat::ShaderVisibility a,
