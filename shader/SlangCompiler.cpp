@@ -301,8 +301,7 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
 sa::Sampler CreateSamplerBinding(VariableLayoutReflection* varLayout,
                                  const ReflectionContext& ctx) {
     sa::Sampler samplerBinding{};
-    // Slang의 SamplerState는 Filtering, NonFiltering, Comparison 등의 세부 타입을 가질 수 있음
-    // 여기서는 단순히 Filtering 타입으로 매핑
+
     samplerBinding.type = sa::ShaderAssetFormat::SamplerType::Filtering;
     return samplerBinding;
 }
@@ -423,9 +422,8 @@ std::optional<CompilerBinding> CreateLeafBinding(VariableLayoutReflection* varLa
         return binding;
     }
 
-    // 3단계: 세부 리소스 정보 채우기
     if (!PopulateResourceDetails(binding, varLayout, ctx, kind)) {
-        return std::nullopt;  // 파싱 실패 시
+        return std::nullopt;  
     }
 
     return binding;
@@ -495,33 +493,6 @@ std::vector<CompilerBinding> ReflectRecursively(VariableLayoutReflection* varLay
     return results;
 }
 
-std::vector<CompilerBinding> GenerateBindingsFromEntry(slang::EntryPointReflection* entry,
-                                                       CompilationContext& compilationContext) {
-    std::vector<CompilerBinding> bindings;
-    uint32_t paramCount = entry->getParameterCount();
-    ReflectionContext ctx{
-        .visibility = compilationContext.visibility,
-        .skipResourceDetails = true,
-    };
-    for (uint32_t i = 0; i < paramCount; ++i) {
-        VariableLayoutReflection* varRefl = entry->getParameterByIndex(i);
-        std::string empty("");
-        // Search recursively binding info from slang reflection tree and store in the binsings.
-        size_t spaceOffset = varRefl->getBindingSpace();
-        const std::vector<CompilerBinding> result =
-            ReflectRecursively(varRefl, ctx.WithSet(spaceOffset));
-        bindings.insert(bindings.end(), result.begin(), result.end());
-    }
-
-    std::ranges::sort(bindings, [](CompilerBinding& a, CompilerBinding& b) -> bool {
-        if (a.set != b.set) {
-            return a.set < b.set;
-        }
-        return a.binding < b.binding;
-    });
-
-    return bindings;
-}
 std::vector<CompilerBinding> GenerateBindingsFromLayout(slang::ProgramLayout* layout,
                                                         CompilationContext& compilationContext) {
     std::vector<CompilerBinding> bindings;
@@ -733,19 +704,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
     ProgramLayout* programLayout = linkedProgram->getLayout();
     std::vector<CompilerBinding> compilerBindings =
         GenerateBindingsFromLayout(programLayout, context);
-    std::vector<sa::Binding> bindings =
-        compilerBindings | std::views::transform([&](CompilerBinding& cb) -> sa::Binding {
-            return sa::Binding{
-                .set = cb.set,
-                .binding = cb.binding,
-                .id = cb.id,
-                .nameIdx = getNameId(cb.name),
-                .resource = cb.resource,
-                .resourceType = cb.resourceType,
-                .visibility = cb.visibility,
-            };
-        }) |
-        std::ranges::to<std::vector>();
 
     uint32_t entryCount = programLayout->getEntryPointCount();
     std::vector<uint32_t> indices;
@@ -783,13 +741,13 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
             const auto& b = compilerBindings[j];
             bool isUsed = false;
 
-            // b.category는 SlangParameterCategory::DescriptorTableSlot 등을 매핑해야 합니다.
             metadata->isParameterLocationUsed(static_cast<SlangParameterCategory>(b.slangCategory),
                                               b.set, b.binding, isUsed);
 
             if (isUsed) {
-                entryPoint.bindingCount++;  // 실제로 쓰는 것만 저장!
-                indices.push_back(j);       // 실제로 쓰는 것만 저장!
+                entryPoint.bindingCount++;
+                indices.push_back(j);
+                compilerBindings[j].visibility = compilerBindings[j].visibility | entryPoint.stage;
             }
         }
         uint32_t nameIdx = getNameId(entry->getName());
@@ -797,6 +755,20 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
 
         entryPoints.push_back(entryPoint);
     }
+
+    std::vector<sa::Binding> bindings =
+        compilerBindings | std::views::transform([&](CompilerBinding& cb) -> sa::Binding {
+            return sa::Binding{
+                .set = cb.set,
+                .binding = cb.binding,
+                .id = cb.id,
+                .nameIdx = getNameId(cb.name),
+                .resource = cb.resource,
+                .resourceType = cb.resourceType,
+                .visibility = cb.visibility,
+            };
+        }) |
+        std::ranges::to<std::vector>();
 
     uint32_t nameTableSize = std::ranges::fold_left(
         nameTable, 0u, [](uint32_t acc, const std::string& name) { return acc + name.size() + 1; });
@@ -832,7 +804,7 @@ std::expected<Slang::ComPtr<slang::ISession>, Error> SlangCompiler::CreateSessio
             slang::CompilerOptionEntry{.name = slang::CompilerOptionName::MatrixLayoutColumn,
                                        .value = {
                                            .kind = slang::CompilerOptionValueKind::Int,
-                                           .intValue0 = 1  // 여기서 Column-Major 설정
+                                           .intValue0 = 1 
                                        }});
         const SessionDesc sessionDesc{
             .targets = &targetDesc,
