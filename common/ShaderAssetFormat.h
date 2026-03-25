@@ -120,13 +120,13 @@ struct ShaderAssetFormat {
     struct alignas(64) Header {
         uint32_t magicNumber = SHADER_ASSET_MAGIC;
         uint16_t version = SHADER_ASSET_VERSION;
-        uint16_t parameterCount;
-        uint16_t bindingCount;
-        uint16_t entryPointCount;
-        uint16_t variableCount;  // reserved
-        uint16_t indexCount;
-        uint32_t nameTableSize;
-        uint32_t shaderSize;
+        uint16_t parameterCount = 0;
+        uint16_t bindingCount = 0;
+        uint16_t entryPointCount = 0;
+        uint16_t variableCount = 0;  // reserved
+        uint16_t indexCount = 0;
+        uint32_t nameTableSize = 0;
+        uint32_t shaderSize = 0;
         uint32_t parameterOffset;
         uint32_t bindingOffset;
         uint32_t entryPointOffset;
@@ -205,7 +205,7 @@ struct ShaderAssetFormat {
     struct ShaderParameter {
         Variable variable;
         uint32_t location;
-        uint32_t semanticNameIdx = kInvalidIdx;
+        Semantic semantic;
 
         std::strong_ordering operator<=>(const ShaderParameter&) const = default;
     };

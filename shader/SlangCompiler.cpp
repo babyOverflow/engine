@@ -385,6 +385,19 @@ CompilerBinding CalculateBasicBinding(VariableLayoutReflection* varLayout,
     return binding;
 }
 
+static sa::ShaderVisibility GetVisibility(SlangStage stage) {
+    switch (stage) {
+        case SLANG_STAGE_VERTEX:
+            return sa::ShaderVisibility::Vertex;
+        case SLANG_STAGE_FRAGMENT:
+            return sa::ShaderVisibility::Fragment;
+        case SLANG_STAGE_COMPUTE:
+            return sa::ShaderVisibility::Compute;
+        default:
+            return sa::ShaderVisibility::None;
+    }
+}
+
 bool PopulateResourceDetails(CompilerBinding& binding,
                              VariableLayoutReflection* varLayout,
                              const ReflectionContext& ctx,
@@ -441,7 +454,6 @@ bool PopulateResourceDetails(CompilerBinding& binding,
             binding.resourceType = sa::ResourceType::Unknown;
             return false;
     }
-
     binding.visibility = ctx.visibility;
     binding.name = ctx.prefix;
     return true;
@@ -476,7 +488,7 @@ std::optional<CompilerBinding> CreateLeafBinding(VariableLayoutReflection* varLa
     }
 
     if (!PopulateResourceDetails(binding, varLayout, ctx, kind)) {
-        return std::nullopt;  
+        return std::nullopt; 
     }
 
     return binding;
@@ -573,18 +585,6 @@ std::vector<CompilerBinding> GenerateBindingsFromLayout(slang::ProgramLayout* la
     return bindings;
 }
 
-static sa::ShaderVisibility GetVisibility(SlangStage stage) {
-    switch (stage) {
-        case SLANG_STAGE_VERTEX:
-            return sa::ShaderVisibility::Vertex;
-        case SLANG_STAGE_FRAGMENT:
-            return sa::ShaderVisibility::Fragment;
-        case SLANG_STAGE_COMPUTE:
-            return sa::ShaderVisibility::Compute;
-        default:
-            return sa::ShaderVisibility::None;
-    }
-}
 namespace {
 struct CompilerVariable {
     sa::Kind kind;
@@ -596,6 +596,7 @@ struct CompilerShaderParameter {
     CompilerVariable variable;
     uint32_t location;
     std::optional<std::string> semanticName;
+    uint8_t semanticIndex;
 };
 struct CompilerEntryParameter {
     std::vector<CompilerShaderParameter> input;
@@ -675,7 +676,9 @@ std::vector<CompilerShaderParameter> CreateVaryingParameterLayout(
     shaderParameters.push_back(CompilerShaderParameter{
         .variable = variable,
         .location = location,
-        .semanticName = semanticName == nullptr ? std::nullopt : std::make_optional(semanticName),
+        .semanticName =
+            semanticName == nullptr ? std::nullopt : std::make_optional(std::string(semanticName)),
+        .semanticIndex = static_cast<uint8_t>(varLayout->getSemanticIndex()),
     });
     return shaderParameters;
 }
@@ -741,8 +744,9 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                     .nameIdx = getNameId(variable.name),
                 },
             .location = cp.location,
-            .semanticNameIdx =
-                cp.semanticName.has_value() ? getNameId(cp.semanticName.value()) : sa::kInvalidIdx,
+            .semantic = cp.semanticName.has_value()
+                            ? core::NameToSemantic(cp.semanticName.value(), cp.semanticIndex)
+                            : core::Semantic::Undefined,
         };
 
         const auto it = std::ranges::find(parameters, parameter);
@@ -853,12 +857,9 @@ std::expected<Slang::ComPtr<slang::ISession>, Error> SlangCompiler::CreateSessio
             std::println(" - \"{}\"", path);
         }
         std::vector<CompilerOptionEntry> options;
-        options.emplace_back(
-            slang::CompilerOptionEntry{.name = slang::CompilerOptionName::MatrixLayoutColumn,
-                                       .value = {
-                                           .kind = slang::CompilerOptionValueKind::Int,
-                                           .intValue0 = 1 
-                                       }});
+        options.emplace_back(slang::CompilerOptionEntry{
+            .name = slang::CompilerOptionName::MatrixLayoutColumn,
+            .value = {.kind = slang::CompilerOptionValueKind::Int, .intValue0 = 1}});
         const SessionDesc sessionDesc{
             .targets = &targetDesc,
             .targetCount = 1,

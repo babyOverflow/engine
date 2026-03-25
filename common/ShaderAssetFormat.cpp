@@ -1,6 +1,32 @@
 #include "ShaderAssetFormat.h"
+#include <cctype>
+#include <algorithm>
 
 namespace core {
+
+Semantic NameToSemantic(const std::string& semanticName, uint32_t index) {
+    std::string name = semanticName;
+    std::transform(name.begin(), name.end(), name.begin(),
+                   [](unsigned char c) { return std::toupper(c); });
+
+    if (name == "POSITION") {
+        return Semantic::Position;
+    } else if (name == "NORMAL") {
+        return Semantic::Normal;
+    } else if (name == "TANGENT") {
+        return Semantic::Tangent;
+    } else if (name == "TEXCOORD") {
+        if (index < 8) {
+            return static_cast<Semantic>(static_cast<int>(Semantic::TexCoord0) + index);
+        }
+    } else if (name == "COLOR") {
+        if (index < 4) {
+            return static_cast<Semantic>(static_cast<int>(Semantic::Color0) + index);
+        }
+    }
+
+    return Semantic::Undefind;
+}
 
 std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(
     std::span<const uint8_t> memory) {
