@@ -6,7 +6,7 @@ target_compile_features(shader PUBLIC cxx_std_23)
 target_link_libraries(shader PUBLIC slang::slang common)
 target_include_directories(shader PUBLIC "./")
 
-add_executable(shaderCompiler "main.cpp")
+add_executable(shaderCompiler "main.cpp" "util.h" "util.cpp")
 target_link_libraries(shaderCompiler PRIVATE  shader)
 
 add_custom_command(TARGET shaderCompiler  POST_BUILD
@@ -18,7 +18,7 @@ add_custom_command(TARGET shaderCompiler  POST_BUILD
 
 enable_testing()
 
-add_executable(shaderTest "test/test.cpp" "test/ShaderInterop.h" "test/test.h")
+add_executable(shaderTest "test/test.cpp" "test/ShaderInterop.h" "test/test.h" "test/ParameterTest.h" "test/ParameterTest.cpp" "util.h" "util.cpp")
 target_link_libraries(shaderTest PRIVATE  shader)
 target_link_libraries(shaderTest PRIVATE GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
 

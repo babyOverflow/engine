@@ -54,11 +54,14 @@ bool WriteAssetToFile(const fs::path& outputPath, const CompileResult& result) {
 
     if (!result.nameTable.empty()) {
         header.nameTableOffset = file.tellp();
+        uint32_t size = 0;
         for (const auto& name : result.nameTable) {
             std::string_view nameView = name;
             file.write(nameView.data(), nameView.size());
             file.put('\0');
+            size += nameView.size() + 1;
         }
+        header.nameTableSize = size;
     }
 
 
