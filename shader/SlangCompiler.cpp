@@ -180,6 +180,59 @@ std::expected<CompileResult, Error> SlangCompiler::Compile(const std::string& pa
     return CompileInternal(composedProgram.get(), context);
 }
 
+std::expected<CompileResult, Error> SlangCompiler::Compile(const std::string& path) {
+    CompilationContext context;
+
+    ComPtr<ISession> session;
+    if (auto result = CreateSession(); result.has_value()) {
+        session = result.value();
+    } else {
+        return std::unexpected(result.error());
+    }
+
+    std::vector<ComPtr<slang::IComponentType>> componentsToLink;
+    ComPtr<IModule> module;
+    ComPtr<IBlob> diagnosticBlob;
+    {
+        if (!std::filesystem::exists(path)) {
+            return std::unexpected(
+                Error{ErrorType::IOError, "Failed to find filepath: \"" + path + "\"!\n"});
+        }
+        IModule* m = session->loadModule(path.data(), diagnosticBlob.writeRef());
+        if (m == nullptr) {
+            context.AppendError(diagnosticBlob.get());
+            return std::unexpected(
+                Error{ErrorType::InitFailed, "Failed to load module: " + context.message});
+        }
+        module = m;
+        componentsToLink.push_back(ComPtr<slang::IComponentType>(module.get()));
+    }
+
+    int definedEntryPointCount = module->getDefinedEntryPointCount();
+    for (int i = 0; i < definedEntryPointCount; i++) {
+        ComPtr<slang::IEntryPoint> entryPoint;
+        if (SLANG_FAILED(module->getDefinedEntryPoint(i, entryPoint.writeRef()))) {
+            std::string errorMessage = "Error: Entry(" + std::to_string(i) + ") was not found!\n";
+            return std::unexpected(
+                Error{ErrorType::EntryPointNotFound, context.message + errorMessage});
+        }
+        componentsToLink.push_back(ComPtr<slang::IComponentType>(entryPoint.get()));
+    }
+
+    ComPtr<IComponentType> composedProgram;
+    {
+        const auto result = session->createCompositeComponentType(
+            reinterpret_cast<slang::IComponentType**>(componentsToLink.data()),
+            componentsToLink.size(), composedProgram.writeRef(), diagnosticBlob.writeRef());
+
+        if (context.Failed(result, diagnosticBlob.get())) {
+            return std::unexpected(Error{ErrorType::CompilationFailed, context.message});
+        }
+    }
+
+    return CompileInternal(composedProgram.get(), context);
+}
+
 constexpr uint32_t kInvalidSetNumber = -1;
 inline bool IsValidSet(uint32_t setNumber) {
     return setNumber != kInvalidSetNumber;
@@ -660,7 +713,7 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
     ComPtr<IBlob> codeBlob;
     {
         const auto result =
-            linkedProgram->getEntryPointCode(0, 0, codeBlob.writeRef(), diagnosticBlob.writeRef());
+            linkedProgram->getTargetCode(0, codeBlob.writeRef(), diagnosticBlob.writeRef());
         if (context.Failed(result, diagnosticBlob.get())) {
             return std::unexpected(Error{ErrorType::CompilationFailed, context.message});
         }

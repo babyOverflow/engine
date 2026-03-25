@@ -17,8 +17,6 @@ void PrintUsage() {
         "<include_path>...]");
 }
 
-
-
 int main(int argc, char** argv) {
     if (argc < 5) {
         PrintUsage();
@@ -42,7 +40,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (inputPath.empty() || entryPoint.empty() || outputPath.empty()) {
+    if (inputPath.empty() || outputPath.empty()) {
         std::println(stderr, "Error: Missing required arguent");
         PrintUsage();
         return 1;
@@ -58,8 +56,13 @@ int main(int argc, char** argv) {
     SlangCompiler compiler = compilerOrError.value();
 
     std::println("Compiling {} ({}) ...", inputPath.string(), entryPoint);
-
-    auto resultOrError = compiler.Compile(inputPath.string(), std::string(entryPoint));
+    auto resultOrError = [&]() {
+        if (entryPoint.empty()) {
+            return compiler.Compile(inputPath.string());
+        } else {
+            return compiler.Compile(inputPath.string(), std::string(entryPoint));
+        }
+    }();
     if (!resultOrError.has_value()) {
         std::println(stderr, "Error! Compilation failed {}({}): {}", inputPath.string(), entryPoint,
                      resultOrError.error().message);

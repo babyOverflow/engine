@@ -64,6 +64,7 @@ class SlangCompiler {
     std::expected<CompileResult, Error> CompileFromString(const std::string& slangCode);
     std::expected<CompileResult, Error> Compile(const std::string& path,
                                                 const std::string& entryName);
+    std::expected<CompileResult, Error> Compile(const std::string& path);
 
   private:
     SlangCompiler(Slang::ComPtr<slang::IGlobalSession> globalSession,
