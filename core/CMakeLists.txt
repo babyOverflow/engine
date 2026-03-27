@@ -92,47 +92,26 @@ target_include_directories(core PRIVATE ${TINYGLTF_INCLUDE_DIRS})
 # IDE(Visual Studio)에서 필터 정리
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
-set(PBR_VS_SHDR "${CMAKE_CURRENT_BINARY_DIR}/asset/StandardPBR_VS.shdr")
-set(PBR_FS_SHDR "${CMAKE_CURRENT_BINARY_DIR}/asset/StandardPBR_FS.shdr")
-set(PBR_VS_HEADER "${CMAKE_CURRENT_BINARY_DIR}/asset/StandardPBR_VS.h")
-set(PBR_FS_HEADER "${CMAKE_CURRENT_BINARY_DIR}/asset/StandardPBR_FS.h")
+set(PBR_SHDR "${CMAKE_CURRENT_BINARY_DIR}/asset/StandardPBR.shdr")
+set(PBR_HEADER "${CMAKE_CURRENT_BINARY_DIR}/asset/StandardPBR.h")
 
 add_shader_asset(
     TARGET core
     INPUT "${CMAKE_CURRENT_SOURCE_DIR}/asset/StandardPBR.slang" 
-    ENTRY "vertexMain"
-    OUTPUT ${PBR_VS_SHDR}
-    INCLUDES "${CORE_INTEROP_HEADER_DIR}"
-)
-
-add_shader_asset(
-    TARGET core
-    INPUT "${CMAKE_CURRENT_SOURCE_DIR}/asset/StandardPBR.slang" 
-    ENTRY "fragmentMain"
-    OUTPUT ${PBR_FS_SHDR}
+    OUTPUT ${PBR_SHDR}
     INCLUDES "${CORE_INTEROP_HEADER_DIR}"
 )
 
 add_custom_command(
-    OUTPUT ${PBR_VS_HEADER}
+    OUTPUT ${PBR_HEADER}
     COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/bin2header.py 
-        -i ${PBR_VS_SHDR} 
-        -o ${PBR_VS_HEADER} 
-        -n kStandardPBR_VS_Data 
-    DEPENDS ${PBR_VS_SHDR} 
-    COMMENT "Embedding StandardPBR VS into C++ header..."
+        -i ${PBR_SHDR} 
+        -o ${PBR_HEADER} 
+        -n kStandardPBR_Data 
+    DEPENDS ${PBR_SHDR} 
+    COMMENT "Embedding StandardPBR into C++ header..."
 )
 
-add_custom_command(
-    OUTPUT ${PBR_FS_HEADER}
-    COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/bin2header.py 
-        -i ${PBR_FS_SHDR} 
-        -o ${PBR_FS_HEADER} 
-        -n kStandardPBR_FS_Data 
-    DEPENDS ${PBR_FS_SHDR} 
-    COMMENT "Embedding StandardPBR FS into C++ header..."
-)
-
-target_sources(core PRIVATE ${PBR_VS_HEADER} ${PBR_FS_HEADER})
+target_sources(core PRIVATE ${PBR_HEADER})
 
 target_include_directories(core PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

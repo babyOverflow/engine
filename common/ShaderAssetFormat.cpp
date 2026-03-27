@@ -25,7 +25,7 @@ Semantic NameToSemantic(const std::string& semanticName, uint32_t index) {
         }
     }
 
-    return Semantic::Undefind;
+    return Semantic::Undefined;
 }
 
 std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(

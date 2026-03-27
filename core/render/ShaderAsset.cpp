@@ -1,81 +1,73 @@
+#include <ranges>
+
 #include "ShaderAsset.h"
 
 namespace core::render {
 
 ShaderAsset ShaderAsset::Create(wgpu::ShaderModule shaderModule,
-                                sa::ShaderVisibility shaderStage,
-                                ShaderReflectionData reflection,
+                                std::unique_ptr<ShaderAssetFormat> shaderAssetFormat,
+                                ShaderReflection shaderReflection,
                                 std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts) {
-    wgpu::ShaderModule vertexModule = nullptr;
-    wgpu::ShaderModule fragmentModule = nullptr;
-    wgpu::ShaderModule computeModule = nullptr;
-    if (static_cast<uint8_t>(shaderStage) & static_cast<uint8_t>(sa::ShaderVisibility::Vertex)) {
-        vertexModule = shaderModule;
-    }
-    if (static_cast<uint8_t>(shaderStage) & static_cast<uint8_t>(sa::ShaderVisibility::Fragment)) {
-        fragmentModule = shaderModule;
-    }
-    if (static_cast<uint8_t>(shaderStage) & static_cast<uint8_t>(sa::ShaderVisibility::Compute)) {
-        computeModule = shaderModule;
-    }
 
-    return ShaderAsset(vertexModule, fragmentModule, computeModule, shaderStage, reflection,
+    return ShaderAsset(shaderModule, std::move(shaderAssetFormat), shaderReflection,
                        bindGroupLayouts);
 }
 
-std::expected<ShaderReflectionData, Error> ShaderReflectionData::MergeReflectionData(
-    const ShaderReflectionData& a,
-                                                               const ShaderReflectionData& b) {
-    using sa = core::ShaderAssetFormat;
+const std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(uint32_t setIdx) const {
+    return std::span<const ShaderAssetFormat::Binding>(
+        m_shaderAssetFormat->bindings.begin() + (groups[setIdx].offset), groups[setIdx].count);
+};
 
-    ShaderReflectionData mergedData;
-    mergedData.bindings.reserve(a.bindings.size());
-    auto aIt = a.bindings.begin();
-    auto bIt = b.bindings.begin();
-
-    while (aIt != a.bindings.end() && bIt != b.bindings.end()) {
-        if (aIt->set == bIt->set && aIt->binding == bIt->binding) {
-            if (aIt->resourceType != bIt->resourceType) {
-                return std::unexpected(Error::AssetParsing(
-                    "Binding Conflict: Same binding index but incompatible resource types!"));
-            }
-            BindingInfo mergedBinding = *aIt;
-            mergedBinding.visibility = static_cast<sa::ShaderVisibility>(
-                static_cast<uint8_t>(aIt->visibility) | static_cast<uint8_t>(bIt->visibility));
-            mergedData.bindings.push_back(mergedBinding);
-            ++aIt;
-            ++bIt;
-        } else if (aIt->set < bIt->set || (aIt->set == bIt->set && aIt->binding < bIt->binding)) {
-            mergedData.bindings.push_back(*aIt);
-            ++aIt;
-        } else {
-            mergedData.bindings.push_back(*bIt);
-            ++bIt;
-        }
-    }
-
-    while (aIt != a.bindings.end()) {
-        mergedData.bindings.push_back(*aIt);
-        ++aIt;
-    }
-    while (bIt != b.bindings.end()) {
-        mergedData.bindings.push_back(*bIt);
-        ++bIt;
-    }
-
-    mergedData.groups = {};
-    for (uint32_t i = 0; i < mergedData.bindings.size(); ++i) {
-        const auto& binding = mergedData.bindings[i];
-
-        if (mergedData.groups[binding.set].count == 0) {
-            mergedData.groups[binding.set].offset = i;
-        }
-        mergedData.groups[binding.set].count++;
-    }
-    // TODO!(Now mergedData.materialVariables parsing logic is not implemented. it should be append
-    // after that)
-
-    return mergedData;
+const std::span<const ShaderReflection::Binding> ShaderReflection::GetAllBindings() const {
+    return m_shaderAssetFormat->bindings;
 }
+
+const std::span<const MaterialVariableInfo> ShaderReflection::GetMaterialVariableInfos() const {
+    // TODO!
+    assert(false && "GetMaterialVariableInfos is not implemented");
+    return {};
+}
+
+const std::span<const ShaderReflection::Parameter> ShaderReflection::GetEntryInput(
+    const std::string& name) const {
+    auto it = std::ranges::find(m_shaderAssetFormat->entryPoints, name, [this](const auto& entry) {
+        return GetNameByIndex(entry.nameIdx);
+    });
+    if (it == m_shaderAssetFormat->entryPoints.end()) {
+        return std::span<const ShaderReflection::Parameter>();
+    }
+
+    return std::span(m_shaderAssetFormat->parameters.data() + it->ioStartIndex, it->ioCount);
+}
+
+std::string_view ShaderReflection::GetNameByIndex(uint32_t idx) const {
+    return m_nameTable[idx];
+}
+
+ShaderReflection ShaderReflection::Create(ShaderAssetFormat* shaderAssetFormat) {
+    auto nametable = shaderAssetFormat->nameTableData | std::views::split('\0') |
+                     std::views::transform([](auto&& s) {
+                         return std::string_view(std::ranges::data(s), std::ranges::size(s));
+                     }) |
+                     std::ranges::to<std::vector>();
+
+    std::array<GroupRange, 4> groups;
+    const auto& bindings = shaderAssetFormat->bindings;
+    for (size_t i = 0; i < bindings.size(); ++i) {
+        const ShaderAssetFormat::Binding& binding = bindings[i];
+
+        uint32_t size = 0;
+        if (binding.resourceType == ShaderAssetFormat::ResourceType::UniformBuffer) {
+            size = binding.resource.buffer.bufferSize;
+        }
+
+        if (groups[binding.set].count == 0) {
+            groups[binding.set].offset = i;
+        }
+        groups[binding.set].count++;
+    }
+    return ShaderReflection(shaderAssetFormat, std::move(nametable), groups);
+}
+
 
 }  // namespace core::render

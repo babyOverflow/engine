@@ -41,24 +41,21 @@ Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialRes
 }
 
 Material MaterialManager::CreateMaterialFromShader(AssetView<ShaderAsset> shaderAsset) {
-    if (!shaderAsset->IsValidRenderShader()) {
-        return Material();
-    }
 
-    const ShaderReflectionData& bindGroupInfos = shaderAsset->GetReflection();
+    const ShaderReflection& bindGroupInfos = shaderAsset->GetReflection();
 
-    const auto variables = bindGroupInfos.GetMaterialVariableInfos();
+    //const auto variables = bindGroupInfos.GetMaterialVariableInfos();
 
     size_t bufferSize = bindGroupInfos.materialUniformSize;
     Material material = [&]() {
         if (bufferSize) {
             std::unordered_map<PropertyId, Material::VariableInfo> variableInfo;
-            for (const auto& var : variables) {
-                variableInfo[var.id] = {
-                    .offset = var.offset,
-                    .size = var.size,
-                };
-            }
+            //for (const auto& var : variables) {
+            //    variableInfo[var.id] = {
+            //        .offset = var.offset,
+            //        .size = var.size,
+            //    };
+            //}
 
             wgpu::BufferDescriptor bufferDesc{
                 .usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst,

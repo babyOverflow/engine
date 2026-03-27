@@ -35,7 +35,7 @@ void Material::RebuildBindGroup() {
     const auto& bindGroupLayout = m_shaderView->GetBindGroupLayout(kSetNumberMaterial);
     const auto& reflection = m_shaderView->GetReflection();
     const auto& entryInfos = reflection.GetGroup(kSetNumberMaterial);
-    const auto& uniformInfo = reflection.GetMaterialVariableInfos();
+    //const auto& uniformInfo = reflection.GetMaterialVariableInfos();
 
     std::vector<wgpu::BindGroupEntry> entries;
     for (uint32_t i = 0; i < entryInfos.size(); ++i) {

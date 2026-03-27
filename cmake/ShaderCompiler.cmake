@@ -5,7 +5,6 @@ function(add_shader_asset)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     # [수정 1] BAKER_TOOL 타겟 수정
-    # shaderCompiler는 '라이브러리'입니다. 실행 파일인 'ShaderBaker'를 가리켜야 합니다.
     set(BAKER_TOOL $<TARGET_FILE:shaderCompiler>)
 
     # [수정 2] INCLUDES 리스트를 CLI 인자 포맷(-I path -I path ...)으로 변환
@@ -14,13 +13,20 @@ function(add_shader_asset)
         list(APPEND INCLUDE_FLAGS "-I" "${INC_PATH}")
     endforeach()
 
+    # [추가] ENTRY 옵션이 있는지 확인하고 조건부로 플래그 생성
+    set(ENTRY_FLAG "")
+    if(ARG_ENTRY)
+        list(APPEND ENTRY_FLAG "-e" "${ARG_ENTRY}")
+        # 또는 set(ENTRY_FLAG "-e" "${ARG_ENTRY}") 도 동일하게 작동합니다.
+    endif()
+
     add_custom_command(
         OUTPUT ${ARG_OUTPUT}
         COMMAND ${BAKER_TOOL} 
             -i ${ARG_INPUT} 
-            -e ${ARG_ENTRY} 
+            ${ENTRY_FLAG}       # [수정됨] 값이 없으면 빈 공간으로 무시됨
             -o ${ARG_OUTPUT}
-            ${INCLUDE_FLAGS}  # [수정 3] 변환된 인자 추가
+            ${INCLUDE_FLAGS}  
         MAIN_DEPENDENCY ${ARG_INPUT}
         DEPENDS shaderCompiler # 툴이 먼저 빌드되어야 함
         COMMENT "Baking Shader: ${ARG_INPUT} -> ${ARG_OUTPUT}"

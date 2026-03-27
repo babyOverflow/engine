@@ -2,23 +2,13 @@
 #include <dawn/webgpu_cpp.h>
 #include <array>
 #include <expected>
+#include <memory>
 
 #include "Common.h"
 #include "ShaderAssetFormat.h"
 #include "render.h"
 
-
 namespace core::render {
-
-struct BindingInfo {
-    using Fmt = ShaderAssetFormat;
-    uint32_t set;
-    uint32_t binding;
-    PropertyId id;
-    Fmt::ResourceType resourceType;
-    Fmt::ShaderVisibility visibility;
-    Fmt::Resource resource = {.buffer = {0}};
-};
 
 struct MaterialVariableInfo {
     PropertyId id;
@@ -26,33 +16,41 @@ struct MaterialVariableInfo {
     size_t size;
 };
 
-struct ShaderReflectionData {
-    std::vector<BindingInfo> bindings;
-    std::vector<MaterialVariableInfo> materialVariables;
+class ShaderReflection {
+  public:
+    using Binding = ShaderAssetFormat::Binding;
+    using Parameter = ShaderAssetFormat::ShaderParameter;
+
+    static ShaderReflection Create(ShaderAssetFormat* shaderAssetFormat);
+
+
     size_t materialUniformSize = 0;
-    ShaderAssetFormat::ShaderVisibility entryShaderStage;
 
     struct GroupRange {
         uint32_t offset = 0;
         uint32_t count = 0;
     };
 
+
+    const std::span<const Binding> GetGroup(uint32_t setIdx) const;
+    const std::span<const Binding> GetAllBindings() const;
+
+    const std::span<const MaterialVariableInfo> GetMaterialVariableInfos() const;
+
+    const std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInput(
+        const std::string& name) const;
+
+  private:
+    ShaderReflection(ShaderAssetFormat* shaderAssetFormat,
+                     std::vector<std::string_view>&& nametable,
+                     std::array<GroupRange, 4> groups)
+        : m_shaderAssetFormat(shaderAssetFormat), m_nameTable(std::move(nametable)), groups(groups) {}
+
+    const ShaderAssetFormat* m_shaderAssetFormat;
+    std::vector<std::string_view> m_nameTable;
     std::array<GroupRange, 4> groups;
 
-    // Merge two reflection data by combining their bindings and visibilities
-    static std::expected<ShaderReflectionData, Error> MergeReflectionData(
-        const ShaderReflectionData& a,
-        const ShaderReflectionData& b);
-
-    const std::span<const BindingInfo> GetGroup(uint32_t setIdx) const {
-        return std::span<const BindingInfo>(bindings.begin() + (groups[setIdx].offset),
-                                            groups[setIdx].count);
-    };
-    const std::span<const BindingInfo> GetAllBindings() const { return bindings; }
-
-    const std::span<const MaterialVariableInfo> GetMaterialVariableInfos() const {
-        return materialVariables;
-    }
+    std::string_view GetNameByIndex(uint32_t idx) const;
 };
 
 class ShaderAsset {
@@ -68,13 +66,11 @@ class ShaderAsset {
     ~ShaderAsset() = default;
 
     static ShaderAsset Create(wgpu::ShaderModule shaderModule,
-                              sa::ShaderVisibility shaderStage,
-                              ShaderReflectionData reflection,
+                              std::unique_ptr<ShaderAssetFormat> shaderAssetFormat,
+                              ShaderReflection shaderReflection,
                               std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts);
 
-    const wgpu::ShaderModule& GetVertexModule() const { return m_vertexModule; }
-    const wgpu::ShaderModule& GetFragmentModule() const { return m_fragmentModule; }
-    const wgpu::ShaderModule& GetComputeModule() const { return m_computeModule; }
+    const wgpu::ShaderModule& GetShaderModule() const { return m_shaderModule; }
 
     wgpu::BindGroupLayout GetBindGroupLayout(uint32_t setNumber) const {
         return m_bindGroupLayouts[setNumber];
@@ -84,31 +80,23 @@ class ShaderAsset {
         return m_bindGroupLayouts;
     }
 
-    bool IsValidRenderShader() {
-        return m_vertexModule != nullptr && m_fragmentModule != nullptr &&
-               m_shaderStage & (sa::ShaderVisibility::Vertex | sa::ShaderVisibility::Fragment);
-    }
-    const ShaderReflectionData& GetReflection() const { return m_reflection; }
+    const ShaderReflection& GetReflection() const { return m_reflection; }
 
   private:
-    ShaderAsset(wgpu::ShaderModule vertex,
-                wgpu::ShaderModule fragment,
-                wgpu::ShaderModule compute,
-                sa::ShaderVisibility shaderStage,
-                ShaderReflectionData reflection,
+    ShaderAsset(wgpu::ShaderModule shaderModule,
+                std::unique_ptr<ShaderAssetFormat> shaderAssetFormat,
+                ShaderReflection reflection,
+
                 std::array<wgpu::BindGroupLayout, 4> bindGroupLayout)
-        : m_vertexModule(vertex),
-          m_fragmentModule(fragment),
-          m_computeModule(compute),
-          m_shaderStage(shaderStage),
-          m_reflection(std::move(reflection)),
+        : m_shaderModule(shaderModule),
+          m_shaderAssetFormat(std::move(shaderAssetFormat)),
+          m_reflection(reflection),
           m_bindGroupLayouts(bindGroupLayout) {}
 
-    wgpu::ShaderModule m_vertexModule = nullptr;
-    wgpu::ShaderModule m_fragmentModule = nullptr;
-    wgpu::ShaderModule m_computeModule = nullptr;
+    wgpu::ShaderModule m_shaderModule = nullptr;
     std::array<wgpu::BindGroupLayout, 4> m_bindGroupLayouts;
-    sa::ShaderVisibility m_shaderStage = sa::ShaderVisibility::None;
-    ShaderReflectionData m_reflection;
+
+    std::unique_ptr<ShaderAssetFormat> m_shaderAssetFormat;
+    ShaderReflection m_reflection;
 };
 }  // namespace core::render

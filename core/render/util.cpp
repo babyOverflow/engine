@@ -114,7 +114,8 @@ static wgpu::ShaderStage MapStageToWgpu(ShaderAssetFormat::ShaderVisibility visi
     }
 }
 
-static wgpu::SamplerBindingLayout MapBindingToSampler(const render::BindingInfo& binding) {
+static wgpu::SamplerBindingLayout MapBindingToSampler(
+    const render::ShaderReflection::Binding& binding) {
     const auto& sampler = binding.resource.sampler;
     switch (sampler.type) {
         case ShaderAssetFormat::SamplerType::Filtering:
@@ -142,7 +143,7 @@ static wgpu::SamplerBindingLayout MapBindingToSampler(const render::BindingInfo&
     }
 }
 
-static wgpu::TextureBindingLayout MapBindingToTexture(render::BindingInfo& binding) {
+static wgpu::TextureBindingLayout MapBindingToTexture(render::ShaderReflection::Binding& binding) {
     const auto& texture = binding.resource.texture;
 
     wgpu::TextureBindingLayout layout{};
@@ -207,7 +208,8 @@ static wgpu::TextureBindingLayout MapBindingToTexture(render::BindingInfo& bindi
     return layout;
 }
 
-wgpu::BindGroupLayoutEntry core::util::MapBindingInfoToWgpu(render::BindingInfo binding) {
+wgpu::BindGroupLayoutEntry core::util::MapBindingInfoToWgpu(
+    render::ShaderReflection::Binding binding) {
     wgpu::BindGroupLayoutEntry entry{
         .binding = binding.binding,
         .visibility = MapStageToWgpu(binding.visibility),

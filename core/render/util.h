@@ -28,7 +28,7 @@ wgpu::Surface CreateSurfaceForWGPU(wgpu::Instance instance, Window& window);
 bool IsSRGB(wgpu::TextureFormat format);
 wgpu::TextureFormat SelectSurfaceFormat(const wgpu::Adapter& adapter, const wgpu::Surface& surface);
 
-wgpu::BindGroupLayoutEntry MapBindingInfoToWgpu(core::render::BindingInfo binding);
+wgpu::BindGroupLayoutEntry MapBindingInfoToWgpu(core::render::ShaderReflection::Binding binding);
 
 wgpu::TextureFormat ConvertTextureFormatWgpu(core::TextureFormat format);
 wgpu::TextureDimension ConvertTextureDimensionWgpu(core::TextureDimension dimension);
