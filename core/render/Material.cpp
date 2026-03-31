@@ -103,4 +103,21 @@ void Material::SetTexture(PropertyId id, AssetView<Texture> texture) {
     m_bindGroup = nullptr;
 }
 
+PipelineDesc Material::GetPipelineDesc(const MeshAssetFormat::MeshVertexState& vertexState) {
+    PipelineDesc desc;
+    desc.shaderAsset = m_shaderView;
+
+
+    if (vertexState.HasAttribute(Semantic::Color0)) {
+        desc.vertexEntry = "vertexMain_Color";
+        desc.fragmentEntry = "fragmentMain_Color";
+    } else {
+        desc.vertexEntry = "vertexMain";
+        desc.fragmentEntry = "fragmentMain";
+    }
+    desc.vertexState = vertexState;
+
+    return desc;
+}
+
 }  // namespace core::render

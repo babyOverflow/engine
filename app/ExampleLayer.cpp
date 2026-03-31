@@ -67,11 +67,10 @@ void ExampleLayer::OnRender(core::render::FrameContext& context) {
         auto material = am->GetMaterial(renderUnit.materialHandle);
         auto shader = material->GetShader();
 
-        wgpu::RenderPipeline pipeline = pm->GetRenderPipeline(
-            core::render::PipelineDesc{.shaderAsset = shader,
-                                       .vertexEntry = "vertexMain",
-                                       .fragmentEntry = "fragmentMain",
-                                       .vertexState = meshView->GetVertexState(subMesh.stateIndex)});
+        core::render::PipelineDesc desc =
+            material->GetPipelineDesc(meshView->GetVertexState(subMesh.stateIndex));
+
+        wgpu::RenderPipeline pipeline = pm->GetRenderPipeline(desc);
 
         core::render::RenderPacket packet{
             .pipeline = pipeline,

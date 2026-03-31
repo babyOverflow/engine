@@ -41,6 +41,18 @@ struct MeshAssetFormat {
         std::array<MeshBufferSlot, 4> bufferSlots = {};
 
         bool operator==(const MeshVertexState&) const = default;
+
+        bool HasAttribute(Semantic semantic) const {
+            for (uint8_t i = 0; i < slotCount; ++i) {
+                const auto& slot = bufferSlots[i];
+                for (uint8_t j = 0; j < slot.attributeCount; ++j) {
+                    if (slot.attributes[j].semantic == semantic) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
     };
 
     struct BufferRange {

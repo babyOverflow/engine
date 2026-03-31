@@ -1,6 +1,5 @@
 #pragma once
 #include "LayoutCache.h"
-#include "Material.h"
 #include "Mesh.h"
 #include "VertexLayoutManager.h"
 #include "ResourcePool.h"

@@ -35,6 +35,35 @@ struct Fragment {
     float4 color;
 };
 
+struct ColorVertex {
+    float3 position : POSITION;
+    float4 color : COLOR0;
+};
+
+struct ColorVertexStageOutput {
+    float4 sv_position : SV_Position;
+    float4 color : COLOR; 
+};
+
+[shader("vertex")]
+ColorVertexStageOutput vertexMain_Color(ColorVertex colorVertex) {
+    ColorVertexStageOutput output;
+
+    float3 position = colorVertex.position;
+
+    output.sv_position = mul(globalUniforms.viewProj, float4(position, 1.0f));
+    output.color = colorVertex.color;
+
+    return output;
+}
+
+[shader("fragment")]
+Fragment fragmentMain_Color(float4 color: COLOR) : SV_Target {
+    Fragment output;
+    output.color = color;
+    return output;
+}
+
 // Vertex  Shader
 struct VertexStageOutput {
     CoarseVertex coarseVertex : CoarseVertex;
