@@ -20,7 +20,7 @@ struct AssembledVertex {
     [[vk::location(ShaderLoc::Normal)]]
     float3 normal : NORMAL;
     [[vk::location(ShaderLoc::UV)]]
-    float2 texcoord : TEXCOORD_0;
+    float2 texcoord : TEXCOORD0;
     [[vk::location(ShaderLoc::Tangent)]]
     float4 tangent : TANGENT;
 };

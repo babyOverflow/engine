@@ -10,10 +10,12 @@
 namespace core::render {
 
 struct RenderPacket {
+    wgpu::RenderPipeline pipeline;
     wgpu::Buffer vertexBuffer;
     wgpu::Buffer indexBuffer;
-    size_t indexCount;
-
+    std::span<const MeshAssetFormat::BufferRange> bufferRanges;
+    uint32_t indexStart = 0; 
+    uint32_t indexCount = 0;
     AssetView<Material> material;
 };
 

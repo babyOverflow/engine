@@ -121,6 +121,7 @@ class StridedSpan {
         return MakeRepeated(kZero, count);
     }
 
+
     // ¿Œµ¶Ω∫ ¡¢±Ÿ
     T& operator[](size_type index) const {
         assert(index < m_count);
@@ -139,14 +140,19 @@ class StridedSpan {
     uint32_t stride() const { return m_stride; }
     bool empty() const { return m_count == 0; }
 
+    const std::byte* GetRawBytePtr() const { return reinterpret_cast<const std::byte*>(m_data); }
+
     T& front() { return *begin(); }
     T& back() { return *(begin() + (m_count - 1)); }
+
+    static StridedSpan<const std::byte> ToByteSpan(const StridedSpan&& span) {
+        return StridedSpan<const std::byte>(span.m_data, span.m_stride, span.m_count);
+    }
 
   private:
     InternalPtr m_data;
     uint32_t m_stride;
     size_type m_count;
 };
-
 
 }  // namespace core::memory

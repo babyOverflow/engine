@@ -45,7 +45,7 @@
     "render/TextureManager.h" "render/TextureManager.cpp"
  "render/MeshManager.h"  "render/MeshManager.cpp"
  "render/Model.h"
-)
+ "render/VertexLayoutManager.h" "render/VertexLayoutManager.cpp" "wgx/types.h")
 
 include (../cmake/ShaderCompiler.cmake)
 

@@ -3,7 +3,6 @@
 #include <map>
 
 #include "LayoutCache.h"
-#include "PipelineManager.h"
 #include "ShaderAsset.h"
 #include "Texture.h"
 #include "render.h"

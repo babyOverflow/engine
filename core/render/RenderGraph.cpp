@@ -53,17 +53,17 @@ void core::render::RenderGraph::Execute(FrameContext& frameContext) {
 
     auto packets = frameContext.GetQueue();
     for (auto& p : packets) {
-        wgpu::RenderPipeline pipeline = m_pipelineManager->GetRenderPipeline(PipelineDesc{
-            .shaderAsset = p.material->GetShader(),
-            .vertexType = VertexType::StandardMesh,
-        });
-        pass.SetPipeline(pipeline);
-        pass.SetVertexBuffer(0, p.vertexBuffer);
+        pass.SetPipeline(p.pipeline);
+        for (uint i = 0; i < p.bufferRanges.size(); ++i) {
+            const auto bufferRange = p.bufferRanges[i];
+            pass.SetVertexBuffer(i, p.vertexBuffer, bufferRange.offset, bufferRange.size);
+        }
+
         pass.SetIndexBuffer(p.indexBuffer, wgpu::IndexFormat::Uint32);
         pass.SetBindGroup(1, p.material->GetBindGroup());
-        //pass.SetBindGroup(2, m_tempBindGroup.bindGroup);
+        // pass.SetBindGroup(2, m_tempBindGroup.bindGroup);
 
-        pass.DrawIndexed(p.indexCount);
+        pass.DrawIndexed(p.indexCount, 1, p.indexStart);
     }
 
     pass.End();

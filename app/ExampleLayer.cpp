@@ -19,8 +19,6 @@ struct Vertex {
 };
 
 std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
-    using core::render::Vertex;
-
     core::render::Device* device = app->GetDevice();
     core::render::PipelineManager* pipelineManager = app->GetPipelineManager();
     core::AssetManager* assetManager = app->GetAssetManager();
@@ -30,13 +28,6 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
 
     auto shader = shaderManager->GetStandardShader();
 
-    core::render::PipelineDesc pipelineDesc{
-        .shaderAsset = shader,
-        .vertexType = core::render::VertexType::StandardMesh,
-        .blendState = wgx::BlendState::kReplace,
-    };
-    pipelineManager->GetRenderPipeline(pipelineDesc);
-
     auto config = device->GetSurfaceConfig();
     auto proj = common::Projection::Perspective(45, config.width, config.height, 0.1, 100.0);
     common::GameCamera gameCamera{glm::vec3(0.F, 0.F, 0.F), 0.F, 0.F, proj};
@@ -44,12 +35,11 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     loader::GLTFLoader loader{
         app->GetAssetManager(),
         app->GetTextureManager(),
-         app->GetMaterialManager(),
+        app->GetMaterialManager(),
         app->GetMeshManager(),
     };
 
-    return std::unique_ptr<ExampleLayer>(
-        new ExampleLayer(app, device, gameCamera,  loader));
+    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, loader));
 }
 
 void ExampleLayer::OnAttach() {
@@ -64,21 +54,33 @@ void ExampleLayer::OnRender(core::render::FrameContext& context) {
     auto& d = m_device->GetDeivce();
     auto am = m_app->GetAssetManager();
     auto modelView = am->GetModel(m_modelHandle);
+    auto pm = m_app->GetPipelineManager();
 
     auto cameraData = m_gameCamera.GetCameraUniformData();
     context.SetCameraData(cameraData);
 
     for (auto& renderUnit : modelView->renderUnits) {
         auto meshView = am->GetMesh(renderUnit.meshHandle);
-        auto mesh = meshView->submeshInfos[renderUnit.subMeshIndex];
+        auto& subMesh = meshView->GetSubMeshInfors(renderUnit.subMeshIndex);
 
         auto modelMatrix = renderUnit.modelMatrix;
         auto material = am->GetMaterial(renderUnit.materialHandle);
+        auto shader = material->GetShader();
+
+        wgpu::RenderPipeline pipeline = pm->GetRenderPipeline(
+            core::render::PipelineDesc{.shaderAsset = shader,
+                                       .vertexEntry = "vertexMain",
+                                       .fragmentEntry = "fragmentMain",
+                                       .vertexState = meshView->GetVertexState(subMesh.stateIndex)});
 
         core::render::RenderPacket packet{
+            .pipeline = pipeline,
             .vertexBuffer = meshView->vertexBuffer,
             .indexBuffer = meshView->indexBuffer,
-            .indexCount = mesh.indexCount,
+            .bufferRanges =
+                meshView->GetBufferRanges(subMesh.bufferRangeStart, subMesh.bufferRangeCount),
+            .indexStart = subMesh.indexStart,
+            .indexCount = subMesh.indexCount,
             .material = material,
         };
         context.Submit(packet);

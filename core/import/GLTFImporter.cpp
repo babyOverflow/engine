@@ -8,12 +8,15 @@
 
 #include "GLTFImporter.h"
 
+using core::memory::StridedSpan;
+
 namespace core::importer {
 
 const std::string kGltfPosition = "POSITION";
 const std::string kGltfTexCoord0 = "TEXCOORD_0";
 const std::string kGltfNormal = "NORMAL";
 const std::string kGltfTangent = "TANGENT";
+const std::string kGltfColor = "COLOR_0";
 
 AssetPath GLTFImporter::ToTextureID(int gltfTextureIndex) {
     return AssetPath{std::format("virtual://tex/{}", gltfTextureIndex)};
@@ -53,8 +56,8 @@ std::expected<MaterialAssetFormat, Error> GLTFImporter::ImportMaterial(
                            gltfMaterial.pbrMetallicRoughness.baseColorFactor[2],
                            gltfMaterial.pbrMetallicRoughness.baseColorFactor[3]));
     assetFormat.SetUniform("emissiveFactor", glm::vec<3, float>(gltfMaterial.emissiveFactor[0],
-                                                                  gltfMaterial.emissiveFactor[1],
-                                                                  gltfMaterial.emissiveFactor[2]));
+                                                                gltfMaterial.emissiveFactor[1],
+                                                                gltfMaterial.emissiveFactor[2]));
     assetFormat.SetUniform("normalScale", static_cast<float>(gltfMaterial.normalTexture.scale));
 
     assetFormat.SetUniform("metallicFactor",
@@ -142,7 +145,7 @@ std::expected<GLTFImportResult, Error> GLTFImporter::ImportFromFile(const std::s
                 modelNode.materialIds.push_back(ToMaterialID(primitive.material));
             } else {
                 modelNode.materialIds.push_back(AssetPath{"virtual://material/default"});
-        }
+            }
         }
 
         result.modelAsset.nodes.push_back(modelNode);
@@ -167,44 +170,134 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
         }
     }
 
-    std::vector<Vertex> vertexData;
-    vertexData.reserve(totalVertexCount);
+    std::vector<MeshAssetFormat::BufferRange> currentRanges;
+    std::vector<MeshAssetFormat::MeshVertexState> vertexStates;
+    std::vector<std::byte> vertexData;
+    vertexData.reserve(totalVertexCount * (12 + 36));
     std::vector<uint32_t> indexData;
     indexData.reserve(totalIndexCount);
     for (const tinygltf::Primitive& primitive : mesh.primitives) {
         MeshAssetFormat::SubMeshInfo subMeshInfo;
-        if (primitive.attributes.find(kGltfTexCoord0) == primitive.attributes.end()) {
-            continue;
-        }
-
         if (primitive.indices < 0) {
             continue;
         }
-        const auto posResult = GetAttributePtr<const glm::vec3>(gltfModel, primitive, kGltfPosition);
-        const auto texResult =
-            GetAttributePtr<const glm::vec2>(gltfModel, primitive, kGltfTexCoord0);
-        const auto norResult = GetAttributePtr<const glm::vec3>(gltfModel, primitive, kGltfNormal);
-        const auto tanResult = GetAttributePtr<const glm::vec4>(gltfModel, primitive, kGltfTangent);
-        if (!posResult.has_value() || !texResult.has_value()) {
+        auto posSpanOpt = GetAttributePtr<const glm::vec3>(gltfModel, primitive, kGltfPosition);
+        if (!posSpanOpt) {
             continue;
         }
-        const auto posSpan = posResult.value();
-        const auto texSpan = texResult.value();
-        const auto norSpan = norResult.has_value()
-                           ? norResult.value()
-                           : core::memory::StridedSpan<const glm::vec3>::MakeZero(posSpan.size());
-        auto tanSpan = tanResult.has_value()
-                           ? tanResult.value()
-                           : core::memory::StridedSpan<const glm::vec4>::MakeZero(posSpan.size());
 
-        subMeshInfo.baseVertexLocation = vertexData.size();
-        subMeshInfo.vertexType = VertexType::StandardMesh;
+        MeshAssetFormat::MeshVertexState currentState;
+        subMeshInfo.bufferRangeStart = currentRanges.size();
+        auto posSpan = posSpanOpt.value();
+        size_t vertexCount = posSpan.size();
 
-        for (size_t i = 0; i < posSpan.size(); ++i) {
-            vertexData.push_back(Vertex{.position = posSpan[i],
-                                        .normal = norSpan[i],
-                                        .uv = texSpan[i],
-                                        .tangent = tanSpan[i]});
+        MeshAssetFormat::MeshBufferSlot posSlot{
+            .stepMode = MeshAssetFormat::StepMode::Vertex,
+            .stride = sizeof(glm::vec3),
+            .attributeCount = 1,
+            .attributes = {MeshAssetFormat::MeshAttribute{MeshAssetFormat::VertexFormat::Float32x3,
+                                                          Semantic::Position, 0}}};
+        currentState.bufferSlots[currentState.slotCount++] = posSlot;
+
+        MeshAssetFormat::BufferRange posRange{
+            .offset = static_cast<uint32_t>(vertexData.size()),
+            .size = static_cast<uint32_t>(vertexCount * posSlot.stride)};
+        vertexData.resize(vertexData.size() + posRange.size);
+        std::byte* posDst = vertexData.data() + posRange.offset;
+
+        // Fast-path 최적화 (연속적일 경우 O(1) 복사)
+        if (posSpan.stride() == sizeof(glm::vec3)) {
+            std::memcpy(posDst, posSpan.GetRawBytePtr(), posRange.size);
+        } else {
+            for (size_t i = 0; i < vertexCount; ++i) {
+                std::memcpy(posDst + (i * posSlot.stride),
+                            posSpan.GetRawBytePtr() + (i * posSpan.stride()), sizeof(glm::vec3));
+            }
+        }
+        currentRanges.push_back(posRange);
+
+        auto texSpanOpt = GetAttributePtr<const glm::vec2>(gltfModel, primitive, kGltfTexCoord0);
+        if (texSpanOpt) {
+            auto texSpan = texSpanOpt.value();
+            auto norSpanOpt = GetAttributePtr<const glm::vec3>(gltfModel, primitive, kGltfNormal);
+            auto tanSpanOpt = GetAttributePtr<const glm::vec4>(gltfModel, primitive, kGltfTangent);
+
+            // 누락된 데이터는 MakeZero(임시 0버퍼)로 폴백 처리
+            auto norSpan = norSpanOpt.has_value()
+                               ? norSpanOpt.value()
+                               : core::memory::StridedSpan<const glm::vec3>::MakeZero(vertexCount);
+            auto tanSpan = tanSpanOpt.has_value()
+                               ? tanSpanOpt.value()
+                               : core::memory::StridedSpan<const glm::vec4>::MakeZero(vertexCount);
+
+            MeshAssetFormat::MeshBufferSlot surSlot{
+                .stepMode = MeshAssetFormat::StepMode::Vertex,
+                .stride = 12 + 8 + 16,  // Normal + UV + Tangent
+                .attributeCount = 3,
+                .attributes = {
+                    MeshAssetFormat::MeshAttribute{MeshAssetFormat::VertexFormat::Float32x3,
+                                                   Semantic::Normal, 0},
+                    MeshAssetFormat::MeshAttribute{MeshAssetFormat::VertexFormat::Float32x2,
+                                                   Semantic::TexCoord0, 12},
+                    MeshAssetFormat::MeshAttribute{MeshAssetFormat::VertexFormat::Float32x4,
+                                                   Semantic::Tangent, 20}}};
+            currentState.bufferSlots[currentState.slotCount++] = surSlot;
+
+            MeshAssetFormat::BufferRange surRange{
+                .offset = static_cast<uint32_t>(vertexData.size()),
+                .size = static_cast<uint32_t>(vertexCount * surSlot.stride)};
+            vertexData.resize(vertexData.size() + surRange.size);
+            std::byte* surDst = vertexData.data() + surRange.offset;
+
+            struct RawSpan {
+                const std::byte* data;
+                size_t stride;
+            };
+            std::array<RawSpan, 3> activeSpans = {
+                RawSpan{norSpan.GetRawBytePtr(), norSpan.stride()},
+                RawSpan{texSpan.GetRawBytePtr(), texSpan.stride()},
+                RawSpan{tanSpan.GetRawBytePtr(), tanSpan.stride()}};
+
+            for (size_t i = 0; i < vertexCount; ++i) {
+                std::byte* currentVertDst = surDst + (i * surSlot.stride);
+                for (size_t j = 0; j < surSlot.attributeCount; ++j) {
+                    size_t payloadSize =
+                        MeshAssetFormat::GetVertexFormatSize(surSlot.attributes[j].format);
+                    const std::byte* srcPtr = activeSpans[j].data + (i * activeSpans[j].stride);
+                    std::memcpy(currentVertDst, srcPtr, payloadSize);
+                    currentVertDst += payloadSize;
+                }
+            }
+            currentRanges.push_back(surRange);
+        }
+
+        auto colorSpanOpt = GetAttributePtr<const glm::vec4>(gltfModel, primitive, kGltfColor);
+        if (colorSpanOpt) {
+            auto colorSpan = colorSpanOpt.value();
+            MeshAssetFormat::MeshBufferSlot colorSlot{
+                .stepMode = MeshAssetFormat::StepMode::Vertex,
+                .stride = sizeof(glm::vec4),
+                .attributeCount = 1,
+                .attributes = {MeshAssetFormat::MeshAttribute{MeshAssetFormat::VertexFormat::Float32x4, Semantic::Color0, 0}},
+            };
+            currentState.bufferSlots[currentState.slotCount++] = colorSlot;
+
+            MeshAssetFormat::BufferRange colorRange{
+                .offset = static_cast<uint32_t>(vertexData.size()),
+                .size = static_cast<uint32_t>(vertexCount * colorSlot.stride)};
+            vertexData.resize(vertexData.size() + colorRange.size);
+            std::byte* colorDst = vertexData.data() + colorRange.offset;
+
+            if (colorSpan.stride() == sizeof(glm::vec3)) {
+                std::memcpy(colorDst, colorSpan.GetRawBytePtr(), colorRange.size);
+            } else {
+                for (size_t i = 0; i < vertexCount; ++i) {
+                    std::memcpy(colorDst + (i * colorSlot.stride),
+                                colorSpan.GetRawBytePtr() + (i * colorSpan.stride()),
+                                sizeof(glm::vec3));
+                }
+            }
+            currentRanges.push_back(colorRange);
         }
 
         const auto& indexAccessor = gltfModel.accessors[primitive.indices];
@@ -214,13 +307,13 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
         const void* indices = reinterpret_cast<const void*>(
             &indexBuffer.data[indexBufferView.byteOffset + indexAccessor.byteOffset]);
         subMeshInfo.indexCount = indexAccessor.count;
-        subMeshInfo.baseIndexLocation = indexData.size();
+        subMeshInfo.indexStart = indexData.size();
+
         if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) {
             const uint32_t* intIndices = reinterpret_cast<const uint32_t*>(indices);
-            size_t indexSize = tinygltf::GetComponentSizeInBytes(indexAccessor.componentType) *
-                               indexAccessor.count;
-            std::span<const uint32_t> indexRnage(intIndices, indexSize);
-            indexData.append_range(indexRnage);
+
+            std::span<const uint32_t> indexRange(intIndices, indexAccessor.count);
+            indexData.append_range(indexRange);
 
         } else if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
             const uint16_t* shortIndices = reinterpret_cast<const uint16_t*>(indices);
@@ -236,14 +329,28 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
             return std::unexpected(Error{ErrorType::AssetParsingError,
                                          "Unsupported index component type in glTF mesh!"});
         }
+
+        auto it = std::ranges::find(vertexStates, currentState);
+        uint32_t stateIndex = 0;
+        if (it != vertexStates.end()) {
+            stateIndex = static_cast<uint32_t>(std::distance(vertexStates.begin(), it));
+        } else {
+            stateIndex = static_cast<uint32_t>(vertexStates.size());
+            vertexStates.push_back(currentState);
+        }
+
+        subMeshInfo.stateIndex = stateIndex;
+        subMeshInfo.bufferRangeCount = currentRanges.size() - subMeshInfo.bufferRangeStart;
+
         subMeshInfos.push_back(subMeshInfo);
     }
 
-    std::byte* vertexPtr = reinterpret_cast<std::byte*>(vertexData.data());
     return MeshAssetFormat{
+        .states = std::move(vertexStates),
+        .bufferRanges = std::move(currentRanges),
         .subMeshes = std::move(subMeshInfos),
         .indexData = std::move(indexData),
-        .vertexData = std::vector(vertexPtr, vertexPtr + vertexData.size() * sizeof(Vertex)),
+        .vertexData = std::move(vertexData),  // std::move 사용
     };
 }
 
