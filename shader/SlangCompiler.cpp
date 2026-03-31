@@ -749,13 +749,7 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                             : core::Semantic::Undefined,
         };
 
-        const auto it = std::ranges::find(parameters, parameter);
-        if (it == parameters.end()) {
-            parameters.push_back(parameter);
-            return parameters.size() - 1;
-        } else {
-            return static_cast<std::size_t>(std::distance(parameters.begin(), it));
-        }
+         parameters.push_back(parameter);
     };
 
     ProgramLayout* programLayout = linkedProgram->getLayout();
@@ -774,19 +768,17 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
 
         entryPoint.stage = context.visibility;
         if ((entryPoint.stage & sa::ShaderVisibility::Vertex) == sa::ShaderVisibility::Vertex) {
-            entryPoint.ioStartIndex = indices.size();
+            entryPoint.ioStartIndex = parameters.size();
             entryPoint.ioCount = compilerParameters.input.size();
             for (uint32_t i = 0; i < compilerParameters.input.size(); ++i) {
-                uint32_t idx = attachParameter(compilerParameters.input[i]);
-                indices.push_back(idx);
+                attachParameter(compilerParameters.input[i]);
             }
         }
         if ((entryPoint.stage & sa::ShaderVisibility::Fragment) == sa::ShaderVisibility::Fragment) {
-            entryPoint.ioStartIndex = indices.size();
+            entryPoint.ioStartIndex = parameters.size();
             entryPoint.ioCount = compilerParameters.output.size();
             for (uint32_t i = 0; i < compilerParameters.output.size(); ++i) {
-                uint32_t idx = attachParameter(compilerParameters.output[i]);
-                indices.push_back(idx);
+                attachParameter(compilerParameters.output[i]);
             }
         }
 
