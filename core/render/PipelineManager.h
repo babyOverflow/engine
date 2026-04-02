@@ -29,11 +29,13 @@ struct PipelineDesc {
         {
             return false;
         }
-
         if (!wgx::Equals(primitive, other.primitive)) {
             return false;
         }
         if (!wgx::Equals(blendState, other.blendState)) {
+            return false;
+        }
+        if (vertexState != other.vertexState) {
             return false;
         }
         return true;
