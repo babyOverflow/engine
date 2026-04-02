@@ -39,7 +39,7 @@ struct MeshResult {
 
 
 struct ShaderImportResult {
-    ShaderAssetFormat shaderBlob;
+    ShaderAssetFormat shaderAsset;
     AssetPath assetPath;
 };
 }  // namespace core::importer

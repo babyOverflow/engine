@@ -7,13 +7,13 @@ namespace core::importer {
 
 std::expected<ShaderImportResult, Error> core::importer::ShdrImporter::ShdrImport(
     const std::string& shaderPath) {
-    const auto blobOrError =
+    const auto shaderAssetOrError =
         util::ReadFileToByte(shaderPath).and_then(ShaderAssetFormat::LoadFromMemory);
-    if (!blobOrError.has_value()) {
+    if (!shaderAssetOrError.has_value()) {
         return std::unexpected(Error::Parse(""));
     }
     return ShaderImportResult{
-        blobOrError.value(),
+        shaderAssetOrError.value(),
         AssetPath{shaderPath},
     };
 }

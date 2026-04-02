@@ -205,7 +205,6 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
         vertexData.resize(vertexData.size() + posRange.size);
         std::byte* posDst = vertexData.data() + posRange.offset;
 
-        // Fast-path 최적화 (연속적일 경우 O(1) 복사)
         if (posSpan.stride() == sizeof(glm::vec3)) {
             std::memcpy(posDst, posSpan.GetRawBytePtr(), posRange.size);
         } else {
@@ -222,7 +221,6 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
             auto norSpanOpt = GetAttributePtr<const glm::vec3>(gltfModel, primitive, kGltfNormal);
             auto tanSpanOpt = GetAttributePtr<const glm::vec4>(gltfModel, primitive, kGltfTangent);
 
-            // 누락된 데이터는 MakeZero(임시 0버퍼)로 폴백 처리
             auto norSpan = norSpanOpt.has_value()
                                ? norSpanOpt.value()
                                : core::memory::StridedSpan<const glm::vec3>::MakeZero(vertexCount);
@@ -278,7 +276,8 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
                 .stepMode = MeshAssetFormat::StepMode::Vertex,
                 .stride = sizeof(glm::vec4),
                 .attributeCount = 1,
-                .attributes = {MeshAssetFormat::MeshAttribute{MeshAssetFormat::VertexFormat::Float32x4, Semantic::Color0, 0}},
+                .attributes = {MeshAssetFormat::MeshAttribute{
+                    MeshAssetFormat::VertexFormat::Float32x4, Semantic::Color0, 0}},
             };
             currentState.bufferSlots[currentState.slotCount++] = colorSlot;
 
@@ -350,7 +349,7 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
         .bufferRanges = std::move(currentRanges),
         .subMeshes = std::move(subMeshInfos),
         .indexData = std::move(indexData),
-        .vertexData = std::move(vertexData),  // std::move 사용
+        .vertexData = std::move(vertexData),
     };
 }
 

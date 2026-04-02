@@ -51,7 +51,6 @@ void ExampleLayer::OnAttach() {
 }
 
 void ExampleLayer::OnRender(core::render::FrameContext& context) {
-    auto& d = m_device->GetDeivce();
     auto am = m_app->GetAssetManager();
     auto modelView = am->GetModel(m_modelHandle);
     auto pm = m_app->GetPipelineManager();
@@ -63,9 +62,7 @@ void ExampleLayer::OnRender(core::render::FrameContext& context) {
         auto meshView = am->GetMesh(renderUnit.meshHandle);
         auto& subMesh = meshView->GetSubMeshInfors(renderUnit.subMeshIndex);
 
-        auto modelMatrix = renderUnit.modelMatrix;
         auto material = am->GetMaterial(renderUnit.materialHandle);
-        auto shader = material->GetShader();
 
         core::render::PipelineDesc desc =
             material->GetPipelineDesc(meshView->GetVertexState(subMesh.stateIndex));

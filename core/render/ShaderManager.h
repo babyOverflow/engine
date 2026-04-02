@@ -11,7 +11,7 @@ class ShaderManager {
   public:
     ShaderManager(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache);
 
-    ShaderAsset CreateFromShaderSource(ShaderAssetFormat&& shaderBlob);
+    ShaderAsset CreateFromShaderSource(ShaderAssetFormat&& shaderAsset);
 
     Handle LoadShader(core::importer::ShaderImportResult&& shaderResult);
     AssetView<ShaderAsset> GetShader(const AssetPath& shaderPath);

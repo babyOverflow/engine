@@ -1,7 +1,7 @@
 #pragma once
 
-#include <glm/glm.hpp>
 #include <array>
+#include <glm/glm.hpp>
 
 #include "Common.h"
 
@@ -10,12 +10,7 @@ namespace core {
 struct MeshAssetFormat {
     inline constexpr static uint32_t kInvalidIndex = -1;
 
-    enum class VertexFormat : uint8_t { 
-        Float32,
-        Float32x2,
-        Float32x3,
-        Float32x4,
-        Undefined = 255 };
+    enum class VertexFormat : uint8_t { Float32, Float32x2, Float32x3, Float32x4, Undefined = 255 };
 
     enum class StepMode : uint8_t { Vertex, Instance, Undefined = 255 };
 
@@ -64,7 +59,7 @@ struct MeshAssetFormat {
         uint32_t indexCount;
         uint32_t indexStart;
         uint32_t stateIndex;
-        uint32_t bufferRangeStart;  // span 대신 시작 인덱스
+        uint32_t bufferRangeStart;
         uint32_t bufferRangeCount;
     };
 

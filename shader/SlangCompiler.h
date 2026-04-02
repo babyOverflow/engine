@@ -15,12 +15,12 @@ namespace slangCompiler {
 
 enum class ErrorType {
     None = 0,
-    InitFailed,          // Slang 세션 초기화 실패 (DLL 누락 등)
-    IOError,             // 파일 읽기 실패
-    CompilationFailed,   // 셰이더 문법 오류, 링크 오류
-    EntryPointNotFound,  // "main" 함수를 못 찾음
-    ReflectionFailed,    // 리플렉션 데이터 추출 실패 (지원하지 않는 타입 등)
-    InternalError,       // 기타 메모리 부족 등
+    InitFailed,
+    IOError,
+    CompilationFailed,
+    EntryPointNotFound,
+    ReflectionFailed,
+    InternalError,
 };
 
 struct Error {

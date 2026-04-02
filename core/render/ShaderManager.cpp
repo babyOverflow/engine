@@ -34,17 +34,17 @@ ShaderManager::ShaderManager(Device* device, AssetManager* assetRepo, LayoutCach
 
     ShaderAssetFormat& blob = blobOrError.value();
 
-    render::ShaderAsset vtxShader = CreateFromShaderSource(std::move(blob));
+    render::ShaderAsset shader = CreateFromShaderSource(std::move(blob));
 
-    m_standardShader = m_assetRepo->StoreShaderAsset(std::move(vtxShader));
+    m_standardShader = m_assetRepo->StoreShaderAsset(std::move(shader));
 }
 
-ShaderAsset ShaderManager::CreateFromShaderSource(ShaderAssetFormat&& shaderBlob) {
-    std::string_view wgslCode(reinterpret_cast<const char*>(shaderBlob.code.data()),
-                              shaderBlob.code.size());
+ShaderAsset ShaderManager::CreateFromShaderSource(ShaderAssetFormat&& shaderAsset) {
+    std::string_view wgslCode(reinterpret_cast<const char*>(shaderAsset.code.data()),
+                              shaderAsset.code.size());
     wgpu::ShaderModule shaderModule = m_device->CreateShaderModuleFromWGSL(wgslCode);
 
-    auto shaderAssetFormat = std::make_unique<ShaderAssetFormat>(std::move(shaderBlob));
+    auto shaderAssetFormat = std::make_unique<ShaderAssetFormat>(std::move(shaderAsset));
     ShaderReflection reflection = ShaderReflection::Create(shaderAssetFormat.get());
 
     std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts = CreateGroupLayouts(reflection);
@@ -71,7 +71,7 @@ Handle ShaderManager::LoadShader(core::importer::ShaderImportResult&& shaderResu
         return it->second;
     }
     core::render::ShaderAsset shaderAsset =
-        CreateFromShaderSource(std::move(shaderResult.shaderBlob));
+        CreateFromShaderSource(std::move(shaderResult.shaderAsset));
     Handle handle = m_assetRepo->StoreShaderAsset(std::move(shaderAsset));
     m_shaderCache[shaderResult.assetPath] = handle;
     return handle;
