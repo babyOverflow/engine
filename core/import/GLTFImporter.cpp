@@ -287,13 +287,13 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
             vertexData.resize(vertexData.size() + colorRange.size);
             std::byte* colorDst = vertexData.data() + colorRange.offset;
 
-            if (colorSpan.stride() == sizeof(glm::vec3)) {
+            if (colorSpan.stride() == sizeof(glm::vec4)) {
                 std::memcpy(colorDst, colorSpan.GetRawBytePtr(), colorRange.size);
             } else {
                 for (size_t i = 0; i < vertexCount; ++i) {
                     std::memcpy(colorDst + (i * colorSlot.stride),
                                 colorSpan.GetRawBytePtr() + (i * colorSpan.stride()),
-                                sizeof(glm::vec3));
+                                sizeof(glm::vec4));
                 }
             }
             currentRanges.push_back(colorRange);
