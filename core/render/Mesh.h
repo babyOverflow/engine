@@ -19,7 +19,7 @@ struct Mesh {
                                                        meshAssetFormat->subMeshes.size());
     }
 
-    const MeshAssetFormat::SubMeshInfo& GetSubMeshInfors(uint32_t index) const {
+    const MeshAssetFormat::SubMeshInfo& GetSubMeshInfos(uint32_t index) const {
         return meshAssetFormat->subMeshes[index];
     }
 
