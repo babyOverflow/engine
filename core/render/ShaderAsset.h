@@ -32,12 +32,12 @@ class ShaderReflection {
     };
 
 
-    const std::span<const Binding> GetGroup(uint32_t setIdx) const;
-    const std::span<const Binding> GetAllBindings() const;
+    std::span<const Binding> GetGroup(uint32_t setIdx) const;
+    std::span<const Binding> GetAllBindings() const;
 
-    const std::span<const MaterialVariableInfo> GetMaterialVariableInfos() const;
+    std::span<const MaterialVariableInfo> GetMaterialVariableInfos() const;
 
-    const std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInput(
+    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInput(
         const std::string& name) const;
 
   private:

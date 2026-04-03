@@ -13,22 +13,22 @@ ShaderAsset ShaderAsset::Create(wgpu::ShaderModule shaderModule,
                        bindGroupLayouts);
 }
 
-const std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(uint32_t setIdx) const {
+std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(uint32_t setIdx) const {
     return std::span<const ShaderAssetFormat::Binding>(
         m_shaderAssetFormat->bindings.begin() + (groups[setIdx].offset), groups[setIdx].count);
 };
 
-const std::span<const ShaderReflection::Binding> ShaderReflection::GetAllBindings() const {
+std::span<const ShaderReflection::Binding> ShaderReflection::GetAllBindings() const {
     return m_shaderAssetFormat->bindings;
 }
 
-const std::span<const MaterialVariableInfo> ShaderReflection::GetMaterialVariableInfos() const {
+std::span<const MaterialVariableInfo> ShaderReflection::GetMaterialVariableInfos() const {
     // TODO!
     assert(false && "GetMaterialVariableInfos is not implemented");
     return {};
 }
 
-const std::span<const ShaderReflection::Parameter> ShaderReflection::GetEntryInput(
+std::span<const ShaderReflection::Parameter> ShaderReflection::GetEntryInput(
     const std::string& name) const {
     auto it = std::ranges::find(m_shaderAssetFormat->entryPoints, name, [this](const auto& entry) {
         return GetNameByIndex(entry.nameIdx);
