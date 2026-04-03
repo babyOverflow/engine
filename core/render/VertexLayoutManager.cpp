@@ -5,7 +5,7 @@
 core::Handle core::render::VertexLayoutManager::GetVertexLayout(
     const wgx::VertexBufferLayout& layout) {
     auto it = std::ranges::find_if(
-        m_layoutCache, [layout](const std::pair<wgx::VertexBufferLayout, Handle>& pair) {
+        m_layoutCache, [&layout](const std::pair<wgx::VertexBufferLayout, Handle>& pair) {
             return pair.first == layout;
         });
     if (it != m_layoutCache.end()) {
