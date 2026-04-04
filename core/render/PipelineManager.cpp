@@ -16,6 +16,9 @@ static constexpr wgpu::VertexFormat MapFormat(MeshAssetFormat::VertexFormat form
             return wgpu::VertexFormat::Float32x3;
         case MeshAssetFormat::VertexFormat::Float32x4:
             return wgpu::VertexFormat::Float32x4;
+        default:
+            assert(false && "Unhandled VertexFormat provided");
+            std::unreachable();
     }
 }
 
