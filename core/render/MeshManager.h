@@ -1,5 +1,6 @@
 #pragma once
 #include "import/Importer.h"
+#include "VertexLayoutManager.h"
 #include "AssetManager.h"
 #include "MeshAssetFormat.h"
 #include "render.h"

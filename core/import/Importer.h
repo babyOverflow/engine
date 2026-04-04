@@ -37,13 +37,9 @@ struct MeshResult {
     AssetPath assetPath;
 };
 
-struct ShaderBlob {
-    std::vector<uint8_t> shaderCode;
-    core::render::ShaderReflectionData reflection;
-};
 
 struct ShaderImportResult {
-    ShaderBlob shaderBlob;
+    ShaderAssetFormat shaderAsset;
     AssetPath assetPath;
 };
 }  // namespace core::importer

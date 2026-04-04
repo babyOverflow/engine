@@ -8,6 +8,6 @@ std::expected<core::Handle, core::Error> loader::ShaderLoader::LoadShader(const 
         return std::unexpected(resultOrError.error());
     }
 
-    return m_shaderManager->LoadShader(resultOrError.value());
+    return m_shaderManager->LoadShader(std::move(resultOrError.value()));
 }
 }  // namespace loader

@@ -74,6 +74,33 @@ constexpr PropertyId ToPropertyID(std::string_view name) {
     return hash;
 }
 
+enum class Semantic {
+    Position,
+    Normal,
+    Tangent,
+    Color0,
+    Color1,
+    Color2,
+    Color3,
+    TexCoord0,
+    TexCoord1,
+    TexCoord2,
+    TexCoord3,
+    TexCoord4,
+    TexCoord5,
+    TexCoord6,
+    TexCoord7,
+
+    Custom0,
+    Custom1,
+    Custom2,
+    Custom3,
+
+    Undefined = 255
+};
+
+Semantic NameToSemantic(const std::string& name, uint32_t index);
+
 constexpr uint32_t kSetNumberGlobal = 0;
 constexpr uint32_t kSetNumberMaterial = 1;
 constexpr uint32_t kSetNumberInstance = 2;

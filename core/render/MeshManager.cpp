@@ -1,3 +1,5 @@
+#include <memory>
+
 #include "MeshManager.h"
 
 core::Handle core::render::MeshManager::LoadMesh(const importer::MeshResult& meshResult) {
@@ -14,20 +16,11 @@ core::Handle core::render::MeshManager::LoadMesh(const importer::MeshResult& mes
         meshAssetFormat.indexData.data(), meshAssetFormat.indexData.size() * sizeof(uint32_t),
         wgpu::BufferUsage::Index | wgpu::BufferUsage::CopyDst);
 
-    std::vector<SubMeshInfo> subMeshInfos;
-    subMeshInfos.reserve(meshAssetFormat.subMeshes.size());
-    for (const auto& subMeshAsset : meshAssetFormat.subMeshes) {
-        SubMeshInfo subMeshInfo;
-        subMeshInfo.indexCount = subMeshAsset.indexCount;
-        subMeshInfo.indexOffset = subMeshAsset.baseIndexLocation;
-        subMeshInfo.vertexOffset = subMeshAsset.baseVertexLocation;
-        subMeshInfos.push_back(subMeshInfo);
-    }
 
     Mesh mesh{
         .vertexBuffer = vertexBuffer,
         .indexBuffer = indexBuffer,
-        .submeshInfos = std::move(subMeshInfos),
+        .meshAssetFormat = std::make_unique<MeshAssetFormat>( meshResult.meshAsset),
     };
     Handle handle = m_assetManager->StoreMesh(std::move(mesh));
     m_meshCache[meshResult.assetPath] = handle;

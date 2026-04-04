@@ -2,36 +2,36 @@
 
 #include <array>
 
+#include <MeshAssetFormat.h>
+
+#include "VertexLayoutManager.h"
 #include "render.h"
 
 namespace core::render {
 
-struct Vertex {
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 uv;
-    glm::vec4 tangent;
-
-    static wgpu::VertexBufferLayout GetWgpuVertexLayout();
-};
-
-enum class VertexType {
-    None = 0,
-    StandardMesh = 1,
-};
-
-wgpu::VertexBufferLayout MapVertexDesc(VertexType type);
-
-struct SubMeshInfo {
-    uint32_t indexCount;
-    uint32_t indexOffset;
-    uint32_t vertexOffset;
-};
-
 struct Mesh {
     wgpu::Buffer vertexBuffer;
     wgpu::Buffer indexBuffer;
-    std::vector<SubMeshInfo> submeshInfos;
+    std::unique_ptr< MeshAssetFormat> meshAssetFormat;
+
+    std::span<const MeshAssetFormat::SubMeshInfo> GetSubMeshInfors() const {
+        return std::span<const MeshAssetFormat::SubMeshInfo>(meshAssetFormat->subMeshes.data(),
+                                                       meshAssetFormat->subMeshes.size());
+    }
+
+    const MeshAssetFormat::SubMeshInfo& GetSubMeshInfos(uint32_t index) const {
+        return meshAssetFormat->subMeshes[index];
+    }
+
+    const MeshAssetFormat::MeshVertexState& GetVertexState(uint32_t index) const {
+        return meshAssetFormat->states[index];
+    }
+
+    std::span<const MeshAssetFormat::BufferRange> GetBufferRanges(uint32_t start, uint32_t count) const {
+        return std::span<const MeshAssetFormat::BufferRange>(
+            meshAssetFormat->bufferRanges.data() + start, count);
+    }
+
 };
 
 }  // namespace core::render

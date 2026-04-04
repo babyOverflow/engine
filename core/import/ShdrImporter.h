@@ -6,7 +6,7 @@
 #include "ShaderAssetFormat.h"
 #include "render/ShaderAsset.h"
 namespace core::render {
-class ShaderReflectionData;
+class ShaderReflection;
 }
 namespace core::importer {
 
@@ -15,6 +15,5 @@ namespace core::importer {
 class ShdrImporter {
   public:
     static std::expected<ShaderImportResult, Error> ShdrImport(const std::string& shaderPath);
-    static std::expected<ShaderBlob, Error> ShdrConvert(const core::ShaderAssetFormat& shdr);
 };
 }  // namespace core::importer

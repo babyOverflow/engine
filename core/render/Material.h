@@ -2,8 +2,8 @@
 #include <concepts>
 #include <map>
 
-#include "LayoutCache.h"
 #include "PipelineManager.h"
+#include "LayoutCache.h"
 #include "ShaderAsset.h"
 #include "Texture.h"
 #include "render.h"
@@ -51,6 +51,8 @@ class Material {
     AssetView<ShaderAsset> GetShader() const { return m_shaderView; }
 
     void UpdateUniform();
+
+    PipelineDesc GetPipelineDesc(const MeshAssetFormat::MeshVertexState& vertexState);
 
     wgpu::BindGroup GetBindGroup();
 

@@ -87,7 +87,7 @@ struct Fragment {
 // Vertex  Shader
 struct VertexStageOutput {
     CoarseVertex coarseVertex : CoarseVertex;
-    float4 sv_position : SV_Position;
+    float4 sv_position : SV_Position;   
 };
 
 [shader("vertex")]
@@ -176,8 +176,8 @@ const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSi
             // cbuffer PerFrameUniforms
             .set = 0,
             .binding = 0,
-            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
             .resource = core::ShaderAssetFormat::Resource::Buffer(80),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
         core::ShaderAssetFormat::Binding{
             // TextureSet gExtraTextures : register(space0) .albedoMap
@@ -195,8 +195,8 @@ const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSi
             // ParameterBlock<MaterialData> gMaterial : register(space1) auto generated Uniform
             .set = 1,
             .binding = 0,
-            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
             .resource = core::ShaderAssetFormat::Resource::Buffer(16),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
         core::ShaderAssetFormat::Binding{
             // ParameterBlock<MaterialData> gMaterial : register(space1) .textures.albedoMap
@@ -270,14 +270,14 @@ float4 vertexMain(AssembledVertex vertex) : SV_Position {
 }
 )";
 
-const uint32_t kStandardPBR_VS_ExpectedBindingSize = 4;
-const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_VS_ExpectedBindingSize>
-    kStandardPBR_VS_ExpectedBindings{
+const uint32_t kStandardPBR_ExpectedBindingSize = 4;
+const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingSize>
+    kStandardPBR_ExpectedBindings{
         core::ShaderAssetFormat::Binding{
             .set = 0,
             .binding = 0,
-            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
             .resource = core::ShaderAssetFormat::Resource::Buffer(64),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
         core::ShaderAssetFormat::Binding{
             .set = 1,
@@ -292,12 +292,38 @@ const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_VS_ExpectedBindi
         core::ShaderAssetFormat::Binding{
             .set = 2,
             .binding = 0,
-            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
             .resource = core::ShaderAssetFormat::Resource::Buffer(64),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+        },
+    };
+const uint32_t kStandardPBR_ExpectedBindingsSize_VS = 1;
+const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingsSize_VS>
+    kStandardPBR_ExpectedBindings_VS{
+        core::ShaderAssetFormat::Binding{
+            .set = 0,
+            .binding = 0,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(64),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
     };
 
-const char* kStandardPBR_VS_Data = R"(
+const uint32_t kStandardPBR_ExpectedBindingsSize_FS = 2;
+const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingsSize_FS>
+    kStandardPBR_ExpectedBindings_FS{
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 0,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 1,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
+        },
+
+    };
+
+const char* kStandardPBR_Data = R"(
 #include <ShaderInterop.h>
 
 [[vk::binding(0, BindSlot::Global)]]

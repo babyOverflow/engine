@@ -11,17 +11,16 @@ class ShaderManager {
   public:
     ShaderManager(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache);
 
-    ShaderAsset CreateFromShaderSource(const core::importer::ShaderBlob &shaderBlob);
-    std::expected<ShaderAsset, Error> MergeShaderAsset(const ShaderAsset& a, const ShaderAsset& b);
+    ShaderAsset CreateFromShaderSource(ShaderAssetFormat&& shaderAsset);
 
-    Handle LoadShader(const core::importer::ShaderImportResult& shaderResult);
+    Handle LoadShader(core::importer::ShaderImportResult&& shaderResult);
     AssetView<ShaderAsset> GetShader(const AssetPath& shaderPath);
     AssetView<ShaderAsset> GetShaderAsset(Handle shaderHandle);
     AssetView<ShaderAsset> GetStandardShader() { return m_assetRepo->GetShaderAsset(m_standardShader); }
 
   private:
     std::array<wgpu::BindGroupLayout, 4> CreateGroupLayouts(
-        const core::render::ShaderReflectionData& reflection);
+        const core::render::ShaderReflection& reflection);
     Device* m_device;
     AssetManager* m_assetRepo;
     LayoutCache* m_layoutCache;

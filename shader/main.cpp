@@ -1,9 +1,10 @@
 #include <filesystem>
 #include <fstream>
 #include <print>
-#include <string>
 #include <ranges>
+#include <string>
 #include "SlangCompiler.h"
+#include "util.h"
 
 namespace fs = std::filesystem;
 using sa = core::ShaderAssetFormat;
@@ -12,32 +13,8 @@ using namespace slangCompiler;
 
 void PrintUsage() {
     std::println(
-        "Usage: shader_baker -i <input_file> -e <entry_point> -o <output_file> [-I <include_path>...]");
-}
-
-bool WriteAssetToFile(const fs::path& outputPath, const CompileResult& result) {
-    std::ofstream file(outputPath, std::ios::binary);
-    if (!file.is_open()) {
-        std::println(stderr, "Error: Failed to open output file: {}", outputPath.string());
-        return false;
-    }
-
-    file.write(reinterpret_cast<const char*>(&result.header), sizeof(sa::Header));
-
-    if (!result.bindings.empty())
-    {
-        file.write(reinterpret_cast<const char*>(result.bindings.data()),
-                   sizeof(sa::Binding) * result.bindings.size());
-    }
-
-    if (!result.sourceBlob.empty())
-    {
-        file.write(reinterpret_cast<const char*>(result.sourceBlob.data()),
-                   result.sourceBlob.size());
-    }
-
-    file.close();
-    return true;
+        "Usage: shader_baker -i <input_file> -e <entry_point> -o <output_file> [-I "
+        "<include_path>...]");
 }
 
 int main(int argc, char** argv) {
@@ -63,12 +40,11 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (inputPath.empty() || entryPoint.empty() || outputPath.empty()) {
+    if (inputPath.empty() || outputPath.empty()) {
         std::println(stderr, "Error: Missing required arguent");
         PrintUsage();
         return 1;
     }
-
 
     SlangCompilerDesc desc{.paths = includePaths};
     auto compilerOrError = SlangCompiler::Create(desc);
@@ -80,8 +56,13 @@ int main(int argc, char** argv) {
     SlangCompiler compiler = compilerOrError.value();
 
     std::println("Compiling {} ({}) ...", inputPath.string(), entryPoint);
-
-    auto resultOrError = compiler.Compile(inputPath.string(), std::string(entryPoint));
+    auto resultOrError = [&]() {
+        if (entryPoint.empty()) {
+            return compiler.Compile(inputPath.string());
+        } else {
+            return compiler.Compile(inputPath.string(), std::string(entryPoint));
+        }
+    }();
     if (!resultOrError.has_value()) {
         std::println(stderr, "Error! Compilation failed {}({}): {}", inputPath.string(), entryPoint,
                      resultOrError.error().message);
@@ -96,8 +77,6 @@ int main(int argc, char** argv) {
 
     if (WriteAssetToFile(outputPath, compileResult)) {
         std::println("Succsfully baked: {}", outputPath.string());
-        std::println(" - Bindings: {}", compileResult.header.bindingCount);
-        std::println(" - Code size: {}", compileResult.header.shaderSize);
         return 0;
     } else {
         return 1;
