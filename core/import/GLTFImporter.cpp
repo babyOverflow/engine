@@ -221,6 +221,9 @@ std::expected<MeshAssetFormat, Error> GLTFImporter::ImportMesh(const tinygltf::M
             auto norSpanOpt = GetAttributePtr<const glm::vec3>(gltfModel, primitive, kGltfNormal);
             auto tanSpanOpt = GetAttributePtr<const glm::vec4>(gltfModel, primitive, kGltfTangent);
 
+            // TODO!(#7; sunghyun): Replace MakeZero padding with true dynamic packing. Currently,
+            // standard shaders strictly require Normal and Tangent inputs. This bandwidth waste
+            // will be resolved once the Shader Permutation system (#7) is implemented.
             auto norSpan = norSpanOpt.has_value()
                                ? norSpanOpt.value()
                                : core::memory::StridedSpan<const glm::vec3>::MakeZero(vertexCount);
