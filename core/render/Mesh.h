@@ -14,12 +14,12 @@ struct Mesh {
     wgpu::Buffer indexBuffer;
     std::unique_ptr< MeshAssetFormat> meshAssetFormat;
 
-    std::span<const MeshAssetFormat::SubMeshInfo> GetSubMeshInfors() const {
+    std::span<const MeshAssetFormat::SubMeshInfo> GetSubMeshInfos() const {
         return std::span<const MeshAssetFormat::SubMeshInfo>(meshAssetFormat->subMeshes.data(),
                                                        meshAssetFormat->subMeshes.size());
     }
 
-    const MeshAssetFormat::SubMeshInfo& GetSubMeshInfos(uint32_t index) const {
+    const MeshAssetFormat::SubMeshInfo& GetSubMeshInfo(uint32_t index) const {
         return meshAssetFormat->subMeshes[index];
     }
 

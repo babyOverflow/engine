@@ -34,7 +34,7 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
 
         auto meshView = m_meshManager->GetMesh(meshHandle);
 
-        for (size_t i = 0; i < meshView->GetSubMeshInfors().size(); ++i) {
+        for (size_t i = 0; i < meshView->GetSubMeshInfos().size(); ++i) {
             core::render::RenderUnit renderUnit;
             renderUnit.meshHandle = meshHandle;
             renderUnit.subMeshIndex = static_cast<uint32_t>(i);

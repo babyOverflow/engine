@@ -60,7 +60,7 @@ void ExampleLayer::OnRender(core::render::FrameContext& context) {
 
     for (auto& renderUnit : modelView->renderUnits) {
         auto meshView = am->GetMesh(renderUnit.meshHandle);
-        auto& subMesh = meshView->GetSubMeshInfos(renderUnit.subMeshIndex);
+        auto& subMesh = meshView->GetSubMeshInfo(renderUnit.subMeshIndex);
 
         auto material = am->GetMaterial(renderUnit.materialHandle);
 
