@@ -50,7 +50,7 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
         device.get(), assetManager.get(), shaderManager.get(), textureManager.get(),
         layoutCache.get());
 
-    render::RenderGraph renderGraph(device.get(), pipelineManager.get(),
+    render::RenderGraph renderGraph(device.get(), assetManager.get(), pipelineManager.get(),
                                     layoutCache->GetBindGroupLayout(globalBindGroupLayout));
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
@@ -63,30 +63,29 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
 core::Application::~Application() {}
 
 void core::Application::Run() {
-    render::FrameContext frameContext;
+    render::RenderQueue renderQueue;
     while (!m_souldColose) {
         m_window.PollEvent();
         m_eventDispatcher->ProcessEvent([this](auto&& event) -> void { this->RaiseEvent(event); });
 
+        renderQueue.Clear();
         for (auto& layer : m_Layers) {
             // layer->OnUpdate(); // Assuming Layer has an OnUpdate method
-            layer->OnUpdate();
+            layer->OnUpdate(m_scene);
         }
 
-        for (auto& layer : m_Layers) {
-            layer->OnRender(frameContext);
-        }
-        m_renderGraph.Execute(frameContext);
+
+        render::SceneRenderer::ExtractRenderQueue(m_scene, renderQueue);
+        m_renderGraph.Execute(renderQueue);
         m_device->Present();
 
-        frameContext.ClearQueue();
     }
 
     glfwTerminate();
 }
 
 void core::Application::AttachLayer(std::unique_ptr<Layer> layer) {
-    layer->OnAttach();
+    layer->OnAttach(m_scene);
     m_Layers.emplace_back(std::move(layer));
 }
 

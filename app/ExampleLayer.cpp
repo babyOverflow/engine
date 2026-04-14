@@ -39,52 +39,23 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
         app->GetMeshManager(),
     };
 
+
     return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, loader));
 }
 
-void ExampleLayer::OnAttach() {
+void ExampleLayer::OnAttach(core::Scene& scene) {
     auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");
     if (!modelOrError.has_value()) {
         std::println("failed to load");
     }
     m_modelHandle = modelOrError.value();
+    core::AssetView<core::render::Model> model = m_app->GetAssetManager()->GetModel(m_modelHandle);
+    scene.AddModel(model, glm::mat4x4(1.F));
 }
 
-void ExampleLayer::OnRender(core::render::FrameContext& context) {
-    auto am = m_app->GetAssetManager();
-    auto modelView = am->GetModel(m_modelHandle);
-    auto pm = m_app->GetPipelineManager();
-
-    auto cameraData = m_gameCamera.GetCameraUniformData();
-    context.SetCameraData(cameraData);
-
-    for (auto& renderUnit : modelView->renderUnits) {
-        auto meshView = am->GetMesh(renderUnit.meshHandle);
-        auto& subMesh = meshView->GetSubMeshInfo(renderUnit.subMeshIndex);
-
-        auto material = am->GetMaterial(renderUnit.materialHandle);
-
-        core::render::PipelineDesc desc =
-            material->GetPipelineDesc(meshView->GetVertexState(subMesh.stateIndex));
-
-        wgpu::RenderPipeline pipeline = pm->GetRenderPipeline(desc);
-
-        core::render::RenderPacket packet{
-            .pipeline = pipeline,
-            .vertexBuffer = meshView->vertexBuffer,
-            .indexBuffer = meshView->indexBuffer,
-            .bufferRanges =
-                meshView->GetBufferRanges(subMesh.bufferRangeStart, subMesh.bufferRangeCount),
-            .indexStart = subMesh.indexStart,
-            .indexCount = subMesh.indexCount,
-            .material = material,
-        };
-        context.Submit(packet);
-    }
-}
-
-void ExampleLayer::OnUpdate() {
+void ExampleLayer::OnUpdate(core::Scene& scene) {
     m_cameraController.UpdateCamera(m_gameCamera, 0.1);
+    scene.cameraData = m_gameCamera.GetCameraUniformData();
 }
 
 bool ExampleLayer::OnEvent(core::Event& event) {

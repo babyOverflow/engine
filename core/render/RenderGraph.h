@@ -3,8 +3,10 @@
 #include <webgpu/webgpu_cpp.h>
 #include <string>
 
+#include "AssetManager.h"
 #include "render.h"
 #include "PipelineManager.h"
+#include "SceneRenderer.h"
 #include "Material.h"
 
 namespace core::render {
@@ -35,15 +37,21 @@ class FrameContext {
 class RenderGraph {
   public:
     RenderGraph(Device* device,
+                AssetManager* assetManager,
                 PipelineManager* pipelineManager,
                 const wgpu::BindGroupLayout globalBindGroupLayout);
 
     RenderGraph(RenderGraph&& rhs) = default;
 
-    void Execute(FrameContext& frameContext);
+    void Execute(RenderQueue& frameContext);
 
   private:
     Device* m_device;
+
+    AssetManager* m_assetManager;  // TODO!(#2, #8; Sunghyun) m_assetManager will be removed in
+                                   // future, and each RenderPass will directly access asset manager
+                                   // to get necessary resource. But for now, we put asset manager
+                                   // in RenderGraph for simplicity.
     PipelineManager* m_pipelineManager;
 
     wgpu::BindGroup m_globalBindGroup;

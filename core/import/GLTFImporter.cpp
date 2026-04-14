@@ -150,7 +150,6 @@ std::expected<GLTFImportResult, Error> GLTFImporter::ImportFromFile(const std::s
 
         result.modelAsset.nodes.push_back(modelNode);
     }
-
     return result;
 }
 
