@@ -3,3 +3,4 @@ CMakePresets.json
 vcpkg_installed
 out
 .vs
+app/resources

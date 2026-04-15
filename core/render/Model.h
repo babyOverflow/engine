@@ -12,6 +12,7 @@ struct RenderUnit {
     Handle materialHandle;
     glm::mat4 modelMatrix = glm::mat4(1.0f);
 };
+
 struct Model {
     Model() = default;
 

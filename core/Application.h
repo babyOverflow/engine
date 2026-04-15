@@ -5,11 +5,12 @@
 #include "AssetManager.h"
 #include "Layer.h"
 #include "Window.h"
+#include "render/MaterialManager.h"
 #include "render/MeshManager.h"
 #include "render/PipelineManager.h"
+#include "render/SceneRenderer.h"
 #include "render/ShaderManager.h"
 #include "render/TextureManager.h"
-#include "render/MaterialManager.h"
 #include "render/render.h"
 
 namespace core {
@@ -17,6 +18,7 @@ namespace core {
 struct ApplicationSpec {
     WindowSpec* winSpec;
 };
+
 class Application {
   public:
     Application() = delete;
@@ -54,7 +56,7 @@ class Application {
                 std::unique_ptr<render::PipelineManager> pipelineManager,
                 std::unique_ptr<render::ShaderManager> shaderManager,
                 std::unique_ptr<render::TextureManager> textureManager,
-                 std::unique_ptr<render::MaterialManager> materialManager,
+                std::unique_ptr<render::MaterialManager> materialManager,
                 std::unique_ptr<render::MeshManager> meshManager)
         : m_window(std::move(window)),
           m_device(std::move(device)),
@@ -81,6 +83,7 @@ class Application {
     std::unique_ptr<render::MeshManager> m_meshManager;
     render::RenderGraph m_renderGraph;
     std::unique_ptr<render::MaterialManager> m_materialManager;
+    Scene m_scene;
 
     std::vector<std::unique_ptr<Layer>> m_Layers;
     bool m_souldColose = false;
