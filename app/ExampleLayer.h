@@ -3,8 +3,10 @@
 #include "Event.h"
 #include "Layer.h"
 #include "ModelLoader.h"
+#include "ShaderLoader.h"
 #include "Scene.h"
 #include "ShaderAssetFormat.h"
+#include "render/pass/ForwardRenderPass.h"
 
 #include "Camera3D.h"
 
@@ -20,8 +22,8 @@ class ExampleLayer : public core::Layer {
     ExampleLayer(core::Application* app,
                  core::render::Device* device,
                  common::GameCamera camera,
-                 loader::GLTFLoader loader)
-        : m_app(app), m_gameCamera(camera), m_device(device), m_loader(loader) {}
+                 loader::GLTFLoader loader, loader::ShaderLoader shaderLoader)
+        : m_app(app), m_gameCamera(camera), m_device(device), m_loader(loader), m_shaderLoader(shaderLoader) {}
 
     common::GameCamera m_gameCamera;
     common::CameraController m_cameraController;
@@ -29,6 +31,7 @@ class ExampleLayer : public core::Layer {
     core::Application* m_app;
     core::render::Device* m_device;
     loader::GLTFLoader m_loader;
+    loader::ShaderLoader m_shaderLoader;
 
     core::Handle m_modelHandle;
 };

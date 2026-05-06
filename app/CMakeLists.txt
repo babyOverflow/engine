@@ -84,15 +84,7 @@ endfunction()
 add_shader_asset(
     TARGET app 
     INPUT "${CMAKE_CURRENT_SOURCE_DIR}/shaders/tri.slang" 
-    ENTRY "vertexMain"
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets/tri_VS.shdr"
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets/tri.shdr"
     INCLUDES "${CORE_INTEROP_HEADER_DIR}"
 )
 
-add_shader_asset(
-    TARGET app 
-    INPUT "${CMAKE_CURRENT_SOURCE_DIR}/shaders/tri.slang" 
-    ENTRY "fragmentMain"
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets/tri_FS.shdr"
-    INCLUDES "${CORE_INTEROP_HEADER_DIR}"
-)

@@ -37,7 +37,11 @@ struct BindSlot {
 };
 
 struct GlobalUniforms {
+    float4x4 proj;      // Camera: ProjectionMatrix
+    float4x4 view;      // Camera: ViewMatrix
     float4x4 viewProj;  // Camera: ProjectionMatrix * ViewMatrix
+    float4 position;    // Camera: World-space position of the camera (w component is 1.0 for
+                        // compatibility with uniform buffer layout rules)
 };
 
 struct InstanceUniforms {

@@ -26,8 +26,6 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
 
     using namespace core::render;
 
-    auto shader = shaderManager->GetStandardShader();
-
     auto config = device->GetSurfaceConfig();
     auto proj = common::Projection::Perspective(45, config.width, config.height, 0.1, 100.0);
     common::GameCamera gameCamera{glm::vec3(0.F, 0.F, 0.F), 0.F, 0.F, proj};
@@ -39,18 +37,25 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
         app->GetMeshManager(),
     };
 
+    loader::ShaderLoader shaderLoader{
+        app->GetShaderManager(),
+    };
 
-    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, loader));
+    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, loader, shaderLoader));
 }
 
 void ExampleLayer::OnAttach(core::Scene& scene) {
+    auto shaderHandle =  m_shaderLoader.LoadShader("assets/tri.shdr");
     auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");
     if (!modelOrError.has_value()) {
         std::println("failed to load");
     }
+
     m_modelHandle = modelOrError.value();
     core::AssetView<core::render::Model> model = m_app->GetAssetManager()->GetModel(m_modelHandle);
+
     scene.AddModel(model, glm::mat4x4(1.F));
+
 }
 
 void ExampleLayer::OnUpdate(core::Scene& scene) {

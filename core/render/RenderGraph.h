@@ -1,37 +1,55 @@
 #pragma once
 
 #include <webgpu/webgpu_cpp.h>
+#include <array>
 #include <string>
 
 #include "AssetManager.h"
-#include "render.h"
+#include "IRenderPass.h"
+#include "Material.h"
 #include "PipelineManager.h"
 #include "SceneRenderer.h"
-#include "Material.h"
+#include "render.h"
 
 namespace core::render {
 
-struct RenderPacket {
-    wgpu::RenderPipeline pipeline;
-    wgpu::Buffer vertexBuffer;
-    wgpu::Buffer indexBuffer;
-    std::span<const MeshAssetFormat::BufferRange> bufferRanges;
-    uint32_t indexStart = 0; 
-    uint32_t indexCount = 0;
-    AssetView<Material> material;
+struct RenderNode {
+    RenderNode() = default;
+    RenderNode(std::unique_ptr<IRenderPass> pass) : pass(std::move(pass)) {}
+
+    std::unique_ptr<IRenderPass> pass = nullptr;
+    struct Attach {
+        uint32_t resourceIdx;
+        PassSetupContext::ColorAttachment colorAttach;
+    };
+    struct DepthStencilAttach {
+        uint32_t resourceIdx;
+        PassSetupContext::DepthStencilAttachment depthStencilAttach;
+    };
+    std::vector<Attach> attachments;
+    std::optional<DepthStencilAttach> depthStencilAttachment = std::nullopt;
+    std::vector<uint32_t> readResourceIndices;
+    wgpu::BindGroup m_bindGroup = nullptr;
+    std::vector<uint32_t> predecessorNodes;
+    std::vector<uint32_t> successorNodes;
 };
 
-class FrameContext {
+class TransientResourcePool {
   public:
-    void Submit(const RenderPacket& packet) { m_drawQueue.push_back(packet); }
-    const std::vector<RenderPacket>& GetQueue() const { return m_drawQueue; }
-    void ClearQueue() { m_drawQueue.clear(); }
+    TransientResourcePool(Device* device);
+    using Handle = uint32_t;
+    TransientResourcePool::Handle Attache(const PassSetupContext::TextureDescriptor& desc);
+    void Release(const PassSetupContext::TextureDescriptor& desc,
+                 TransientResourcePool::Handle handle);
 
-    void SetCameraData(CameraUniformData& cameraData) { m_cameraData = cameraData;}
-    CameraUniformData& GetCameraUniformData() { return m_cameraData; }
+    wgpu::Texture Get(uint32_t);
+    void InjectExternalResource(uint32_t handle, wgpu::Texture externalTexture);
+
   private:
-    std::vector<RenderPacket> m_drawQueue;
-    CameraUniformData m_cameraData;
+    Device* m_device;
+    std::vector<wgpu::Texture> m_textures;
+    std::multimap<PassSetupContext::TextureDescriptor, uint32_t> m_activeResources;
+    std::multimap<PassSetupContext::TextureDescriptor, uint32_t> m_freeResources;
 };
 
 class RenderGraph {
@@ -41,7 +59,9 @@ class RenderGraph {
                 PipelineManager* pipelineManager,
                 const wgpu::BindGroupLayout globalBindGroupLayout);
 
-    RenderGraph(RenderGraph&& rhs) = default;
+    RenderGraph(RenderGraph&& rhs) noexcept = default;
+
+    void Setup(std::vector<std::unique_ptr<IRenderPass>>& passes);
 
     void Execute(RenderQueue& frameContext);
 
@@ -56,7 +76,12 @@ class RenderGraph {
 
     wgpu::BindGroup m_globalBindGroup;
     wgpu::Buffer m_globalUniformBuffer;
+    wgpu::Texture m_depthTexture;
 
- 
+    std::array<RenderNode, 255> m_renderNodes{};
+    std::vector<uint32_t> m_executionOrder;
+
+    TransientResourcePool m_vra;
+    std::optional<PassSetupContext> m_passSetupContext;
 };
 }  // namespace core::render

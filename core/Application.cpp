@@ -1,5 +1,6 @@
 #include "Application.h"
 #include <ranges>
+#include "render/pass/ForwardRenderPass.h"
 
 namespace core {
 
@@ -39,11 +40,15 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     auto assetManager = std::make_unique<AssetManager>(AssetManager::Create(device.get()));
     auto globalBindGroupLayout = GetGlobalLayouDesc();
     auto layoutCache = std::make_unique<render::LayoutCache>(device.get());
+    auto vertexLayoutManager = std::make_unique<render::VertexLayoutManager>();
+    auto passManager = std::make_unique<render::PassManager>();
     auto pipelineManager = std::make_unique<render::PipelineManager>(
-        device.get(), layoutCache.get(), globalBindGroupLayout);
+        device.get(), layoutCache.get(), passManager.get(), vertexLayoutManager.get(),
+        globalBindGroupLayout);
     auto shaderManager = std::make_unique<render::ShaderManager>(device.get(), assetManager.get(),
                                                                  layoutCache.get());
-    auto meshManager = std::make_unique<render::MeshManager>(device.get(), assetManager.get());
+    auto meshManager = std::make_unique<render::MeshManager>(device.get(), assetManager.get(),
+                                                             vertexLayoutManager.get());
     auto textureManager =
         std::make_unique<render::TextureManager>(device.get(), assetManager.get());
     auto materialManager = std::make_unique<render::MaterialManager>(
@@ -53,17 +58,21 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     render::RenderGraph renderGraph(device.get(), assetManager.get(), pipelineManager.get(),
                                     layoutCache->GetBindGroupLayout(globalBindGroupLayout));
 
-    return Application(std::move(window), std::move(device), std::move(assetManager),
-                       std::move(eventDispatcher), std::move(renderGraph), std::move(layoutCache),
-                       std::move(pipelineManager), std::move(shaderManager),
-                       std::move(textureManager), std::move(materialManager),
-                       std::move(meshManager));
+    return Application(
+        std::move(window), std::move(device), std::move(assetManager), std::move(eventDispatcher),
+        std::move(renderGraph), std::move(vertexLayoutManager), std::move(layoutCache),
+        std::move(passManager), std::move(pipelineManager), std::move(shaderManager),
+        std::move(textureManager), std::move(materialManager), std::move(meshManager));
 }
 
 core::Application::~Application() {}
 
 void core::Application::Run() {
     render::RenderQueue renderQueue;
+
+    uint8_t forwardPassId =
+        m_passManager->RegisterPass<render::pass::ForwardRenderPass>("pass::ForwardRenderPass");
+
     while (!m_souldColose) {
         m_window.PollEvent();
         m_eventDispatcher->ProcessEvent([this](auto&& event) -> void { this->RaiseEvent(event); });
@@ -74,11 +83,15 @@ void core::Application::Run() {
             layer->OnUpdate(m_scene);
         }
 
+        render::SceneCuller::ExtractRenderQueue(m_scene, m_assetManager.get(),
+                                                  m_pipelineManager.get(), renderQueue);
 
-        render::SceneRenderer::ExtractRenderQueue(m_scene, renderQueue);
+        std::vector<std::unique_ptr<core::render::IRenderPass>> s;
+        s.push_back(std::move(m_passManager->CreatePass(forwardPassId)));
+
+        m_renderGraph.Setup(s);
         m_renderGraph.Execute(renderQueue);
         m_device->Present();
-
     }
 
     glfwTerminate();

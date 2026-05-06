@@ -42,6 +42,7 @@ Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialRes
             material.SetTexture(textureId, textureView);
         }
     }
+    material.RebuildBindGroup();
     Handle handle = m_assetManager->StoreMaterial(std::move(material));
     m_materialCache[materialResult.assetPath] = handle;
     return handle;

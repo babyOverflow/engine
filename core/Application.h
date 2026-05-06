@@ -52,7 +52,9 @@ class Application {
                 std::unique_ptr<AssetManager> assetManager,
                 std::unique_ptr<EventDispatcher> eventDispatcher,
                 render::RenderGraph renderGraph,
+                std::unique_ptr<render::VertexLayoutManager> vertexLayoutManager,
                 std::unique_ptr<render::LayoutCache> layoutCache,
+                std::unique_ptr<render::PassManager> passManager,
                 std::unique_ptr<render::PipelineManager> pipelineManager,
                 std::unique_ptr<render::ShaderManager> shaderManager,
                 std::unique_ptr<render::TextureManager> textureManager,
@@ -63,7 +65,9 @@ class Application {
           m_assetManager(std::move(assetManager)),
           m_eventDispatcher(std::move(eventDispatcher)),
           m_renderGraph(std::move(renderGraph)),
+          m_vertexLayoutManager(std::move(vertexLayoutManager)),
           m_layoutCache(std::move(layoutCache)),
+          m_passManager(std::move(passManager)),
           m_pipelineManager(std::move(pipelineManager)),
           m_shaderManager(std::move(shaderManager)),
           m_textureManager(std::move(textureManager)),
@@ -76,7 +80,9 @@ class Application {
     std::unique_ptr<EventDispatcher> m_eventDispatcher;
 
     // TODO!(make RenderSystem and replace these variables);
+    std::unique_ptr<render::VertexLayoutManager> m_vertexLayoutManager;
     std::unique_ptr<render::LayoutCache> m_layoutCache;
+    std::unique_ptr<render::PassManager> m_passManager;
     std::unique_ptr<render::PipelineManager> m_pipelineManager;
     std::unique_ptr<render::TextureManager> m_textureManager;
     std::unique_ptr<render::ShaderManager> m_shaderManager;

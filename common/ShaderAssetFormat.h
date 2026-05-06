@@ -213,6 +213,7 @@ struct ShaderAssetFormat {
     struct EntryPoint {
         ShaderVisibility stage;
         uint32_t nameIdx;
+        PropertyId id;
 
         uint32_t ioStartIndex;
         uint32_t bindingStartIndex;
@@ -220,7 +221,6 @@ struct ShaderAssetFormat {
         uint16_t ioCount;
         uint16_t bindingCount;
 
-        uint32_t _padding;
     };
     static_assert(sizeof(EntryPoint) == 24, "EntryPoint size must be 24 bytes!");
 

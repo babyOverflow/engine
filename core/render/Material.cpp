@@ -23,7 +23,6 @@ Material::Material(Device* device,
         .mipmapFilter = wgpu::MipmapFilterMode::Linear,
     };
     m_sampler = m_device->GetDeivce().CreateSampler(&samplerDesc);
-
 }
 void Material::UpdateUniform() {
     m_device->WriteBuffer(m_uniformBuffer, 0, m_cpuVariableBufferData.data(),
@@ -35,7 +34,7 @@ void Material::RebuildBindGroup() {
     const auto& bindGroupLayout = m_shaderView->GetBindGroupLayout(kSetNumberMaterial);
     const auto& reflection = m_shaderView->GetReflection();
     const auto& entryInfos = reflection.GetGroup(kSetNumberMaterial);
-    //const auto& uniformInfo = reflection.GetMaterialVariableInfos();
+    // const auto& uniformInfo = reflection.GetMaterialVariableInfos();
 
     std::vector<wgpu::BindGroupEntry> entries;
     for (uint32_t i = 0; i < entryInfos.size(); ++i) {
@@ -87,10 +86,8 @@ void Material::RebuildBindGroup() {
     m_bindGroup = m_device->CreateBindGroup(bindGroupDesc);
 }
 
-wgpu::BindGroup Material::GetBindGroup() {
-    if (m_bindGroup == nullptr) {
-        RebuildBindGroup();
-    }
+wgpu::BindGroup Material::GetBindGroup() const {
+
     return m_bindGroup;
 }
 
@@ -102,22 +99,4 @@ void Material::SetTexture(PropertyId id, AssetView<Texture> texture) {
     m_textures[id] = texture;
     m_bindGroup = nullptr;
 }
-
-PipelineDesc Material::GetPipelineDesc(const MeshAssetFormat::MeshVertexState& vertexState) {
-    PipelineDesc desc;
-    desc.shaderAsset = m_shaderView;
-
-
-    if (vertexState.HasAttribute(Semantic::Color0)) {
-        desc.vertexEntry = "vertexMain_Color";
-        desc.fragmentEntry = "fragmentMain_Color";
-    } else {
-        desc.vertexEntry = "vertexMain";
-        desc.fragmentEntry = "fragmentMain";
-    }
-    desc.vertexState = vertexState;
-
-    return desc;
-}
-
 }  // namespace core::render

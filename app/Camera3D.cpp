@@ -89,7 +89,7 @@ core::render::CameraUniformData common::GameCamera::GetCameraUniformData() {
         .view = view,
         .proj = proj.proj,
         .viewProj = proj.proj * view,
-        .position = position,
+        .position = glm::vec4(position, 0),
     };
 }
 

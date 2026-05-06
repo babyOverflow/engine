@@ -60,4 +60,14 @@ AssetView<render::Material> AssetManager::GetMaterial(Handle handle) {
     return {m_materialPool.Get(handle), handle};
 }
 
+const AssetRegistry AssetManager::GetRegistry() const {
+    return AssetRegistry{
+        m_modelPool.GetDataSpan(),
+        m_meshPool.GetDataSpan(),
+        m_materialPool.GetDataSpan(),
+        m_texturePool.GetDataSpan(),
+                         m_shaderPool.GetDataSpan(),
+    };
+}
+
 }  // namespace core

@@ -12,11 +12,12 @@ namespace core::render {
 struct Mesh {
     wgpu::Buffer vertexBuffer;
     wgpu::Buffer indexBuffer;
-    std::unique_ptr< MeshAssetFormat> meshAssetFormat;
+    std::unique_ptr<MeshAssetFormat> meshAssetFormat;
+    std::vector<uint8_t> globalVertexStateIds;
 
     std::span<const MeshAssetFormat::SubMeshInfo> GetSubMeshInfos() const {
         return std::span<const MeshAssetFormat::SubMeshInfo>(meshAssetFormat->subMeshes.data(),
-                                                       meshAssetFormat->subMeshes.size());
+                                                             meshAssetFormat->subMeshes.size());
     }
 
     const MeshAssetFormat::SubMeshInfo& GetSubMeshInfo(uint32_t index) const {
@@ -27,11 +28,13 @@ struct Mesh {
         return meshAssetFormat->states[index];
     }
 
-    std::span<const MeshAssetFormat::BufferRange> GetBufferRanges(uint32_t start, uint32_t count) const {
+    std::span<const MeshAssetFormat::BufferRange> GetBufferRanges(uint32_t start,
+                                                                  uint32_t count) const {
         return std::span<const MeshAssetFormat::BufferRange>(
             meshAssetFormat->bufferRanges.data() + start, count);
     }
 
+    uint8_t GetGlobalVertexStateID(uint32_t index) const { return globalVertexStateIds[index]; }
 };
 
 }  // namespace core::render

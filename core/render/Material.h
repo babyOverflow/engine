@@ -2,7 +2,6 @@
 #include <concepts>
 #include <map>
 
-#include "PipelineManager.h"
 #include "LayoutCache.h"
 #include "ShaderAsset.h"
 #include "Texture.h"
@@ -52,9 +51,8 @@ class Material {
 
     void UpdateUniform();
 
-    PipelineDesc GetPipelineDesc(const MeshAssetFormat::MeshVertexState& vertexState);
 
-    wgpu::BindGroup GetBindGroup();
+    wgpu::BindGroup GetBindGroup() const;
 
   private:
     struct VariableInfo {

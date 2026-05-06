@@ -12,8 +12,8 @@ class MeshManager {
     MeshManager() = default;
     ~MeshManager() = default;
 
-    MeshManager(Device* device, AssetManager* assetManager)
-        : m_device(device), m_assetManager(assetManager) {}
+    MeshManager(Device* device, AssetManager* assetManager, VertexLayoutManager* vertexLayoutManager)
+        : m_device(device), m_assetManager(assetManager), m_vertexLayoutManager(vertexLayoutManager) {}
 
     Handle LoadMesh(const importer::MeshResult& meshAssetFormat);
     Handle GetMeshHandle(const AssetPath& assetPath) const {
@@ -29,6 +29,7 @@ class MeshManager {
   private:
     Device* m_device = nullptr;
     AssetManager* m_assetManager = nullptr;
+    VertexLayoutManager* m_vertexLayoutManager = nullptr;
 
     std::unordered_map<AssetPath, Handle> m_meshCache;
 };

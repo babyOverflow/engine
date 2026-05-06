@@ -3,18 +3,18 @@
 #
 cmake_minimum_required (VERSION 3.12)
 
-set(CMAKE_CXX_CLANG_TIDY 
+set(CMAKE_CXX_CLANG_TIDY
     "clang-tidy"
     # [핵심 1] Clang에게 "나는 cl.exe처럼 행동할 거야"라고 알려줌 (MSVC 모드)
     "--extra-arg=--driver-mode=cl"
-    
+
     # [핵심 2] MSVC가 내부적으로 정의하는 아키텍처 매크로 강제 주입
     # 이게 없으면 winnt.h가 64비트 함수 매핑을 건너뜁니다.
     "--extra-arg=-D_M_AMD64"
     "--extra-arg=-D_M_X64"
     "--extra-arg=-fms-extensions"
     "--extra-arg=-fms-compatibility"
-    "--extra-arg=-Wno-ignored-attributes" 
+    "--extra-arg=-Wno-ignored-attributes"
     "--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy"
 )
 
@@ -46,4 +46,3 @@ add_subdirectory("common")
 add_subdirectory("shader")
 add_subdirectory("core")
 add_subdirectory("app")
-

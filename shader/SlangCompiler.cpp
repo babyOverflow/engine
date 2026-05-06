@@ -785,7 +785,8 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
         entryPoint.bindingStartIndex = indices.size();
         entryPoint.bindingCount = 0;
         ComPtr<IMetadata> metadata;
-        composedProgram->getEntryPointMetadata(i, 0, metadata.writeRef());
+        //composedProgram->getEntryPointMetadata(i, 0, metadata.writeRef());
+        linkedProgram->getEntryPointMetadata(i, 0, metadata.writeRef());
         for (uint32_t j = 0; j < compilerBindings.size(); ++j) {
             const auto& b = compilerBindings[j];
             bool isUsed = false;
@@ -840,8 +841,7 @@ std::expected<Slang::ComPtr<slang::ISession>, Error> SlangCompiler::CreateSessio
     {
         const TargetDesc targetDesc{
             .format = SLANG_WGSL,
-            .profile = m_globalSession->findProfile("sm_6_0"),
-            .flags = SLANG_TARGET_FLAG_GENERATE_WHOLE_PROGRAM,
+            .profile = m_globalSession->findProfile(""),
         };
         std::vector<const char*> searchPaths;
         for (const auto& path : m_paths) {

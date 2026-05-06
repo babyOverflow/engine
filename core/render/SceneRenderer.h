@@ -1,19 +1,12 @@
 #pragma once
 #include <span>
+#include "AssetManager.h"
+#include "IRenderPass.h"
 #include "Scene.h"
 #include "render.h"
 
-
 namespace core::render {
 
-struct RenderIntent {
-    Handle meshHandle;
-    uint32_t subMeshIndex;
-    Handle materialHandle;
-    uint32_t transformIndex;
-    // TODO(#10): Populate 64-bit sort key for Radix Sorting
-    uint64_t sortKey = 0;
-};
 
 struct RenderQueue {
     std::vector<RenderIntent> renderIntents;
@@ -26,8 +19,11 @@ struct RenderQueue {
     }
 };
 
-class SceneRenderer {
+class SceneCuller {
   public:
-    static void ExtractRenderQueue(const Scene& scene, RenderQueue& outRenderQueue);
+    static void ExtractRenderQueue(const Scene& scene,
+                                   AssetManager* assetManager,
+                                   PipelineManager* pipelineManager,
+                                   RenderQueue& outRenderQueue);
 };
 }  // namespace core::render

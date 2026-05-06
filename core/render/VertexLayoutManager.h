@@ -1,4 +1,5 @@
 #pragma once
+#include "MeshAssetFormat.h"
 #include "ResourcePool.h"
 #include "VertexLayout.h"
 #include "wgx/types.h"
@@ -23,6 +24,11 @@ class VertexLayoutManager {
 
     core::Handle GetVertexLayout(const wgx::VertexBufferLayout& layout);
     AssetView<VertexLayout> GetVertexLayout(core::Handle handle) { return {m_vertexLayouts.Get(handle), handle}; }
+    std::span<const VertexLayout> GetAllVertexLayouts() const { return m_vertexLayouts.GetDataSpan(); }
+    uint8_t GetVertexStateID(const MeshAssetFormat::MeshVertexState& vertexState);
+    std::span<const MeshAssetFormat::MeshVertexState> GetAllVertexStates() const {
+        return m_vertexStates;
+    }
 
     struct VertexAttributeKey {
         wgpu::VertexFormat format = {};
@@ -31,7 +37,7 @@ class VertexLayoutManager {
     };
 
   private:
-
+    std::vector<MeshAssetFormat::MeshVertexState> m_vertexStates;
     std::vector<std::pair<wgx::VertexBufferLayout, Handle>> m_layoutCache;
     ResourcePool<VertexLayout> m_vertexLayouts;
 };

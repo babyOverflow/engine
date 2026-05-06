@@ -13,6 +13,14 @@
 
 namespace core {
 
+struct AssetRegistry {
+    std::span<const render::Model> models;
+    std::span<const render::Mesh> meshes;
+    std::span<const render::Material> materials;
+    std::span<const render::Texture> textures;
+    std::span<const render::ShaderAsset> shaders;
+};
+
 class AssetManager {
   public:
     static AssetManager Create(render::Device* device);
@@ -32,6 +40,8 @@ class AssetManager {
 
     Handle StoreMesh(render::Mesh&& mesh);
     AssetView<render::Mesh> GetMesh(Handle handle);
+
+    const AssetRegistry GetRegistry() const;
 
   private:
     AssetManager(render::Device* device);

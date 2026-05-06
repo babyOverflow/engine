@@ -42,7 +42,7 @@ struct ColorVertex {
 
 struct ColorVertexStageOutput {
     float4 sv_position : SV_Position;
-    float4 color : COLOR; 
+    float4 color : COLOR;
 };
 
 [shader("vertex")]

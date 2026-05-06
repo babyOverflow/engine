@@ -11,13 +11,14 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
     if (!resultOrError.has_value()) {
         return std::unexpected(resultOrError.error());
     }
-    const auto& result = resultOrError.value();
+    auto& result = resultOrError.value();
 
     for (const core::importer::TextureResult& textureResult : result.textures) {
         core::Handle _ = m_textureManger->LoadTexture(textureResult);
     }
 
-    for (const auto& materialResult : result.materials) {
+    for (auto& materialResult : result.materials) {
+        materialResult.materialAsset.shaderName.value = std::string("assets/tri.shdr");
         core::Handle _ = m_materialManager->LoadMaterial(materialResult);
     }
 

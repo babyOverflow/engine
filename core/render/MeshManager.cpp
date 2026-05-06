@@ -16,11 +16,17 @@ core::Handle core::render::MeshManager::LoadMesh(const importer::MeshResult& mes
         meshAssetFormat.indexData.data(), meshAssetFormat.indexData.size() * sizeof(uint32_t),
         wgpu::BufferUsage::Index | wgpu::BufferUsage::CopyDst);
 
+     
+    std::vector<uint8_t> globalVertexStateIds;
+    for (const auto& state : meshResult.meshAsset.states) {
+        globalVertexStateIds.push_back(m_vertexLayoutManager->GetVertexStateID(state));
+    }
 
     Mesh mesh{
         .vertexBuffer = vertexBuffer,
         .indexBuffer = indexBuffer,
         .meshAssetFormat = std::make_unique<MeshAssetFormat>( meshResult.meshAsset),
+        .globalVertexStateIds = std::move(globalVertexStateIds),
     };
     Handle handle = m_assetManager->StoreMesh(std::move(mesh));
     m_meshCache[meshResult.assetPath] = handle;
