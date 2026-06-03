@@ -1,0 +1,14 @@
+[
+  {
+    "label": "CMake: Configure (Zed)",
+    "command": "cmake --preset zed-debug"
+  },
+  {
+    "label": "CMake: Build (Zed)",
+    "command": "cmake --build --preset zed-debug"
+  },
+  {
+    "label": "App: Run",
+    "command": "out/zed-build/app/render.exe"
+  }
+]

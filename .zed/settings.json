@@ -1,0 +1,10 @@
+{
+  "lsp": {
+    "clangd": {
+      "arguments": [
+        "--compile-commands-dir=out/zed-build",
+        "--header-insertion=never"
+      ]
+    }
+  }
+}
