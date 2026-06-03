@@ -94,7 +94,7 @@ const std::array<sa::ShaderParameter, kParameterCount> kExpectedInputParameters 
                 .nameIdx = 0,
             },
         .location = 0,
-        .semanticNameIdx = ~0u,
+        .semantic = core::Semantic::Undefined,
     },
     sa::ShaderParameter{
         .variable =
@@ -105,7 +105,7 @@ const std::array<sa::ShaderParameter, kParameterCount> kExpectedInputParameters 
                 .nameIdx = 1,
             },
         .location = 1,
-        .semanticNameIdx = ~0u,
+        .semantic = core::Semantic::Undefined,
     },
     sa::ShaderParameter{
         .variable =
@@ -116,7 +116,7 @@ const std::array<sa::ShaderParameter, kParameterCount> kExpectedInputParameters 
                 .nameIdx = 2,
             },
         .location = 2,
-        .semanticNameIdx = ~0u,
+        .semantic = core::Semantic::Undefined,
     },
 };
 
@@ -135,7 +135,7 @@ TEST_F(ParameterTest, ExtractsVertexInputsFromStruct) {
         const sa::ShaderParameter actual = shdr.parameters[paramIdx];
         const sa::ShaderParameter expected = kExpectedInputParameters[i];
         EXPECT_EQ(actual.location, expected.location);
-        EXPECT_EQ(actual.semanticNameIdx, expected.semanticNameIdx);
+        EXPECT_EQ(actual.semantic, expected.semantic);
         EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);
         EXPECT_EQ(actual.variable.scalarType, expected.variable.scalarType);
         EXPECT_EQ(actual.variable.kind, expected.variable.kind);
@@ -209,7 +209,7 @@ const std::array<sa::ShaderParameter, kStructParameterCount> kExpectedStructInpu
                 .nameIdx = 0,
             },
         .location = 0,
-        .semanticNameIdx = ~0u,
+        .semantic = core::Semantic::Undefined,
     },
     sa::ShaderParameter{
         .variable =
@@ -220,7 +220,7 @@ const std::array<sa::ShaderParameter, kStructParameterCount> kExpectedStructInpu
                 .nameIdx = 1,
             },
         .location = 1,
-        .semanticNameIdx = ~0u,
+        .semantic = core::Semantic::Undefined,
     },
     sa::ShaderParameter{
         .variable =
@@ -231,7 +231,7 @@ const std::array<sa::ShaderParameter, kStructParameterCount> kExpectedStructInpu
                 .nameIdx = 2,
             },
         .location = 2,
-        .semanticNameIdx = ~0u,
+        .semantic = core::Semantic::Undefined,
     },
     sa::ShaderParameter{
         .variable =
@@ -242,7 +242,7 @@ const std::array<sa::ShaderParameter, kStructParameterCount> kExpectedStructInpu
                 .nameIdx = 3,
             },
         .location = 0,
-        .semanticNameIdx = 4,
+        .semantic = core::Semantic::Undefined,
     },
 };
 
@@ -267,14 +267,12 @@ TEST_F(ParameterTest, ExtractsStructInputsFromStruct) {
         ASSERT_LT(actual.variable.nameIdx, shdr.nameTable.size());
         EXPECT_EQ(shdr.nameTable[actual.variable.nameIdx],
                   kStructNameTable[expected.variable.nameIdx]);
-        if (actual.semanticNameIdx < shdr.nameTable.size())
-        {
-            EXPECT_EQ(shdr.nameTable[actual.semanticNameIdx],
-                      kStructNameTable[expected.semanticNameIdx]);
-        }
+
+        EXPECT_EQ(actual.semantic, expected.semantic);
     }
 
     const sa::EntryPoint& fragmnetEntry = shdr.entryPoints[1];
     ASSERT_EQ(shdr.nameTable[fragmnetEntry.nameIdx], "fragmentMain");
     ASSERT_EQ(fragmnetEntry.ioCount, 1);
 }
+

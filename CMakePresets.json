@@ -103,6 +103,39 @@
           "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
         }
       }
+    },
+    {
+      "name": "zed-debug",
+      "displayName": "Zed Debug",
+      "description": "Zed-specific configuration with compile_commands.json export",
+      "inherits": "x64-debug",
+      "binaryDir": "${sourceDir}/out/zed-build",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "zed-clang",
+      "displayName": "Zed Clang (LLVM)",
+      "description": "Zed-specific configuration using Standalone LLVM/Clang",
+      "inherits": "x64-debug",
+      "binaryDir": "${sourceDir}/out/zed-clang",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/Program Files/LLVM/bin/clang-cl.exe",
+        "CMAKE_CXX_COMPILER": "C:/Program Files/LLVM/bin/clang-cl.exe",
+        "CMAKE_LINKER": "C:/Program Files/LLVM/bin/lld-link.exe",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "zed-debug",
+      "configurePreset": "zed-debug"
+    },
+    {
+      "name": "zed-clang",
+      "configurePreset": "zed-clang"
     }
   ]
 }
