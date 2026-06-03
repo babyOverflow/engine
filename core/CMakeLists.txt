@@ -47,8 +47,6 @@
  "render/Model.h"
  "render/VertexLayoutManager.h" "render/VertexLayoutManager.cpp" 
  "wgx/types.h" 
- "render/IRenderPass.h" 
- "render/pass/ForwardRenderPass.h" "render/pass/ForwardRenderPass.cpp" 
  "render/SceneRenderer.h" "render/SceneRenderer.cpp"
  "Scene.h"
  "render/IRenderPass.cpp" "render/pass/DeferredGBufferPass.h" "render/pass/DeferredGBufferPass.cpp" "render/pass/DeferredLightingPass.h" "render/pass/DeferredLightingPass.cpp")
