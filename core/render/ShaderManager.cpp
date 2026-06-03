@@ -5,23 +5,29 @@
 
 namespace core::render {
 
-std::array<wgpu::BindGroupLayout, 4> ShaderManager::CreateGroupLayouts(
+std::vector<std::array<wgpu::BindGroupLayout, 4>> ShaderManager::CreateGroupLayouts(
     const core::render::ShaderReflection& reflection) {
-    std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts;
+    std::vector<std::array<wgpu::BindGroupLayout, 4>> bindGroupSets;
 
-    for (uint32_t i = 0; i < 4; ++i) {
-        const std::span<const ShaderAssetFormat::Binding> bindings = reflection.GetGroup(i);
-        std::vector<wgpu::BindGroupLayoutEntry> entries =
-            bindings | std::views::transform(util::MapBindingInfoToWgpu) |
-            std::ranges::to<std::vector>();
+    for (uint32_t entry = 0; entry < reflection.GetEntryPointCount(); ++entry) {
+        std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts = {};
+        for (uint32_t set = 0; set < 4; ++set) {
+            const std::span<const ShaderAssetFormat::Binding> bindings =
+                reflection.GetGroup(entry, set);
 
-        wgpu::BindGroupLayoutDescriptor desc{
-            .entryCount = entries.size(),
-            .entries = entries.data(),
-        };
-        bindGroupLayouts[i] = m_layoutCache->GetBindGroupLayout(desc);
+            std::vector<wgpu::BindGroupLayoutEntry> entries =
+                bindings | std::views::transform(util::MapBindingInfoToWgpu) |
+                std::ranges::to<std::vector>();
+
+            wgpu::BindGroupLayoutDescriptor desc{
+                .entryCount = entries.size(),
+                .entries = entries.data(),
+            };
+            bindGroupLayouts[set] = m_layoutCache->GetBindGroupLayout(desc);
+        }
+        bindGroupSets.push_back(bindGroupLayouts);
     }
-    return bindGroupLayouts;
+    return bindGroupSets;
 }
 
 ShaderManager::ShaderManager(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache)
@@ -47,10 +53,10 @@ ShaderAsset ShaderManager::CreateFromShaderSource(ShaderAssetFormat&& shaderAsse
     auto shaderAssetFormat = std::make_unique<ShaderAssetFormat>(std::move(shaderAsset));
     ShaderReflection reflection = ShaderReflection::Create(shaderAssetFormat.get());
 
-    std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts = CreateGroupLayouts(reflection);
+    std::vector<std::array<wgpu::BindGroupLayout, 4>> bindGroupLayoutSets = CreateGroupLayouts(reflection);
 
-    return ShaderAsset::Create(shaderModule, std::move(shaderAssetFormat), reflection,
-                               bindGroupLayouts);
+    return ShaderAsset::Create(shaderModule, std::move(shaderAssetFormat), std::move(reflection),
+                               bindGroupLayoutSets);
 }
 
 AssetView<ShaderAsset> ShaderManager::GetShaderAsset(Handle shaderHandle) {

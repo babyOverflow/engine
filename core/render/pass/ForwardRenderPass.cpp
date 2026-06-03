@@ -41,7 +41,7 @@ void core::render::pass::ForwardRenderPass::Execute(
             pass.SetVertexBuffer(i, mesh.vertexBuffer, bufferRange.offset, bufferRange.size);
         }
         pass.SetIndexBuffer(mesh.indexBuffer, wgpu::IndexFormat::Uint32);
-        wgpu::BindGroup bindGroup = material.GetBindGroup();
+        wgpu::BindGroup bindGroup = material.GetBindGroup(intent.sortKey.bits.passId);
         pass.SetBindGroup(BindSlot::Material, bindGroup);
 
         pass.DrawIndexed(subMesh.indexCount, 1, subMesh.indexStart);

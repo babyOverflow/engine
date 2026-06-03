@@ -131,8 +131,7 @@ TEST_F(ParameterTest, ExtractsVertexInputsFromStruct) {
     ASSERT_EQ(shdr.nameTable[vertexEntry.nameIdx], "vertexMain");
     ASSERT_EQ(vertexEntry.ioCount, kParameterCount);
     for (uint32_t i = 0; i < kParameterCount; ++i) {
-        uint32_t paramIdx = shdr.indices[vertexEntry.ioStartIndex + i];
-        const sa::ShaderParameter actual = shdr.parameters[paramIdx];
+        const sa::ShaderParameter actual = shdr.parameters[i];
         const sa::ShaderParameter expected = kExpectedInputParameters[i];
         EXPECT_EQ(actual.location, expected.location);
         EXPECT_EQ(actual.semantic, expected.semantic);
@@ -257,8 +256,7 @@ TEST_F(ParameterTest, ExtractsStructInputsFromStruct) {
     ASSERT_EQ(shdr.nameTable[vertexEntry.nameIdx], "vertexMain");
     ASSERT_EQ(vertexEntry.ioCount, kStructParameterCount);
     for (uint32_t i = 0; i < kStructParameterCount; ++i) {
-        uint32_t paramIdx = shdr.indices[vertexEntry.ioStartIndex + i];
-        const sa::ShaderParameter actual = shdr.parameters[paramIdx];
+        const sa::ShaderParameter actual = shdr.parameters[i];
         const sa::ShaderParameter expected = kExpectedStructInputParameters[i];
         EXPECT_EQ(actual.location, expected.location);
         EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);

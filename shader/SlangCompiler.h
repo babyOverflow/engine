@@ -33,6 +33,7 @@ struct CompileResult {
     std::vector<core::ShaderAssetFormat::Binding> bindings;
     std::vector<core::ShaderAssetFormat::Variable> variables;
     std::vector<core::ShaderAssetFormat::EntryPoint> entryPoints;
+    std::vector<core::ShaderAssetFormat::Pass> passes;
     std::vector<uint8_t> sourceBlob;
     std::vector<std::string> nameTable;
     std::vector<uint32_t> indices;
@@ -66,9 +67,16 @@ class SlangCompiler {
                                                 const std::string& entryName);
     std::expected<CompileResult, Error> Compile(const std::string& path);
 
+    std::expected<CompileResult, Error> CompilePass(const std::string& path);
+
+    //std::expected<core::ShaderAssetFormat::Pass, Error> GetPassInfo(slang::IComponentType* componentType);
+
   private:
     SlangCompiler(Slang::ComPtr<slang::IGlobalSession> globalSession,
                   std::vector<std::string> paths);
+
+    std::expected<Slang::ComPtr<slang::IModule>, Error> LoadModuleFromFile(slang::ISession* session, const std::string& path, CompilationContext& context);
+
     std::expected<CompileResult, Error> CompileInternal(slang::IComponentType* composedProgram,
                                                         CompilationContext& context);
     std::expected<Slang::ComPtr<slang::ISession>, Error> CreateSession();

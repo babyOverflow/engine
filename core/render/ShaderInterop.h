@@ -2,7 +2,7 @@
 
 #ifdef __cplusplus
 #include <cstdint>
-#include <glm/glm.hpp>  // GLM »ç¿ë ½Ã
+#include <glm/glm.hpp>  // GLM  
 
 using uint = uint32_t;
 using float2 = glm::vec2;
@@ -33,7 +33,8 @@ struct ShaderLoc {
 struct BindSlot {
     static const uint Global = 0;
     static const uint Material = 1;
-    static const uint Instance = 2;
+    static const uint Pass = 2;
+    static const uint Instance = 3;
 };
 
 struct GlobalUniforms {

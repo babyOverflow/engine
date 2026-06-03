@@ -4,25 +4,24 @@
 #include "Mesh.h"
 #include "PipelineManager.h"
 #include "render/util.h"
-#include "IRenderPass.h"
 
 namespace core::render {
 DepthStencilStateManager::DepthStencilStateManager() {
-        // Register a default depth stencil state at index 0, which can be used when a pass doesn't specify
-        // any depth stencil state.
-        m_depthStencilStates.resize(2);
+    // Register a default depth stencil state at index 0, which can be used when a pass doesn't
+    // specify any depth stencil state.
+    m_depthStencilStates.resize(2);
 
-        wgpu::DepthStencilState defaultState{};
-        defaultState.format = wgpu::TextureFormat::Undefined;
-        defaultState.depthWriteEnabled = false;
-        defaultState.depthCompare = wgpu::CompareFunction::Always;
-        m_depthStencilStates[kDefaultStateID] = defaultState;
+    wgpu::DepthStencilState defaultState{};
+    defaultState.format = wgpu::TextureFormat::Undefined;
+    defaultState.depthWriteEnabled = false;
+    defaultState.depthCompare = wgpu::CompareFunction::Always;
+    m_depthStencilStates[kDefaultStateID] = defaultState;
 
-        wgpu::DepthStencilState defaultDepthState{};
-        defaultDepthState.format = wgpu::TextureFormat::Depth24PlusStencil8;
-        defaultDepthState.depthWriteEnabled = true;
-        defaultDepthState.depthCompare = wgpu::CompareFunction::Less;
-        m_depthStencilStates[kDefaultDepthStateID] = defaultDepthState;
+    wgpu::DepthStencilState defaultDepthState{};
+    defaultDepthState.format = wgpu::TextureFormat::Depth24PlusStencil8;
+    defaultDepthState.depthWriteEnabled = true;
+    defaultDepthState.depthCompare = wgpu::CompareFunction::Less;
+    m_depthStencilStates[kDefaultDepthStateID] = defaultDepthState;
 }
 
 uint64_t DepthStencilStateManager::RegisterDepthStencilState(wgpu::DepthStencilState& state) {
@@ -68,7 +67,10 @@ PipelineManager::PipelineManager(Device* device,
                                  PassManager* passManager,
                                  VertexLayoutManager* vertexLayoutManager,
                                  wgpu::BindGroupLayoutDescriptor& globalBindGroupLayoutDesc)
-    : m_device(device), m_layoutCache(layoutCache), m_passManager(passManager), m_vertexLayoutManager(vertexLayoutManager) {
+    : m_device(device),
+      m_layoutCache(layoutCache),
+      m_passManager(passManager),
+      m_vertexLayoutManager(vertexLayoutManager) {
     m_globalBindGroupLayout = m_layoutCache->GetBindGroupLayout(globalBindGroupLayoutDesc);
 }
 
@@ -84,8 +86,13 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
     std::vector<wgpu::VertexBufferLayout> vertexLayouts;
 
     const ShaderAsset& shaderAsset = assetRegistry.shaders[key.bits.shaderId];
+    auto entryOpt =
+        shaderAsset.GetReflection().GetEntryPointOffsetByName(pass->GetVertexEntryName());
+    assert(entryOpt.has_value() && "Invalid vertex shader entry point name in pass signature");
+
+    uint32_t entryIdx = entryOpt.value();
     std::span<const ShaderReflection::Parameter> inputs =
-        shaderAsset.GetReflection().GetEntryInput(pass->GetVertexEntryName());
+        shaderAsset.GetReflection().GetEntryInput(entryIdx);
 
     for (const auto& slot : vertexState.bufferSlots) {
         std::vector<wgx::VertexAttribute> activeAttributes;
@@ -119,7 +126,7 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
         m_globalBindGroupLayout,
     };
     for (uint32_t i = 1; i < 4; ++i) {
-        bindGroupLayouts.push_back(shaderAsset.GetBindGroupLayout(i));
+        bindGroupLayouts.push_back(shaderAsset.GetBindGroupLayout(entryIdx, i));
     }
 
     wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{
@@ -160,79 +167,4 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
     return handle;
 }
 
-// wgpu::RenderPipeline PipelineManager::GetRenderPipeline(const PipelineDesc& desc) {
-//     if (m_pipelineCache.contains(desc)) {
-//         return m_pipelineCache.at(desc);
-//     }
-//
-//     std::vector<wgpu::BindGroupLayout> bindGroupLayouts{
-//         m_globalBindGroupLayout,
-//     };
-//     for (uint32_t i = 1; i < 4; ++i) {
-//         bindGroupLayouts.push_back(desc.shaderAsset->GetBindGroupLayout(i));
-//     }
-//
-//     wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{
-//         .bindGroupLayoutCount = bindGroupLayouts.size(),
-//         .bindGroupLayouts = bindGroupLayouts.data()};
-//
-//     const auto& renderPipelineLayout = m_layoutCache->GetPipelineLayout(pipelineLayoutDesc);
-//
-//     std::span<const ShaderReflection::Parameter> inputs =
-//         desc.shaderAsset->GetReflection().GetEntryInput(desc.vertexEntry);
-//
-//     std::vector<wgpu::VertexBufferLayout> vertexLayouts;
-//
-//     for (const auto& slot : desc.vertexState.bufferSlots) {
-//         std::vector<wgx::VertexAttribute> activeAttributes;
-//
-//         for (uint32_t i = 0; i < slot.attributeCount; ++i) {
-//             auto& meshAtt = slot.attributes[i];
-//             auto it = std::ranges::find_if(inputs, [&](const ShaderReflection::Parameter& param)
-//             {
-//                 return param.semantic == meshAtt.semantic;
-//             });
-//
-//             if (it != inputs.end()) {
-//                 activeAttributes.push_back(wgx::VertexAttribute{.format =
-//                 MapFormat(meshAtt.format),
-//                                                                 .offset = meshAtt.offset,
-//                                                                 .shaderLocation = it->location});
-//             }
-//         }
-//
-//         if (activeAttributes.empty()) {
-//             continue;
-//         }
-//
-//         Handle layoutHandle = m_vertexLayoutManager->GetVertexLayout(
-//             wgx::VertexBufferLayout{.stepMode = MapStepMode(slot.stepMode),
-//                                     .arrayStride = slot.stride,
-//                                     .attributes = std::move(activeAttributes)});
-//
-//         vertexLayouts.push_back(m_vertexLayoutManager->GetVertexLayout(layoutHandle)->GetLayout());
-//     }
-//
-//     wgpu::ColorTargetState targets{.format = m_device->GetSurfaceConfig().format,
-//                                    .blend = &desc.blendState,
-//                                    .writeMask = wgpu::ColorWriteMask::All};
-//     wgpu::FragmentState fragment =
-//         wgpu::FragmentState{.module = desc.shaderAsset->GetShaderModule(),
-//                             .entryPoint = desc.fragmentEntry.c_str(),
-//                             .targetCount = 1,
-//                             .targets = &targets};
-//     wgpu::RenderPipeline renderPipeline =
-//         m_device->CreateRenderPipeline(wgpu::RenderPipelineDescriptor{
-//             .layout = renderPipelineLayout,
-//             .vertex = wgpu::VertexState{.module = desc.shaderAsset->GetShaderModule(),
-//                                         .entryPoint = desc.vertexEntry.c_str(),
-//                                         .bufferCount = vertexLayouts.size(),
-//                                         .buffers = vertexLayouts.data()},
-//             .primitive = desc.primitive,
-//             .fragment = &fragment,
-//         });
-//
-//     m_pipelineCache[desc] = std::move(renderPipeline);
-//     return m_pipelineCache[desc];
-// }
 }  // namespace core::render

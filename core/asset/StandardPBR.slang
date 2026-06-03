@@ -1,5 +1,37 @@
 #include <ShaderInterop.h>
 
+interface IPass {
+    // 반환 타입 자체를 제네릭하게 비워둡니다.
+    associatedtype Output;
+    [[vk::binding(0, BindSlot::Global)]]
+    associatedtype GlobalGroup;
+    [[vk::binding(0, BindSlot::Pass)]]
+    associatedtype PassGroup;
+    [[vk::binding(0, BindSlot::Material)]]
+    associatedtype MaterialGroup;
+
+    Output Run();
+}
+
+struct ForwardOutput {
+    float4 color : SV_Target0;
+};
+
+
+
+// [GBuffer 패스용 멀티 타겟 출력]
+struct GBufferOutput {
+    float4 albedo : SV_Target0;
+    float4 normal : SV_Target1;
+    float4 material : SV_Target2;
+};
+
+[shader("fragment")]
+T.Output fragmentMain<T : IPass>() {
+    T pass;
+    return pass.Run();
+}
+
 [[vk::binding(0, BindSlot::Global)]]
 ConstantBuffer<GlobalUniforms> globalUniforms;
 
@@ -9,6 +41,8 @@ struct MaterialData {
 };
 [[vk::binding(0, BindSlot::Material)]]
 ParameterBlock<MaterialData> materialData;
+
+
 
 // [[vk::binding(0, BindSlot::Instance)]]
 // ConstantBuffer<InstanceUniforms> instanceUniforms;

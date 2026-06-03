@@ -49,6 +49,8 @@ std::expected<MaterialAssetFormat, Error> GLTFImporter::ImportMaterial(
     tryAppendTexture(gltfMaterial.occlusionTexture, "occlusionTexture");
     tryAppendTexture(gltfMaterial.emissiveTexture, "emissiveTexture");
 
+    assetFormat.passNames.push_back("ForwardRenderPass");
+
     assetFormat.SetUniform(
         "baseColorFactor",
         glm::vec<4, float>(gltfMaterial.pbrMetallicRoughness.baseColorFactor[0],

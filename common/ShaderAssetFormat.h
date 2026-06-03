@@ -118,23 +118,25 @@ struct ShaderAssetFormat {
     };
 
     struct alignas(64) Header {
-        uint32_t magicNumber = SHADER_ASSET_MAGIC;
-        uint16_t version = SHADER_ASSET_VERSION;
-        uint16_t parameterCount = 0;
-        uint16_t bindingCount = 0;
-        uint16_t entryPointCount = 0;
-        uint16_t variableCount = 0;  // reserved
-        uint16_t indexCount = 0;
-        uint32_t nameTableSize = 0;
-        uint32_t shaderSize = 0;
-        uint32_t parameterOffset;
-        uint32_t bindingOffset;
-        uint32_t entryPointOffset;
-        uint32_t variableOffset;
-        uint32_t indexOffset;
-        uint32_t nameTableOffset;
-        uint32_t shaderOffset;
-        char _padding[12] = {0};
+        uint32_t magicNumber = SHADER_ASSET_MAGIC;  // 4
+        uint16_t version = SHADER_ASSET_VERSION;    // 6
+        uint16_t parameterCount = 0;                // 8
+        uint16_t bindingCount = 0;                  // 10
+        uint16_t entryPointCount = 0;               // 12
+        uint16_t variableCount = 0;                 // reserved
+        uint16_t indexCount = 0;                    // 18
+        uint32_t nameTableSize = 0;                 // 
+        uint32_t shaderSize = 0;                    // 
+        uint32_t parameterOffset;                   // 
+        uint32_t bindingOffset;                     // 
+        uint32_t entryPointOffset;                  // 
+        uint32_t variableOffset;                    // 
+        uint32_t indexOffset;                       // 
+        uint32_t nameTableOffset;                   // 
+        uint32_t shaderOffset;                      // 
+        uint16_t passNameIndex = kInvalidIdx;       // 
+        uint16_t materialNameIndex = kInvalidIdx;   // 
+        char _padding[4] = {0};
     };
 
     static_assert(sizeof(Header) == 64);
@@ -223,6 +225,8 @@ struct ShaderAssetFormat {
 
     };
     static_assert(sizeof(EntryPoint) == 24, "EntryPoint size must be 24 bytes!");
+
+
 
     Header header;
     std::vector<ShaderParameter> parameters;

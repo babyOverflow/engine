@@ -7,14 +7,19 @@ MaterialManager::MaterialManager(Device* device,
                                  AssetManager* assetManager,
                                  ShaderManager* shaderManager,
                                  TextureManager* textureManager,
+                                 PassManager* passManager,
                                  LayoutCache* layoutCache)
     : m_device(device),
       m_assetManager(assetManager),
       m_layoutCache(layoutCache),
       m_shaderManager(shaderManager),
-      m_textureManager(textureManager) {
+      m_textureManager(textureManager),
+      m_passManager(passManager) {
     importer::MaterialResult defaultMaterialResult{
-        .materialAsset = MaterialAssetFormat{},
+        .materialAsset =
+            MaterialAssetFormat{
+                .passNames = {"ForwardRenderPass"},
+            },
         .assetPath = AssetPath{"virtual://material/default"},
     };
 
@@ -32,6 +37,11 @@ Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialRes
     }
     auto material = CreateMaterialFromShader(shaderAssetView);
 
+    for (const auto& passName : materialAsset.passNames) {
+        uint8_t passId = m_passManager->GetPassID(passName);
+        material.AddPassID(passId);
+    }
+
     for (const auto& [slotName, texturePath] : materialAsset.textures) {
         auto textureView = m_textureManager->GetTexture(texturePath);
 
@@ -43,6 +53,7 @@ Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialRes
         }
     }
     material.RebuildBindGroup();
+
     Handle handle = m_assetManager->StoreMaterial(std::move(material));
     m_materialCache[materialResult.assetPath] = handle;
     return handle;
@@ -71,10 +82,10 @@ Material MaterialManager::CreateMaterialFromShader(AssetView<ShaderAsset> shader
             };
             wgpu::Buffer buffer = m_device->CreateBuffer(bufferDesc);
             std::vector<std::byte> emptyData(bufferSize, std::byte{0});
-            return Material(m_device, shaderAsset, std::move(buffer), std::move(emptyData),
+            return Material(m_device,m_passManager, shaderAsset, std::move(buffer), std::move(emptyData),
                             std::move(variableInfo));
         } else {
-            return Material(m_device, shaderAsset);
+            return Material(m_device,m_passManager, shaderAsset);
         }
     }();
 

@@ -1,10 +1,11 @@
 #pragma once
-#include <unordered_map>
 #include <MaterialAssetFormat.h>
+#include <unordered_map>
 
 #include "import/Importer.h"
 
 #include "AssetManager.h"
+#include "IRenderPass.h"
 #include "Material.h"
 #include "ShaderManager.h"
 #include "TextureManager.h"
@@ -15,9 +16,10 @@ class MaterialManager {
   public:
     MaterialManager() = delete;
     MaterialManager(Device* device,
-        AssetManager* assetManager,
+                    AssetManager* assetManager,
                     ShaderManager* shaderManager,
                     TextureManager* textureManager,
+                    PassManager* passManager,
                     LayoutCache* layoutCache);
     ~MaterialManager() = default;
     MaterialManager(const MaterialManager&) = delete;
@@ -52,6 +54,7 @@ class MaterialManager {
     AssetManager* m_assetManager;
     TextureManager* m_textureManager;
     ShaderManager* m_shaderManager;
+    PassManager* m_passManager;
     LayoutCache* m_layoutCache;
 
     std::unordered_map<AssetPath, Handle> m_materialCache;

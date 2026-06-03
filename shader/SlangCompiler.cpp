@@ -18,6 +18,27 @@ slangCompiler::SlangCompiler::SlangCompiler(ComPtr<IGlobalSession> globalSession
                                             std::vector<std::string> paths)
     : m_globalSession(std::move(globalSession)), m_paths(paths) {}
 
+std::expected<Slang::ComPtr<slang::IModule>, Error> SlangCompiler::LoadModuleFromFile(
+    slang::ISession* session,
+    const std::string& path, CompilationContext& context) {
+    ComPtr<IModule> module;
+    ComPtr<IBlob> diagnosticBlob;
+    {
+        if (!std::filesystem::exists(path)) {
+            return std::unexpected(
+                Error{ErrorType::IOError, "Failed to find filepath: \"" + path + "\"!\n"});
+        }
+        IModule* m = session->loadModule(path.data(), diagnosticBlob.writeRef());
+        if (m == nullptr) {
+            context.AppendError(diagnosticBlob.get());
+            return std::unexpected(
+                Error{ErrorType::InitFailed, "Failed to load module: " + context.message});
+        }
+        module = m;
+    }
+    return module;
+}
+
 std::expected<SlangCompiler, Error> SlangCompiler::Create(const SlangCompilerDesc& desc) {
     ComPtr<IGlobalSession> globalSession;
     {
@@ -232,6 +253,112 @@ std::expected<CompileResult, Error> SlangCompiler::Compile(const std::string& pa
 
     return CompileInternal(composedProgram.get(), context);
 }
+
+std::expected<CompileResult, Error> SlangCompiler::CompilePass(const std::string& path) {
+    CompilationContext context;
+    ComPtr<ISession> session;
+
+    if (auto result = CreateSession(); result.has_value()) {
+        session = result.value();
+    } else {
+        return std::unexpected(result.error());
+    }
+
+    auto moduleResult = LoadModuleFromFile(session.get(), path, context);
+    if (!moduleResult.has_value()) {
+        return std::unexpected(moduleResult.error());
+    }
+    ComPtr<IModule> passModule = moduleResult.value();
+
+    slang::DeclReflection* moduleDecl = passModule->getModuleReflection();
+    slang::ShaderReflection* layout = passModule->getLayout();
+    slang::TypeReflection* renderPassInterface = layout->findTypeByName("IRenderPass");
+    slang::TypeReflection* materialInterface = layout->findTypeByName("IMaterial");
+
+    std::string detectedPassName = "";
+    std::string detectedMaterialName = "";
+    auto children = moduleDecl->getChildren();
+
+    slang::TypeReflection* concreteMaterialType = nullptr;
+    for (slang::DeclReflection* childDecl : children) {
+        if (childDecl && childDecl->getKind() == slang::DeclReflection::Kind::Struct) {
+            slang::TypeReflection* currentType = layout->findTypeByName(childDecl->getName());
+            if (!currentType) {
+                continue;
+            }
+
+            ComPtr<ITypeConformance> conformanceComponent;
+            ComPtr<ISlangBlob> dummyDiagnostics;
+
+            SlangResult matResult = session->createTypeConformanceComponentType(
+                currentType, materialInterface, conformanceComponent.writeRef(), 0,
+                dummyDiagnostics.writeRef());
+
+            if (SLANG_SUCCEEDED(matResult)) {
+                detectedMaterialName = childDecl->getName();
+                concreteMaterialType = currentType;
+                break;
+            }
+        }
+    }
+    if (detectedMaterialName.empty()) {
+        return std::unexpected(
+            Error{ErrorType::ReflectionFailed,
+                  "Failed to find concrete material type conforming to IMaterial!"});
+    }
+
+    for (slang::DeclReflection* childDecl : children) {
+        if (childDecl && (childDecl->getKind() == slang::DeclReflection::Kind::Generic ||
+                          childDecl->getKind() == slang::DeclReflection::Kind::Struct)) {
+            slang::TypeReflection* currentType = layout->findTypeByName(childDecl->getName());
+            if (!currentType) {
+                continue;
+            }
+
+            slang::GenericReflection* genericContainer = currentType->getGenericContainer();
+            slang::TypeReflection* typeToCheck = currentType;
+
+            // 제네릭 컨텍스트 팩토리가 존재할 경우 인메모리 조립 단행
+            if (genericContainer) {
+                slang::GenericArgType argType = slang::GenericArgType::SLANG_GENERIC_ARG_TYPE;
+                slang::GenericArgReflection argVal;
+                argVal.typeVal = concreteMaterialType;
+
+                ComPtr<IBlob> specDiag;
+                slang::GenericReflection* specContext = layout->specializeGeneric(
+                    genericContainer, 1, (SlangReflectionGenericArgType const*)&argType, &argVal,
+                    specDiag.writeRef());
+
+                if (specContext) {
+                    typeToCheck = currentType->applySpecializations(specContext);
+                }
+            }
+
+            if (!typeToCheck) {
+                continue;
+            }
+
+            ComPtr<ITypeConformance> conformanceComponent;
+            ComPtr<ISlangBlob> dummyDiagnostics;
+
+            SlangResult passResult = session->createTypeConformanceComponentType(
+                typeToCheck, renderPassInterface, conformanceComponent.writeRef(), 0,
+                dummyDiagnostics.writeRef());
+
+            if (SLANG_SUCCEEDED(passResult)) {
+                detectedPassName = childDecl->getName();
+                break;
+            }
+        }
+    }
+
+}
+
+//std::expected<core::ShaderAssetFormat::Pass, Error> SlangCompiler::GetPassInfo(
+//    slang::IComponentType* componentType) {
+//    slang::ProgramLayout* layout = componentType->getLayout();
+//    uint32_t parameterCount = layout->getParameterCount();
+//}
 
 constexpr uint32_t kInvalidSetNumber = -1;
 inline bool IsValidSet(uint32_t setNumber) {

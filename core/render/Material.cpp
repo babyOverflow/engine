@@ -1,18 +1,55 @@
+#include "IRenderPass.h"
 #include "Material.h"
 #include "render/util.h"
 
 namespace core::render {
 
+Material::Material() : m_device(nullptr), m_shaderView({}) {}
+
+Material::Material(Material&& rhs) noexcept
+    : m_device(rhs.m_device),
+      m_passManager(rhs.m_passManager),
+      m_shaderView(std::move(rhs.m_shaderView)),
+      m_bindGroups(std::move(rhs.m_bindGroups)),
+      m_sampler(std::move(rhs.m_sampler)),
+      m_uniformBuffer(std::move(rhs.m_uniformBuffer)),
+      m_cpuVariableBufferData(std::move(rhs.m_cpuVariableBufferData)),
+      m_variableInfo(std::move(rhs.m_variableInfo)),
+      m_textures(std::move(rhs.m_textures)),
+      m_activePassIds(std::move(rhs.m_activePassIds)) {
+    rhs.m_device = nullptr;
+}
+
+Material& Material::operator=(Material&& rhs) noexcept {
+    if (this != &rhs) {
+        m_device = rhs.m_device;
+        m_passManager = rhs.m_passManager;
+        m_shaderView = std::move(rhs.m_shaderView);
+        m_bindGroups = std::move(rhs.m_bindGroups);
+        m_sampler = std::move(rhs.m_sampler);
+        m_uniformBuffer = std::move(rhs.m_uniformBuffer);
+        m_cpuVariableBufferData = std::move(rhs.m_cpuVariableBufferData);
+        m_variableInfo = std::move(rhs.m_variableInfo);
+        m_textures = std::move(rhs.m_textures);
+        m_activePassIds = std::move(rhs.m_activePassIds);
+
+        rhs.m_device = nullptr;
+    }
+    return *this;
+}
+
 Material::Material(Device* device,
+                   PassManager* passManager,
                    AssetView<ShaderAsset> shaderView,
-                   wgpu::Buffer unifromBuffer,
+                   wgpu::Buffer uniformBuffer,
                    std::vector<std::byte> cpuData,
                    std::unordered_map<PropertyId, VariableInfo> variableInfo)
     : m_device(device),
+      m_passManager(passManager),
       m_shaderView(shaderView),
-      m_uniformBuffer(unifromBuffer),
-      m_cpuVariableBufferData(cpuData),
-      m_variableInfo(variableInfo) {
+      m_uniformBuffer(uniformBuffer),
+      m_cpuVariableBufferData(std::move(cpuData)),
+      m_variableInfo(std::move(variableInfo)) {
     wgpu::SamplerDescriptor samplerDesc{
         .label = "Default Sampler",
         .addressModeU = wgpu::AddressMode::Repeat,
@@ -24,21 +61,36 @@ Material::Material(Device* device,
     };
     m_sampler = m_device->GetDeivce().CreateSampler(&samplerDesc);
 }
+
 void Material::UpdateUniform() {
     m_device->WriteBuffer(m_uniformBuffer, 0, m_cpuVariableBufferData.data(),
                           m_cpuVariableBufferData.size());
-    m_isUniformDirty = false;
 }
 
-void Material::RebuildBindGroup() {
-    const auto& bindGroupLayout = m_shaderView->GetBindGroupLayout(kSetNumberMaterial);
-    const auto& reflection = m_shaderView->GetReflection();
-    const auto& entryInfos = reflection.GetGroup(kSetNumberMaterial);
-    // const auto& uniformInfo = reflection.GetMaterialVariableInfos();
+bool Material::IsDirty() const {
+    return !m_bindGroupDirtyFlags.none();
+}
+
+wgpu::BindGroup Material::CreateBindGroupForPass(uint32_t passId) {
+    const ShaderReflection& reflection = m_shaderView->GetReflection();
+    const uint32_t shaderEntryCount = reflection.GetEntryPointCount();
+
+    const auto pass = m_passManager->CreatePass(passId);
+    const auto entryOpt = reflection.GetEntryPointOffsetByName(pass->GetVertexEntryName());
+
+    if (!entryOpt.has_value()) {
+        return nullptr;
+    }
+
+    uint32_t shaderEntry = entryOpt.value();
+    const wgpu::BindGroupLayout bindGroupLayout =
+        m_shaderView->GetBindGroupLayout(shaderEntry, BindSlot::Material);
+    std::span<const ShaderReflection::Binding> bindings =
+        reflection.GetGroup(shaderEntry, BindSlot::Material);
 
     std::vector<wgpu::BindGroupEntry> entries;
-    for (uint32_t i = 0; i < entryInfos.size(); ++i) {
-        const auto& entryInfo = entryInfos[i];
+    for (uint32_t i = 0; i < bindings.size(); ++i) {
+        const auto& entryInfo = bindings[i];
         switch (entryInfo.resourceType) {
             case core::ShaderAssetFormat::ResourceType::UniformBuffer: {
                 wgpu::BindGroupEntry bufferEntry{
@@ -66,7 +118,7 @@ void Material::RebuildBindGroup() {
             case core::ShaderAssetFormat::ResourceType::Sampler: {
                 wgpu::BindGroupEntry samplerEntry{
                     .binding = entryInfo.binding,
-                    .sampler = m_sampler,  // TODO: support sampler in material
+                    .sampler = m_sampler,
                 };
                 entries.push_back(samplerEntry);
                 break;
@@ -83,12 +135,20 @@ void Material::RebuildBindGroup() {
         .entryCount = static_cast<uint32_t>(entries.size()),
         .entries = entries.data(),
     };
-    m_bindGroup = m_device->CreateBindGroup(bindGroupDesc);
+    return m_device->CreateBindGroup(bindGroupDesc);
 }
 
-wgpu::BindGroup Material::GetBindGroup() const {
+void Material::RebuildBindGroup() {
+    const ShaderReflection& reflection = m_shaderView->GetReflection();
+    const uint32_t shaderEntryCount = reflection.GetEntryPointCount();
 
-    return m_bindGroup;
+    for (auto id : m_activePassIds) {
+        m_bindGroups[id] = CreateBindGroupForPass(id);
+    }
+}
+
+wgpu::BindGroup Material::GetBindGroup(uint32_t passId) const {
+    return m_bindGroups[passId];
 }
 
 void Material::SetTexture(const std::string& name, AssetView<Texture> texture) {
@@ -97,6 +157,12 @@ void Material::SetTexture(const std::string& name, AssetView<Texture> texture) {
 
 void Material::SetTexture(PropertyId id, AssetView<Texture> texture) {
     m_textures[id] = texture;
-    m_bindGroup = nullptr;
+}
+
+void Material::FlushDirtyBindGroups() {
+    if (IsDirty()) {
+        RebuildBindGroup();
+        m_bindGroupDirtyFlags.reset();
+    }
 }
 }  // namespace core::render

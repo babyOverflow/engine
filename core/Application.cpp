@@ -42,6 +42,9 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     auto layoutCache = std::make_unique<render::LayoutCache>(device.get());
     auto vertexLayoutManager = std::make_unique<render::VertexLayoutManager>();
     auto passManager = std::make_unique<render::PassManager>();
+
+    passManager->RegisterPass<render::pass::ForwardRenderPass>("ForwardRenderPass");
+
     auto pipelineManager = std::make_unique<render::PipelineManager>(
         device.get(), layoutCache.get(), passManager.get(), vertexLayoutManager.get(),
         globalBindGroupLayout);
@@ -53,7 +56,7 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
         std::make_unique<render::TextureManager>(device.get(), assetManager.get());
     auto materialManager = std::make_unique<render::MaterialManager>(
         device.get(), assetManager.get(), shaderManager.get(), textureManager.get(),
-        layoutCache.get());
+        passManager.get(), layoutCache.get());
 
     render::RenderGraph renderGraph(device.get(), assetManager.get(), pipelineManager.get(),
                                     layoutCache->GetBindGroupLayout(globalBindGroupLayout));
@@ -70,9 +73,6 @@ core::Application::~Application() {}
 void core::Application::Run() {
     render::RenderQueue renderQueue;
 
-    uint8_t forwardPassId =
-        m_passManager->RegisterPass<render::pass::ForwardRenderPass>("pass::ForwardRenderPass");
-
     while (!m_souldColose) {
         m_window.PollEvent();
         m_eventDispatcher->ProcessEvent([this](auto&& event) -> void { this->RaiseEvent(event); });
@@ -87,7 +87,7 @@ void core::Application::Run() {
                                                   m_pipelineManager.get(), renderQueue);
 
         std::vector<std::unique_ptr<core::render::IRenderPass>> s;
-        s.push_back(std::move(m_passManager->CreatePass(forwardPassId)));
+        s.push_back(std::move(m_passManager->CreatePass(m_passManager->GetPassID("ForwardRenderPass"))));
 
         m_renderGraph.Setup(s);
         m_renderGraph.Execute(renderQueue);

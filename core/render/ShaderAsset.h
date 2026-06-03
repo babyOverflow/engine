@@ -32,23 +32,27 @@ class ShaderReflection {
     };
 
 
-    std::span<const Binding> GetGroup(uint32_t setIdx) const;
+    std::span<const Binding> GetGroup(uint32_t entryIdx,uint32_t setIdx) const;
     std::span<const Binding> GetAllBindings() const;
 
     std::span<const MaterialVariableInfo> GetMaterialVariableInfos() const;
 
-    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInput(
-        const std::string& name) const;
+    std::optional<uint32_t> GetEntryPointOffsetByName(const std::string& name) const;
+
+    uint32_t GetEntryPointCount() const { return m_shaderAssetFormat->entryPoints.size(); }
+
+    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInput(uint32_t entryIdx) const;
+    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInputByName(const std::string& name) const;
 
   private:
     ShaderReflection(ShaderAssetFormat* shaderAssetFormat,
                      std::vector<std::string_view>&& nametable,
-                     std::array<GroupRange, 4> groups)
-        : m_shaderAssetFormat(shaderAssetFormat), m_nameTable(std::move(nametable)), groups(groups) {}
+                     std::vector<std::array<GroupRange, 4>>&& layouts)
+        : m_shaderAssetFormat(shaderAssetFormat), m_nameTable(std::move(nametable)), m_layouts(std::move(layouts)) {}
 
     const ShaderAssetFormat* m_shaderAssetFormat;
     std::vector<std::string_view> m_nameTable;
-    std::array<GroupRange, 4> groups;
+    std::vector<std::array<GroupRange, 4>> m_layouts;
 
     std::string_view GetNameByIndex(uint32_t idx) const;
 };
@@ -68,16 +72,16 @@ class ShaderAsset {
     static ShaderAsset Create(wgpu::ShaderModule shaderModule,
                               std::unique_ptr<ShaderAssetFormat> shaderAssetFormat,
                               ShaderReflection shaderReflection,
-                              std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts);
+                              std::vector<std::array<wgpu::BindGroupLayout, 4>> bindGroupLayoutSets);
 
     const wgpu::ShaderModule& GetShaderModule() const { return m_shaderModule; }
 
-    wgpu::BindGroupLayout GetBindGroupLayout(uint32_t setNumber) const {
-        return m_bindGroupLayouts[setNumber];
+    wgpu::BindGroupLayout GetBindGroupLayout(uint32_t entry, uint32_t setNumber) const {
+        return GetBindGroupLayoutsByEntry(entry)[setNumber];
     }
 
-    std::span<const wgpu::BindGroupLayout> GetBindGroupLayouts() const {
-        return m_bindGroupLayouts;
+    std::span<const wgpu::BindGroupLayout> GetBindGroupLayoutsByEntry(uint32_t entry) const {
+        return m_bindGroupLayouts[entry];
     }
 
     const ShaderReflection& GetReflection() const { return m_reflection; }
@@ -87,14 +91,14 @@ class ShaderAsset {
                 std::unique_ptr<ShaderAssetFormat> shaderAssetFormat,
                 ShaderReflection reflection,
 
-                std::array<wgpu::BindGroupLayout, 4> bindGroupLayout)
+                std::vector<std::array<wgpu::BindGroupLayout, 4>> bindGroupLayout)
         : m_shaderModule(shaderModule),
           m_shaderAssetFormat(std::move(shaderAssetFormat)),
           m_reflection(reflection),
           m_bindGroupLayouts(bindGroupLayout) {}
 
     wgpu::ShaderModule m_shaderModule = nullptr;
-    std::array<wgpu::BindGroupLayout, 4> m_bindGroupLayouts;
+    std::vector<std::array<wgpu::BindGroupLayout, 4>> m_bindGroupLayouts;
 
     std::unique_ptr<ShaderAssetFormat> m_shaderAssetFormat;
     ShaderReflection m_reflection;
