@@ -1,36 +1,5 @@
 #include <ShaderInterop.h>
 
-interface IPass {
-    // 반환 타입 자체를 제네릭하게 비워둡니다.
-    associatedtype Output;
-    [[vk::binding(0, BindSlot::Global)]]
-    associatedtype GlobalGroup;
-    [[vk::binding(0, BindSlot::Pass)]]
-    associatedtype PassGroup;
-    [[vk::binding(0, BindSlot::Material)]]
-    associatedtype MaterialGroup;
-
-    Output Run();
-}
-
-struct ForwardOutput {
-    float4 color : SV_Target0;
-};
-
-
-
-// [GBuffer 패스용 멀티 타겟 출력]
-struct GBufferOutput {
-    float4 albedo : SV_Target0;
-    float4 normal : SV_Target1;
-    float4 material : SV_Target2;
-};
-
-[shader("fragment")]
-T.Output fragmentMain<T : IPass>() {
-    T pass;
-    return pass.Run();
-}
 
 [[vk::binding(0, BindSlot::Global)]]
 ConstantBuffer<GlobalUniforms> globalUniforms;
@@ -69,34 +38,6 @@ struct Fragment {
     float4 color;
 };
 
-struct ColorVertex {
-    float3 position : POSITION;
-    float4 color : COLOR0;
-};
-
-struct ColorVertexStageOutput {
-    float4 sv_position : SV_Position;
-    float4 color : COLOR;
-};
-
-[shader("vertex")]
-ColorVertexStageOutput vertexMain_Color(ColorVertex colorVertex) {
-    ColorVertexStageOutput output;
-
-    float3 position = colorVertex.position;
-
-    output.sv_position = mul(globalUniforms.viewProj, float4(position, 1.0f));
-    output.color = colorVertex.color;
-
-    return output;
-}
-
-[shader("fragment")]
-Fragment fragmentMain_Color(float4 color: COLOR) : SV_Target {
-    Fragment output;
-    output.color = color;
-    return output;
-}
 
 // Vertex  Shader
 struct VertexStageOutput {

@@ -61,13 +61,6 @@ bool WriteAssetToFile(const fs::path& outputPath, const CompileResult& result) {
                    result.sourceBlob.size());
     }
 
-    if (!result.passes.empty()) {
-        header.indexOffset = static_cast<uint32_t>(file.tellp());
-        header.indexCount = static_cast<uint16_t>(result.passes.size());
-        file.write(reinterpret_cast<const char*>(result.passes.data()),
-                   sizeof(sa::Pass) * result.passes.size());
-    }
-
     if (!result.nameTable.empty()) {
         header.nameTableOffset = static_cast<uint32_t>(file.tellp());
         uint32_t size = 0;
@@ -81,6 +74,8 @@ bool WriteAssetToFile(const fs::path& outputPath, const CompileResult& result) {
     // Finalize header and overwrite the dummy
     header.magicNumber = sa::SHADER_ASSET_MAGIC;
     header.version = sa::SHADER_ASSET_VERSION;
+    header.passNameIndex = result.passNameIdx;
+    header.materialNameIndex = result.materialNameIdx;
 
     file.seekp(0);
     file.write(reinterpret_cast<const char*>(&header), sizeof(sa::Header));

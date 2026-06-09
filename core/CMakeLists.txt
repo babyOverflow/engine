@@ -1,4 +1,4 @@
-﻿set(SOURCES
+set(SOURCES
     "render/render.cpp"
     "render/render.h"
     "Application.cpp"

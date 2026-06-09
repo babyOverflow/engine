@@ -3,21 +3,6 @@
 
 // 1. The core interface defining flexible output and resource handling
 
-struct MaterialA : IMaterial {
-    typealias DataType = struct {
-        Texture2D shadowMap;
-        SamplerState baseColorSampler;
-    };
-
-    static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
-                                                       float3 worldPosition,
-                                                       float3 worldNormal,
-                                                       float2 uv) {
-        SurfaceAttributes attributes;
-        attributes.baseColor = data.shadowMap.Sample(data.baseColorSampler, uv).rgb;
-        return attributes;
-    }
-};
 
 struct DifuseMaterial : IMaterial {
     typealias DataType = struct {
@@ -118,7 +103,6 @@ struct ForwardPass<Material : IMaterial> : IRenderPass {
     };
 
     typealias GlobalResourcesType = GlobalResources;
-    typealias MaterialType = MaterialA;
 
     // Different pass, completely different resource requirements
     struct PassResourceType {
@@ -149,23 +133,4 @@ struct ForwardPass<Material : IMaterial> : IRenderPass {
         outTarget.sceneColor = float4(baseColor, 1.0);
         return outTarget;
     }
-}
-
-// ==========================================
-// GENERIC ENTRY POINT
-// ==========================================
-typealias P = GBufferPass<DifuseMaterial>;
-
-ParameterBlock<P.GlobalResourcesType> globalResources;
-ParameterBlock<P.M.DataType> material;
-ParameterBlock<P.PassResourceType> currentPass;
-
-[shader("vertex")]
-P.VertexOutputType vertexMain(P.VertexInputType input) {
-    return P.vertex(globalResources, material, currentPass, input);
-}
-
-[shader("fragment")]
-P.FragmentOutputType fragmentMain(P.FragmentInputType input) {
-    return P.fragment(globalResources, material, currentPass, input);
 }

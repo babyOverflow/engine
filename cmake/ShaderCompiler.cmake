@@ -1,6 +1,6 @@
 function(add_shader_asset)
     set(options)
-    set(oneValueArgs TARGET INPUT ENTRY OUTPUT)
+    set(oneValueArgs TARGET INPUT TEMPLATE OUTPUT) # ◀ Replaced ENTRY with TEMPLATE
     set(multiValueArgs INCLUDES) 
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -11,20 +11,22 @@ function(add_shader_asset)
         list(APPEND INCLUDE_FLAGS "-I" "${INC_PATH}")
     endforeach()
 
-    set(ENTRY_FLAG "")
-    if(ARG_ENTRY)
-        list(APPEND ENTRY_FLAG "-e" "${ARG_ENTRY}")
+    set(TEMPLATE_FLAGS "")
+    set(DEPENDENCY_LIST shaderCompiler)
+    if(ARG_TEMPLATE)
+        set(TEMPLATE_FLAGS "-t" "${ARG_TEMPLATE}")
+        list(APPEND DEPENDENCY_LIST "${ARG_TEMPLATE}")
     endif()
 
     add_custom_command(
         OUTPUT ${ARG_OUTPUT}
         COMMAND ${BAKER_TOOL} 
             -i ${ARG_INPUT} 
-            ${ENTRY_FLAG}
+            ${TEMPLATE_FLAGS}
             -o ${ARG_OUTPUT}
             ${INCLUDE_FLAGS}  
         MAIN_DEPENDENCY ${ARG_INPUT}
-        DEPENDS shaderCompiler
+        DEPENDS ${DEPENDENCY_LIST} 
         COMMENT "Baking Shader: ${ARG_INPUT} -> ${ARG_OUTPUT}"
     )
 

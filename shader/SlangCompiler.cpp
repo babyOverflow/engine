@@ -1,8 +1,10 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <print>
 #include <ranges>
+#include <unordered_set>
 
 #include <slang-com-helper.h>
 #include <slang-com-ptr.h>
@@ -15,12 +17,14 @@ using sa = core::ShaderAssetFormat;
 namespace slangCompiler {
 
 slangCompiler::SlangCompiler::SlangCompiler(ComPtr<IGlobalSession> globalSession,
-                                            std::vector<std::string> paths)
-    : m_globalSession(std::move(globalSession)), m_paths(paths) {}
+                                            std::vector<std::string> paths,
+                                            std::string entryTemplate)
+    : m_globalSession(std::move(globalSession)), m_paths(paths), m_entryTemplate(entryTemplate) {}
 
 std::expected<Slang::ComPtr<slang::IModule>, Error> SlangCompiler::LoadModuleFromFile(
     slang::ISession* session,
-    const std::string& path, CompilationContext& context) {
+    const std::string& path,
+    CompilationContext& context) {
     ComPtr<IModule> module;
     ComPtr<IBlob> diagnosticBlob;
     {
@@ -57,7 +61,21 @@ std::expected<SlangCompiler, Error> SlangCompiler::Create(const SlangCompilerDes
     for (const auto& path : desc.paths) {
         paths.emplace_back(path.string());
     }
-    return SlangCompiler(std::move(globalSession), paths);
+
+    std::string entryTemplate = [&desc]() {
+        if (!std::filesystem::exists(desc.entryTemplatePaths)) {
+            return std::string();
+        }
+        std::ifstream entryTemplateStream(desc.entryTemplatePaths.string());
+        if (!entryTemplateStream.is_open()) {
+            return std::string();
+        }
+        std::stringstream entryTemplateBuffer;
+        entryTemplateBuffer << entryTemplateStream.rdbuf();
+        return entryTemplateBuffer.str();
+    }();
+
+    return SlangCompiler(std::move(globalSession), paths, entryTemplate);
 }
 
 std::expected<CompileResult, Error> SlangCompiler::CompileFromString(const std::string& slangCode,
@@ -352,13 +370,44 @@ std::expected<CompileResult, Error> SlangCompiler::CompilePass(const std::string
         }
     }
 
+    if (detectedPassName.empty()) {
+        return std::unexpected(
+            Error{ErrorType::ReflectionFailed,
+                  "Failed to find concrete pass type conforming to IRenderPass!"});
+    }
+
+    std::string macroControlCode =
+        "\n\n// Injected by Framework\n"
+        "#define ENGINE_STATIC_DISPATCH\n"
+        "typealias P = " +
+        detectedPassName + "<" + detectedMaterialName + ">;\n";
+
+    std::ifstream passShaderStream(path.c_str());
+    std::stringstream passShaderBuffer;
+
+    passShaderBuffer << passShaderStream.rdbuf();
+    std::string passShader = passShaderBuffer.str();
+
+    std::string finalCombinedSource =
+        std::string(passShader) + macroControlCode + std::string(m_entryTemplate);
+
+    return CompileFromString(finalCombinedSource)
+        .and_then([&](slangCompiler::CompileResult&& shader) {
+            shader.passNameIdx = shader.nameTable.size();
+            shader.nameTable.push_back(detectedPassName);
+            shader.materialNameIdx = shader.nameTable.size();
+            shader.nameTable.push_back(detectedMaterialName);
+
+            return std::expected<slangCompiler::CompileResult, Error>(std::in_place,
+                                                                      std::move(shader));
+        });
 }
 
-//std::expected<core::ShaderAssetFormat::Pass, Error> SlangCompiler::GetPassInfo(
-//    slang::IComponentType* componentType) {
-//    slang::ProgramLayout* layout = componentType->getLayout();
-//    uint32_t parameterCount = layout->getParameterCount();
-//}
+// std::expected<core::ShaderAssetFormat::Pass, Error> SlangCompiler::GetPassInfo(
+//     slang::IComponentType* componentType) {
+//     slang::ProgramLayout* layout = componentType->getLayout();
+//     uint32_t parameterCount = layout->getParameterCount();
+// }
 
 constexpr uint32_t kInvalidSetNumber = -1;
 inline bool IsValidSet(uint32_t setNumber) {
@@ -401,8 +450,6 @@ struct CompilerBinding {
     sa::ResourceType resourceType;
     sa::ShaderVisibility visibility;
     std::string name;
-
-    slang::ParameterCategory slangCategory;
 };
 
 sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
@@ -507,7 +554,6 @@ CompilerBinding CalculateBasicBinding(VariableLayoutReflection* varLayout,
             binding.binding = static_cast<uint32_t>(cbufferIndex);
         }
     }
-    binding.slangCategory = varLayout->getCategory();
 
     return binding;
 }
@@ -595,27 +641,14 @@ std::optional<CompilerBinding> CreateLeafBinding(VariableLayoutReflection* varLa
         return std::nullopt;
     }
 
-    uint32_t set = ctx.currentSet;
-    if (set == -1) {
-        size_t spaceOffset = varLayout->getOffset(slang::ParameterCategory::RegisterSpace);
-        set = (spaceOffset != -SLANG_UNBOUNDED_SIZE) ? (uint32_t)spaceOffset : 0;
-    }
-
     CompilerBinding binding = CalculateBasicBinding(varLayout, ctx, kind);
-
-    if (kind == slang::TypeReflection::Kind::ParameterBlock) {
-        size_t cbufferIndex = varLayout->getOffset(slang::ParameterCategory::DescriptorTableSlot);
-        if (cbufferIndex != SLANG_UNBOUNDED_SIZE) {
-            binding.binding = static_cast<uint32_t>(cbufferIndex);
-        }
-    }
 
     if (ctx.skipResourceDetails) {
         return binding;
     }
 
     if (!PopulateResourceDetails(binding, varLayout, ctx, kind)) {
-        return std::nullopt; 
+        return std::nullopt;
     }
 
     return binding;
@@ -733,7 +766,8 @@ struct CompilerEntryParameter {
 
 std::vector<CompilerShaderParameter> CreateVaryingParameterLayout(
     slang::VariableLayoutReflection* varLayout,
-    const VaryingParameterContext& context) {
+    const VaryingParameterContext& context,
+    slang::ParameterCategory category) {
     slang::TypeLayoutReflection* typeLayout = varLayout->getTypeLayout();
     std::vector<CompilerShaderParameter> shaderParameters;
     CompilerVariable variable{};
@@ -760,7 +794,7 @@ std::vector<CompilerShaderParameter> CreateVaryingParameterLayout(
                 auto* param = typeLayout->getFieldByIndex(i);
                 const VaryingParameterContext nextCtx = context.WithPrefix(param->getName());
                 std::vector<CompilerShaderParameter> fields =
-                    CreateVaryingParameterLayout(param, nextCtx);
+                    CreateVaryingParameterLayout(param, nextCtx, category);
                 shaderParameters.append_range(fields);
                 continue;
             }
@@ -798,7 +832,7 @@ std::vector<CompilerShaderParameter> CreateVaryingParameterLayout(
     variable.name = context.prefix;
 
     const char* semanticName = varLayout->getSemanticName();
-    const uint32_t location = varLayout->getOffset(slang::ParameterCategory::VaryingInput);
+    const uint32_t location = varLayout->getOffset(category);
     // const uint32_t location = varLayout->getBindingIndex();
     shaderParameters.push_back(CompilerShaderParameter{
         .variable = variable,
@@ -815,11 +849,11 @@ CompilerEntryParameter GernerateEntryPointLayout(slang::EntryPointReflection* la
     VaryingParameterContext varyingContext;
     slang::VariableLayoutReflection* paramaterVarLayout = layout->getVarLayout();
     std::vector<CompilerShaderParameter> entryInputParameters =
-        CreateVaryingParameterLayout(paramaterVarLayout, varyingContext);
+        CreateVaryingParameterLayout(paramaterVarLayout, varyingContext, slang::ParameterCategory::VaryingInput);
     slang::VariableLayoutReflection* resultVarLayout = layout->getResultVarLayout();
     // const uint32_t resultVarCount
     std::vector<CompilerShaderParameter> entryOutpuParameters =
-        CreateVaryingParameterLayout(resultVarLayout, varyingContext);
+        CreateVaryingParameterLayout(resultVarLayout, varyingContext, slang::ParameterCategory::VaryingOutput);
     return {
         entryInputParameters,
         entryOutpuParameters,
@@ -876,15 +910,15 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                             : core::Semantic::Undefined,
         };
 
-         parameters.push_back(parameter);
+        parameters.push_back(parameter);
     };
 
     ProgramLayout* programLayout = linkedProgram->getLayout();
     std::vector<CompilerBinding> compilerBindings =
         GenerateBindingsFromLayout(programLayout, context);
 
+    std::vector<sa::Binding> bindings;
     uint32_t entryCount = programLayout->getEntryPointCount();
-    std::vector<uint32_t> indices;
     std::vector<sa::EntryPoint> entryPoints;
     for (uint32_t i = 0; i < entryCount; ++i) {
         slang::EntryPointReflection* entry = programLayout->getEntryPointByIndex(i);
@@ -909,23 +943,18 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
             }
         }
 
-        entryPoint.bindingStartIndex = indices.size();
-        entryPoint.bindingCount = 0;
-        ComPtr<IMetadata> metadata;
-        //composedProgram->getEntryPointMetadata(i, 0, metadata.writeRef());
-        linkedProgram->getEntryPointMetadata(i, 0, metadata.writeRef());
+        entryPoint.bindingStartIndex = bindings.size();
+        entryPoint.bindingCount = static_cast<uint16_t>(compilerBindings.size());
         for (uint32_t j = 0; j < compilerBindings.size(); ++j) {
-            const auto& b = compilerBindings[j];
-            bool isUsed = false;
-
-            metadata->isParameterLocationUsed(static_cast<SlangParameterCategory>(b.slangCategory),
-                                              b.set, b.binding, isUsed);
-
-            if (isUsed) {
-                entryPoint.bindingCount++;
-                indices.push_back(j);
-                compilerBindings[j].visibility = compilerBindings[j].visibility | entryPoint.stage;
-            }
+            bindings.push_back(sa::Binding{
+                .set = compilerBindings[j].set,
+                .binding = compilerBindings[j].binding,
+                .id = compilerBindings[j].id,
+                .nameIdx = getNameId(compilerBindings[j].name),
+                .resource = compilerBindings[j].resource,
+                .resourceType = compilerBindings[j].resourceType,
+                .visibility = compilerBindings[j].visibility | entryPoint.stage,
+            });
         }
         uint32_t nameIdx = getNameId(entry->getName());
         entryPoint.nameIdx = nameIdx;
@@ -933,19 +962,19 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
         entryPoints.push_back(entryPoint);
     }
 
-    std::vector<sa::Binding> bindings =
-        compilerBindings | std::views::transform([&](CompilerBinding& cb) -> sa::Binding {
-            return sa::Binding{
-                .set = cb.set,
-                .binding = cb.binding,
-                .id = cb.id,
-                .nameIdx = getNameId(cb.name),
-                .resource = cb.resource,
-                .resourceType = cb.resourceType,
-                .visibility = cb.visibility,
-            };
-        }) |
-        std::ranges::to<std::vector>();
+    //std::vector<sa::Binding> bindings =
+    //    compilerBindings | std::views::transform([&](CompilerBinding& cb) -> sa::Binding {
+    //        return sa::Binding{
+    //            .set = cb.set,
+    //            .binding = cb.binding,
+    //            .id = cb.id,
+    //            .nameIdx = getNameId(cb.name),
+    //            .resource = cb.resource,
+    //            .resourceType = cb.resourceType,
+    //            .visibility = cb.visibility,
+    //        };
+    //    }) |
+    //    std::ranges::to<std::vector>();
 
     uint32_t nameTableSize = std::ranges::fold_left(
         nameTable, 0u, [](uint32_t acc, const std::string& name) { return acc + name.size() + 1; });
@@ -959,7 +988,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                                                              .entryPoints = std::move(entryPoints),
                                                              .sourceBlob = std::move(code),
                                                              .nameTable = std::move(nameTable),
-                                                             .indices = std::move(indices),
                                                              .warning = context.message});
 }
 

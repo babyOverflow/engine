@@ -27,7 +27,8 @@ class SlangCompilerTest : public testing::Test {
         const fs::path dirPath = fullPath.parent_path();
 
         std::vector<std::filesystem::path> path = {dirPath};
-        const SlangCompilerDesc desc{.paths = path};
+        const SlangCompilerDesc desc{.paths = path,
+                                     .entryTemplatePaths = {dirPath / "entry.slang"}};
         compiler = SlangCompiler::Create(desc);
         ASSERT_TRUE(compiler.has_value());
     }
@@ -99,7 +100,7 @@ TEST_F(SlangCompilerTest, DebugCodeCompilation) {
     const sa::EntryPoint& ve = shrd.entryPoints[0];
     ASSERT_EQ(ve.bindingCount, 1);
 
-    const sa::Binding& binding = shrd.bindings[shrd.indices[ve.bindingStartIndex]];
+    const sa::Binding& binding = shrd.bindings[ve.bindingStartIndex];
     EXPECT_EQ(binding.binding, 0);
     EXPECT_EQ(binding.resourceType, sa::ResourceType::UniformBuffer);
     EXPECT_EQ(binding.resource.buffer.bufferSize, kDebugCodeExpectedUniformsBufferSize);
@@ -133,8 +134,8 @@ TEST_F(SlangCompilerTest, ParameterBlock) {
     }
 }
 
-TEST_F(SlangCompilerTest, ComplexTest) {
-    auto result = compiler->CompileFromString(kComplexTest, "vertexMain");
+TEST_F(SlangCompilerTest, ComplexTestWithRoughness) {
+    auto result = compiler->CompileFromString(kComplexTestWithRoughness, "vertexMain");
     ASSERT_TRUE(result.has_value()) << result.error().message;
 
     CompileResult shrd = result.value();
@@ -148,7 +149,29 @@ TEST_F(SlangCompilerTest, ComplexTest) {
         EXPECT_EQ(actual.binding, expected.binding)
             << "\033[32m" << shrd.nameTable[actual.nameIdx] << "\033[0m binding number should be "
             << expected.binding;
-        ASSERT_EQ(actual.resourceType, expected.resourceType);
+        EXPECT_EQ(actual.resourceType, expected.resourceType);
+        if (actual.resourceType == sa::ResourceType::UniformBuffer) {
+            EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize);
+        }
+    }
+}
+
+TEST_F(SlangCompilerTest, ComplexTestWithoutRoughness) {
+    auto result = compiler->CompileFromString(kComplexTestWithoutRoughness, "vertexMain");
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    CompileResult shrd = result.value();
+    std::println("{}", shrd.warning);
+    ASSERT_EQ(shrd.bindings.size(), kComplexTestExpectedBindingSize);
+    for (uint32_t i = 0; i < shrd.bindings.size(); ++i) {
+        const auto& actual = shrd.bindings[i];
+        const auto& expected = kComplexTestExpectedBindings[i];
+        EXPECT_EQ(actual.set, expected.set) << "\033[32m" << shrd.nameTable[actual.nameIdx]
+                                            << "\033[0m set number should be " << expected.set;
+        EXPECT_EQ(actual.binding, expected.binding)
+            << "\033[32m" << shrd.nameTable[actual.nameIdx] << "\033[0m binding number should be "
+            << expected.binding;
+        EXPECT_EQ(actual.resourceType, expected.resourceType);
         if (actual.resourceType == sa::ResourceType::UniformBuffer) {
             EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize);
         }
@@ -161,7 +184,7 @@ TEST_F(SlangCompilerTest, StandardPBRWithEntry) {
 
     CompileResult shrd = result.value();
     std::println("{}", shrd.warning);
-    EXPECT_EQ(shrd.bindings.size(), kStandardPBR_ExpectedBindingSize);
+    EXPECT_EQ(shrd.bindings.size(), kStandardPBR_ExpectedBindingsSize);
     for (uint32_t i = 0; i < shrd.bindings.size(); ++i) {
         const auto& actual = shrd.bindings[i];
         const auto& expected = kStandardPBR_ExpectedBindings[i];
@@ -204,10 +227,10 @@ TEST_F(SlangCompilerTest, StandardPBR) {
 
     const sa::EntryPoint& ve = shdr.entryPoints[0];
     {
-        ASSERT_EQ(ve.bindingCount, kStandardPBR_ExpectedBindingsSize_VS);
+        ASSERT_EQ(ve.bindingCount, kStandardPBR_ExpectedBindingsSize);
         for (uint32_t i = 0; i < ve.bindingCount; ++i) {
-            const auto& actual = shdr.bindings[shdr.indices[ve.bindingStartIndex + i]];
-            const auto& expected = kStandardPBR_ExpectedBindings_VS[i];
+            const auto& actual = shdr.bindings[ve.bindingStartIndex + i];
+            const auto& expected = kStandardPBR_ExpectedBindings[i];
 
             EXPECT_EQ(actual.set, expected.set) << "\033[32m" << shdr.nameTable[actual.nameIdx]
                                                 << "\033[0m set number should be " << expected.set;
@@ -222,10 +245,10 @@ TEST_F(SlangCompilerTest, StandardPBR) {
     }
     const sa::EntryPoint& fe = shdr.entryPoints[1];
     {
-        ASSERT_EQ(fe.bindingCount, 2);
+        ASSERT_EQ(fe.bindingCount, kStandardPBR_ExpectedBindingsSize);
         for (uint32_t i = 0; i < fe.bindingCount; ++i) {
-            const auto& actual = shdr.bindings[shdr.indices[fe.bindingStartIndex + i]];
-            const auto& expected = kStandardPBR_ExpectedBindings_FS[i];
+            const auto& actual = shdr.bindings[fe.bindingStartIndex + i];
+            const auto& expected = kStandardPBR_ExpectedBindings[i];
 
             EXPECT_EQ(actual.set, expected.set) << "\033[32m" << shdr.nameTable[actual.nameIdx]
                                                 << "\033[0m set number should be " << expected.set;
@@ -239,6 +262,68 @@ TEST_F(SlangCompilerTest, StandardPBR) {
         }
     }
 }
+
+TEST_F(SlangCompilerTest, StardardPBRPass) {
+    const auto loc = std::source_location::current();
+    const std::filesystem::path fullPath(loc.file_name());
+    const std::filesystem::path dirPath = fullPath.parent_path();
+    std::string targetPath = dirPath.string() + "/standard_pbr_pass.slang";
+    auto result = compiler->CompilePass(targetPath);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    CompileResult shdr = result.value();
+    std::println("{}", shdr.warning);
+    ASSERT_EQ(shdr.entryPoints.size(), 2);
+    auto getShdrNames = MakeNameFinder(shdr.nameTable);
+    ASSERT_EQ(getShdrNames(shdr.entryPoints[0]), "vertexMain");
+    ASSERT_EQ(getShdrNames(shdr.entryPoints[1]), "fragmentMain");
+
+    ASSERT_EQ(shdr.nameTable[shdr.passNameIdx], "ForwardRenderPass");
+    ASSERT_EQ(shdr.nameTable[shdr.materialNameIdx], "AlbedoMaterial");
+
+    constexpr uint32_t kExpectedBindingsSize = 4;
+    const std::array<core::ShaderAssetFormat::Binding, kExpectedBindingsSize> kExpectedBindings{
+        core::ShaderAssetFormat::Binding{
+            .set = 0,
+            .binding = 0,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(80),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 0,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 1,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 2,
+            .binding = 0,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(64),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+        },
+    };
+
+    ASSERT_EQ(shdr.bindings.size(), kExpectedBindingsSize * 2);
+    for (uint32_t entry = 0; entry < shdr.entryPoints.size(); ++entry) {
+        const sa::EntryPoint& ep = shdr.entryPoints[entry];
+        ASSERT_EQ(ep.bindingCount, kExpectedBindingsSize);
+        for (uint32_t i = 0; i < ep.bindingCount; ++i) {
+            const auto& actual = shdr.bindings[ep.bindingStartIndex + i];
+            const auto& expected = kExpectedBindings[i];
+
+            EXPECT_EQ(actual.set, expected.set) << "Set mismatch for binding " << i;
+            EXPECT_EQ(actual.binding, expected.binding) << "Binding index mismatch for binding " << i;
+            EXPECT_EQ(actual.resourceType, expected.resourceType) << "Resource type mismatch for binding " << i;
+            if (actual.resourceType == sa::ResourceType::UniformBuffer) {
+                EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize) << "Buffer size mismatch for binding " << i;
+            }
+        }
+    }
+}
+
 
 int main(int argc, char** argv) {
     std::cout << ">>> Slang Shader Tests" << "\n";

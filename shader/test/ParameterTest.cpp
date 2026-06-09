@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <array>
+#include <magic_enum/magic_enum.hpp>
 #include <source_location>
 
 #include "SlangCompiler.h"
@@ -19,7 +20,8 @@ class ParameterTest : public testing::Test {
         const std::filesystem::path dirPath = fullPath.parent_path();
 
         std::vector<std::filesystem::path> path = {dirPath};
-        const SlangCompilerDesc desc{.paths = path};
+        const SlangCompilerDesc desc{.paths = path,
+                                     .entryTemplatePaths = {dirPath / "entry.slang"}};
         compiler = SlangCompiler::Create(desc);
         ASSERT_TRUE(compiler.has_value());
     }
@@ -94,7 +96,6 @@ const std::array<sa::ShaderParameter, kParameterCount> kExpectedInputParameters 
                 .nameIdx = 0,
             },
         .location = 0,
-        .semantic = core::Semantic::Position,
     },
     sa::ShaderParameter{
         .variable =
@@ -105,7 +106,6 @@ const std::array<sa::ShaderParameter, kParameterCount> kExpectedInputParameters 
                 .nameIdx = 1,
             },
         .location = 1,
-        .semantic = core::Semantic::Normal,
     },
     sa::ShaderParameter{
         .variable =
@@ -116,7 +116,6 @@ const std::array<sa::ShaderParameter, kParameterCount> kExpectedInputParameters 
                 .nameIdx = 2,
             },
         .location = 2,
-        .semantic = core::Semantic::TexCoord0,
     },
 };
 
@@ -134,7 +133,6 @@ TEST_F(ParameterTest, ExtractsVertexInputsFromStruct) {
         const sa::ShaderParameter actual = shdr.parameters[i];
         const sa::ShaderParameter expected = kExpectedInputParameters[i];
         EXPECT_EQ(actual.location, expected.location);
-        EXPECT_EQ(actual.semantic, expected.semantic);
         EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);
         EXPECT_EQ(actual.variable.scalarType, expected.variable.scalarType);
         EXPECT_EQ(actual.variable.kind, expected.variable.kind);
@@ -208,6 +206,79 @@ const std::array<sa::ShaderParameter, kStructParameterCount> kExpectedStructInpu
                 .nameIdx = 0,
             },
         .location = 0,
+    },
+    sa::ShaderParameter{
+        .variable =
+            sa::Variable{
+                .kind = sa::Kind::Vector,
+                .scalarType = sa::ScalarType::F32,
+                .shape = sa::Shape::Vector(3),
+                .nameIdx = 1,
+            },
+        .location = 1,
+    },
+    sa::ShaderParameter{
+        .variable =
+            sa::Variable{
+                .kind = sa::Kind::Vector,
+                .scalarType = sa::ScalarType::F32,
+                .shape = sa::Shape::Vector(2),
+                .nameIdx = 2,
+            },
+        .location = 2,
+    },
+    sa::ShaderParameter{
+        .variable =
+            sa::Variable{
+                .kind = sa::Kind::Scalar,
+                .scalarType = sa::ScalarType::U32,
+                .shape = sa::Shape::Scalar(),
+                .nameIdx = 3,
+            },
+        .location = 0,
+    },
+};
+
+TEST_F(ParameterTest, ExtractsStructInputsFromStruct) {
+    const auto result = compiler->CompileFromString(kStructParameter);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    CompileResult shdr = result.value();
+
+    ASSERT_EQ(shdr.entryPoints.size(), 2);
+    const sa::EntryPoint& vertexEntry = shdr.entryPoints[0];
+    ASSERT_EQ(shdr.nameTable[vertexEntry.nameIdx], "vertexMain");
+    ASSERT_EQ(vertexEntry.ioCount, kStructParameterCount);
+    for (uint32_t i = 0; i < kStructParameterCount; ++i) {
+        const sa::ShaderParameter actual = shdr.parameters[i];
+        const sa::ShaderParameter expected = kExpectedStructInputParameters[i];
+        EXPECT_EQ(actual.location, expected.location);
+        EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);
+        EXPECT_EQ(actual.variable.scalarType, expected.variable.scalarType);
+        EXPECT_EQ(actual.variable.kind, expected.variable.kind);
+        ASSERT_LT(actual.variable.nameIdx, shdr.nameTable.size());
+        EXPECT_EQ(shdr.nameTable[actual.variable.nameIdx],
+                  kStructNameTable[expected.variable.nameIdx]);
+    }
+
+    const sa::EntryPoint& fragmnetEntry = shdr.entryPoints[1];
+    ASSERT_EQ(shdr.nameTable[fragmnetEntry.nameIdx], "fragmentMain");
+    ASSERT_EQ(fragmnetEntry.ioCount, 1);
+}
+
+const static std::array<std::string, 6> kPassNameTable = {"input.position", "input.normal", "input.uv", "albedo", "normal", "linearDepth"};
+
+constexpr uint32_t kPassParameterCount = 3;
+const static std::array<sa::ShaderParameter, kPassParameterCount> kExpectedPassParameters = {
+    sa::ShaderParameter{
+        .variable =
+            sa::Variable{
+                .kind = sa::Kind::Vector,
+                .scalarType = sa::ScalarType::F32,
+                .shape = sa::Shape::Vector(3),
+                .nameIdx = 0,
+            },
+        .location = 0,
         .semantic = core::Semantic::Position,
     },
     sa::ShaderParameter{
@@ -232,44 +303,92 @@ const std::array<sa::ShaderParameter, kStructParameterCount> kExpectedStructInpu
         .location = 2,
         .semantic = core::Semantic::TexCoord0,
     },
-    sa::ShaderParameter{
-        .variable =
-            sa::Variable{
-                .kind = sa::Kind::Scalar,
-                .scalarType = sa::ScalarType::U32,
-                .shape = sa::Shape::Scalar(),
-                .nameIdx = 3,
-            },
-        .location = 0,
-        .semantic = core::Semantic::Undefined,
-    },
+};
+constexpr uint32_t kPassResultParameterCount = 3;
+const static std::array<sa::ShaderParameter, kPassResultParameterCount>
+    kExpectedPassResultParameters = {
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(4),
+                    .nameIdx = 3,
+                },
+            .location = 0,
+            .semantic = core::Semantic::Target0,
+        },
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(4),
+                    .nameIdx = 4,
+                },
+            .location = 1,
+            .semantic = core::Semantic::Target1,
+
+        },
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(4),
+                    .nameIdx = 5,
+                },
+            .location = 2,
+            .semantic = core::Semantic::Target2,
+        },
 };
 
-TEST_F(ParameterTest, ExtractsStructInputsFromStruct) {
-    const auto result = compiler->CompileFromString(kStructParameter);
+TEST_F(ParameterTest, ExtractsParameterFromIRenderPass) {
+    const auto loc = std::source_location::current();
+    const std::filesystem::path fullPath(loc.file_name());
+    const std::filesystem::path dirPath = fullPath.parent_path();
+    std::string targetPath = dirPath.string() + "/dummy.slang";
+    const auto result = compiler->CompilePass(targetPath);
     ASSERT_TRUE(result.has_value()) << result.error().message;
 
-    CompileResult shdr = result.value();
+    slangCompiler::CompileResult shdr = result.value();
+
+    EXPECT_EQ(shdr.nameTable[shdr.passNameIdx], "GBufferPass");
+    EXPECT_EQ(shdr.nameTable[shdr.materialNameIdx], "DifuseMaterial");
 
     ASSERT_EQ(shdr.entryPoints.size(), 2);
     const sa::EntryPoint& vertexEntry = shdr.entryPoints[0];
     ASSERT_EQ(shdr.nameTable[vertexEntry.nameIdx], "vertexMain");
-    ASSERT_EQ(vertexEntry.ioCount, kStructParameterCount);
-    for (uint32_t i = 0; i < kStructParameterCount; ++i) {
+    const sa::EntryPoint& fragmentEntry = shdr.entryPoints[1];
+    ASSERT_EQ(shdr.nameTable[fragmentEntry.nameIdx], "fragmentMain");
+
+    ASSERT_EQ(vertexEntry.ioCount, kPassParameterCount);
+    for (uint32_t i = 0; i < kPassParameterCount; ++i) {
         const sa::ShaderParameter actual = shdr.parameters[i];
-        const sa::ShaderParameter expected = kExpectedStructInputParameters[i];
+        const sa::ShaderParameter expected = kExpectedPassParameters[i];
         EXPECT_EQ(actual.location, expected.location);
         EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);
         EXPECT_EQ(actual.variable.scalarType, expected.variable.scalarType);
         EXPECT_EQ(actual.variable.kind, expected.variable.kind);
         ASSERT_LT(actual.variable.nameIdx, shdr.nameTable.size());
         EXPECT_EQ(shdr.nameTable[actual.variable.nameIdx],
-                  kStructNameTable[expected.variable.nameIdx]);
-
+                  kPassNameTable[expected.variable.nameIdx]);
         EXPECT_EQ(actual.semantic, expected.semantic);
     }
 
-    const sa::EntryPoint& fragmnetEntry = shdr.entryPoints[1];
-    ASSERT_EQ(shdr.nameTable[fragmnetEntry.nameIdx], "fragmentMain");
-    ASSERT_EQ(fragmnetEntry.ioCount, 1);
+    ASSERT_EQ(fragmentEntry.ioCount, kPassResultParameterCount);
+    for (uint32_t i = 0; i < kPassResultParameterCount; ++i) {
+        const sa::ShaderParameter actual = shdr.parameters[kPassParameterCount + i];
+        const sa::ShaderParameter expected = kExpectedPassResultParameters[i];
+        EXPECT_EQ(actual.location, expected.location);
+        EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);
+        EXPECT_EQ(actual.variable.scalarType, expected.variable.scalarType);
+        EXPECT_EQ(actual.variable.kind, expected.variable.kind);
+        ASSERT_LT(actual.variable.nameIdx, shdr.nameTable.size());
+        EXPECT_EQ(shdr.nameTable[actual.variable.nameIdx],
+                  kPassNameTable[expected.variable.nameIdx]);
+        EXPECT_EQ(actual.semantic, expected.semantic)
+            << "Expected semantic: " << magic_enum::enum_name(expected.semantic)
+            << ", but got: " << magic_enum::enum_name(actual.semantic) << "\n";
+    }
 }

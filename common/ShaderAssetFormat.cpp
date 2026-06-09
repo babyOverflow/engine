@@ -24,6 +24,10 @@ Semantic NameToSemantic(const std::string& semanticName, uint32_t index) {
         if (index < 4) {
             return static_cast<Semantic>(static_cast<int>(Semantic::Color0) + index);
         }
+    } else if (name == "SV_TARGET") {
+        if (index < 8) {
+            return static_cast<Semantic>(static_cast<int>(Semantic::Target0) + index);
+        }
     }
 
     return Semantic::Undefined;

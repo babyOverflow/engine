@@ -33,10 +33,11 @@ struct CompileResult {
     std::vector<core::ShaderAssetFormat::Binding> bindings;
     std::vector<core::ShaderAssetFormat::Variable> variables;
     std::vector<core::ShaderAssetFormat::EntryPoint> entryPoints;
-    std::vector<core::ShaderAssetFormat::Pass> passes;
     std::vector<uint8_t> sourceBlob;
     std::vector<std::string> nameTable;
     std::vector<uint32_t> indices;
+    std::uint32_t passNameIdx = core::ShaderAssetFormat::kInvalidIdx;
+    std::uint32_t materialNameIdx = core::ShaderAssetFormat::kInvalidIdx;
     std::string warning;
 };
 
@@ -55,6 +56,7 @@ struct CompilationContext {
 
 struct SlangCompilerDesc {
     std::span<std::filesystem::path> paths;
+    std::filesystem::path entryTemplatePaths;
 };
 
 class SlangCompiler {
@@ -73,7 +75,7 @@ class SlangCompiler {
 
   private:
     SlangCompiler(Slang::ComPtr<slang::IGlobalSession> globalSession,
-                  std::vector<std::string> paths);
+                  std::vector<std::string> paths, std::string entryTemplatePath);
 
     std::expected<Slang::ComPtr<slang::IModule>, Error> LoadModuleFromFile(slang::ISession* session, const std::string& path, CompilationContext& context);
 
@@ -82,6 +84,7 @@ class SlangCompiler {
     std::expected<Slang::ComPtr<slang::ISession>, Error> CreateSession();
 
     std::vector<std::string> m_paths;
+    std::string m_entryTemplate;
     Slang::ComPtr<slang::IGlobalSession> m_globalSession;
 };
 

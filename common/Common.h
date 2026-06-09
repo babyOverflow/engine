@@ -27,7 +27,6 @@ struct Error {
 struct AssetPath {
     std::string value;
 
-    // ÆíÀÇ¸¦ À§ÇÑ ºñ±³ ¿¬»êÀÚ
     bool operator==(const AssetPath& other) const { return value == other.value; }
 };
 
@@ -96,6 +95,15 @@ enum class Semantic {
     Custom2,
     Custom3,
 
+    Target0,
+    Target1,
+    Target2,
+    Target3,
+    Target4,
+    Target5,
+    Target6,
+    Target7,
+
     Undefined = 255
 };
 
@@ -106,7 +114,7 @@ constexpr uint32_t kSetNumberMaterial = 1;
 constexpr uint32_t kSetNumberInstance = 2;
 }  // namespace core
 
-// std::unordered_mapÀÇ Key·Î ¾²±â À§ÇÑ ÇØ½Ã Æ¯¼öÈ­
+// std::unordered_mapï¿½ï¿½ Keyï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½ Æ¯ï¿½ï¿½È­
 template <>
 struct std::hash<core::AssetPath> {
     std::size_t operator()(const core::AssetPath& k) const {
