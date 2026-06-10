@@ -195,8 +195,6 @@ class IRenderPass {
     virtual void Setup(PassSetupContext& context)  = 0;
 
     virtual std::string GetPassName() = 0;
-    virtual std::string GetVertexEntryName() = 0;
-    virtual std::string GetFragmentEntryName() = 0;
 
 };
 

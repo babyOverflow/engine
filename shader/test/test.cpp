@@ -98,9 +98,9 @@ TEST_F(SlangCompilerTest, DebugCodeCompilation) {
     ASSERT_EQ(shrd.nameTable[shrd.entryPoints[1].nameIdx], "fragmentMain");
 
     const sa::EntryPoint& ve = shrd.entryPoints[0];
-    ASSERT_EQ(ve.bindingCount, 1);
+    ASSERT_EQ(shrd.bindings.size(), 1);
 
-    const sa::Binding& binding = shrd.bindings[ve.bindingStartIndex];
+    const sa::Binding& binding = shrd.bindings[0];
     EXPECT_EQ(binding.binding, 0);
     EXPECT_EQ(binding.resourceType, sa::ResourceType::UniformBuffer);
     EXPECT_EQ(binding.resource.buffer.bufferSize, kDebugCodeExpectedUniformsBufferSize);
@@ -225,40 +225,19 @@ TEST_F(SlangCompilerTest, StandardPBR) {
     ASSERT_EQ(getShdrNames(shdr.entryPoints[0]), "vertexMain");
     ASSERT_EQ(getShdrNames(shdr.entryPoints[1]), "fragmentMain");
 
-    const sa::EntryPoint& ve = shdr.entryPoints[0];
-    {
-        ASSERT_EQ(ve.bindingCount, kStandardPBR_ExpectedBindingsSize);
-        for (uint32_t i = 0; i < ve.bindingCount; ++i) {
-            const auto& actual = shdr.bindings[ve.bindingStartIndex + i];
-            const auto& expected = kStandardPBR_ExpectedBindings[i];
+    ASSERT_EQ(shdr.bindings.size(), kStandardPBR_ExpectedBindingsSize);
+    for (uint32_t i = 0; i < shdr.bindings.size(); ++i) {
+        const auto& actual = shdr.bindings[i];
+        const auto& expected = kStandardPBR_ExpectedBindings[i];
 
-            EXPECT_EQ(actual.set, expected.set) << "\033[32m" << shdr.nameTable[actual.nameIdx]
-                                                << "\033[0m set number should be " << expected.set;
-            EXPECT_EQ(actual.binding, expected.binding)
-                << "\033[32m" << getShdrNames(actual) << "\033[0m binding number should be "
-                << expected.binding;
-            ASSERT_EQ(actual.resourceType, expected.resourceType);
-            if (actual.resourceType == sa::ResourceType::UniformBuffer) {
-                EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize);
-            }
-        }
-    }
-    const sa::EntryPoint& fe = shdr.entryPoints[1];
-    {
-        ASSERT_EQ(fe.bindingCount, kStandardPBR_ExpectedBindingsSize);
-        for (uint32_t i = 0; i < fe.bindingCount; ++i) {
-            const auto& actual = shdr.bindings[fe.bindingStartIndex + i];
-            const auto& expected = kStandardPBR_ExpectedBindings[i];
-
-            EXPECT_EQ(actual.set, expected.set) << "\033[32m" << shdr.nameTable[actual.nameIdx]
-                                                << "\033[0m set number should be " << expected.set;
-            EXPECT_EQ(actual.binding, expected.binding)
-                << "\033[32m" << getShdrNames(actual) << "\033[0m binding number should be "
-                << expected.binding;
-            ASSERT_EQ(actual.resourceType, expected.resourceType);
-            if (actual.resourceType == sa::ResourceType::UniformBuffer) {
-                EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize);
-            }
+        EXPECT_EQ(actual.set, expected.set) << "\033[32m" << shdr.nameTable[actual.nameIdx]
+                                            << "\033[0m set number should be " << expected.set;
+        EXPECT_EQ(actual.binding, expected.binding)
+            << "\033[32m" << getShdrNames(actual) << "\033[0m binding number should be "
+            << expected.binding;
+        ASSERT_EQ(actual.resourceType, expected.resourceType);
+        if (actual.resourceType == sa::ResourceType::UniformBuffer) {
+            EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize);
         }
     }
 }
@@ -306,24 +285,21 @@ TEST_F(SlangCompilerTest, StardardPBRPass) {
         },
     };
 
-    ASSERT_EQ(shdr.bindings.size(), kExpectedBindingsSize * 2);
-    for (uint32_t entry = 0; entry < shdr.entryPoints.size(); ++entry) {
-        const sa::EntryPoint& ep = shdr.entryPoints[entry];
-        ASSERT_EQ(ep.bindingCount, kExpectedBindingsSize);
-        for (uint32_t i = 0; i < ep.bindingCount; ++i) {
-            const auto& actual = shdr.bindings[ep.bindingStartIndex + i];
-            const auto& expected = kExpectedBindings[i];
+    ASSERT_EQ(shdr.bindings.size(), kExpectedBindingsSize);
+    for (uint32_t i = 0; i < kExpectedBindingsSize; ++i) {
+        const auto& actual = shdr.bindings[i];
+        const auto& expected = kExpectedBindings[i];
 
-            EXPECT_EQ(actual.set, expected.set) << "Set mismatch for binding " << i;
-            EXPECT_EQ(actual.binding, expected.binding) << "Binding index mismatch for binding " << i;
-            EXPECT_EQ(actual.resourceType, expected.resourceType) << "Resource type mismatch for binding " << i;
-            if (actual.resourceType == sa::ResourceType::UniformBuffer) {
-                EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize) << "Buffer size mismatch for binding " << i;
-            }
+        EXPECT_EQ(actual.set, expected.set) << "Set mismatch for binding " << i;
+        EXPECT_EQ(actual.binding, expected.binding) << "Binding index mismatch for binding " << i;
+        EXPECT_EQ(actual.resourceType, expected.resourceType)
+            << "Resource type mismatch for binding " << i;
+        if (actual.resourceType == sa::ResourceType::UniformBuffer) {
+            EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize)
+                << "Buffer size mismatch for binding " << i;
         }
     }
 }
-
 
 int main(int argc, char** argv) {
     std::cout << ">>> Slang Shader Tests" << "\n";

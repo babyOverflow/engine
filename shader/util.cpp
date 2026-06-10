@@ -19,7 +19,6 @@ bool WriteAssetToFile(const fs::path& outputPath, const CompileResult& result) {
     header.bindingOffset = 0;
     header.variableOffset = 0;
     header.entryPointOffset = 0;
-    header.indexOffset = 0;
     header.nameTableOffset = 0;
     header.shaderOffset = 0;
 

@@ -266,7 +266,8 @@ TEST_F(ParameterTest, ExtractsStructInputsFromStruct) {
     ASSERT_EQ(fragmnetEntry.ioCount, 1);
 }
 
-const static std::array<std::string, 6> kPassNameTable = {"input.position", "input.normal", "input.uv", "albedo", "normal", "linearDepth"};
+const static std::array<std::string, 6> kPassNameTable = {
+    "input.position", "input.normal", "input.uv", "albedo", "normal", "linearDepth"};
 
 constexpr uint32_t kPassParameterCount = 3;
 const static std::array<sa::ShaderParameter, kPassParameterCount> kExpectedPassParameters = {
@@ -390,5 +391,195 @@ TEST_F(ParameterTest, ExtractsParameterFromIRenderPass) {
         EXPECT_EQ(actual.semantic, expected.semantic)
             << "Expected semantic: " << magic_enum::enum_name(expected.semantic)
             << ", but got: " << magic_enum::enum_name(actual.semantic) << "\n";
+    }
+}
+
+const static std::array<std::string, 5> kForwardPassNameTable = {
+    "input.position", "input.normal", "input.texcoord", "input.tangent", "color"};
+
+constexpr uint32_t kForwardPassParameterCount = 4;
+const static std::array<sa::ShaderParameter, kForwardPassParameterCount>
+    kExpectedForwardPassParameters = {
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(3),
+                    .nameIdx = 0,
+                },
+            .location = 0,
+            .semantic = core::Semantic::Position,
+        },
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(3),
+                    .nameIdx = 1,
+                },
+            .location = 1,
+            .semantic = core::Semantic::Normal,
+        },
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(2),
+                    .nameIdx = 2,
+                },
+            .location = 2,
+            .semantic = core::Semantic::TexCoord0,
+        },
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(4),
+                    .nameIdx = 3,
+                },
+            .location = 3,
+            .semantic = core::Semantic::Tangent,
+        },
+};
+
+constexpr uint32_t kForwardPassResultParameterCount = 1;
+const static std::array<sa::ShaderParameter, kForwardPassResultParameterCount>
+    kExpectedForwardPassResultParameters = {
+        sa::ShaderParameter{
+            .variable =
+                sa::Variable{
+                    .kind = sa::Kind::Vector,
+                    .scalarType = sa::ScalarType::F32,
+                    .shape = sa::Shape::Vector(4),
+                    .nameIdx = 4,
+                },
+            .location = 0,
+            .semantic = core::Semantic::Undefined,
+        },
+};
+
+TEST_F(ParameterTest, ExtractsParameterFromForwardPass) {
+    const auto loc = std::source_location::current();
+    const std::filesystem::path fullPath(loc.file_name());
+    const std::filesystem::path dirPath = fullPath.parent_path();
+    std::string targetPath = dirPath.string() + "/forward_pass.slang";
+    const auto result = compiler->CompilePass(targetPath);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    slangCompiler::CompileResult shdr = result.value();
+
+    EXPECT_EQ(shdr.nameTable[shdr.passNameIdx], "ForwardRenderPass");
+    EXPECT_EQ(shdr.nameTable[shdr.materialNameIdx], "ForwardMaterial");
+
+    ASSERT_EQ(shdr.entryPoints.size(), 2);
+    const sa::EntryPoint& vertexEntry = shdr.entryPoints[0];
+    ASSERT_EQ(shdr.nameTable[vertexEntry.nameIdx], "vertexMain");
+    const sa::EntryPoint& fragmentEntry = shdr.entryPoints[1];
+    ASSERT_EQ(shdr.nameTable[fragmentEntry.nameIdx], "fragmentMain");
+
+    ASSERT_EQ(vertexEntry.ioCount, kForwardPassParameterCount);
+    for (uint32_t i = 0; i < kForwardPassParameterCount; ++i) {
+        const sa::ShaderParameter actual = shdr.parameters[i];
+        const sa::ShaderParameter expected = kExpectedForwardPassParameters[i];
+        EXPECT_EQ(actual.location, expected.location);
+        EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);
+        EXPECT_EQ(actual.variable.scalarType, expected.variable.scalarType);
+        EXPECT_EQ(actual.variable.kind, expected.variable.kind);
+        ASSERT_LT(actual.variable.nameIdx, shdr.nameTable.size());
+        EXPECT_EQ(shdr.nameTable[actual.variable.nameIdx],
+                  kForwardPassNameTable[expected.variable.nameIdx]);
+        EXPECT_EQ(actual.semantic, expected.semantic);
+    }
+
+    ASSERT_EQ(fragmentEntry.ioCount, kForwardPassResultParameterCount);
+    for (uint32_t i = 0; i < kForwardPassResultParameterCount; ++i) {
+        const sa::ShaderParameter actual = shdr.parameters[kForwardPassParameterCount + i];
+        const sa::ShaderParameter expected = kExpectedForwardPassResultParameters[i];
+        EXPECT_EQ(actual.location, expected.location);
+        EXPECT_EQ(actual.variable.shape.vector.length, expected.variable.shape.vector.length);
+        EXPECT_EQ(actual.variable.scalarType, expected.variable.scalarType);
+        EXPECT_EQ(actual.variable.kind, expected.variable.kind);
+        ASSERT_LT(actual.variable.nameIdx, shdr.nameTable.size());
+        EXPECT_EQ(shdr.nameTable[actual.variable.nameIdx],
+                  kForwardPassNameTable[expected.variable.nameIdx]);
+        EXPECT_EQ(actual.semantic, expected.semantic);
+    }
+}
+
+TEST_F(ParameterTest, ExtractsBindingsFromForwardPass) {
+    const auto loc = std::source_location::current();
+    const std::filesystem::path fullPath(loc.file_name());
+    const std::filesystem::path dirPath = fullPath.parent_path();
+    std::string targetPath = dirPath.string() + "/forward_pass.slang";
+    const auto result = compiler->CompilePass(targetPath);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+
+    slangCompiler::CompileResult shdr = result.value();
+
+    const static std::array<std::string, 5> kForwardPassBindingNameTable = {
+        "globalResources", "material.linearSampler", "material.baseColorTexture",
+        "material.metallicRoughnessTexture", "material.normalTexture"};
+
+    const static std::array<uint32_t, 5> kForwardPassBindingIDs = {
+        core::ToPropertyID("globalResources"),  core::ToPropertyID("linearSampler"),
+        core::ToPropertyID("baseColorTexture"), core::ToPropertyID("metallicRoughnessTexture"),
+        core::ToPropertyID("normalTexture"),
+    };
+
+    constexpr uint32_t kExpectedBindingsSize = 5;
+    const std::array<core::ShaderAssetFormat::Binding, kExpectedBindingsSize> kExpectedBindings{
+        core::ShaderAssetFormat::Binding{
+            .set = 0,
+            .binding = 0,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(80),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 0,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 1,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 2,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 3,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+    };
+
+    ASSERT_EQ(shdr.bindings.size(), kExpectedBindingsSize);
+    for (uint32_t i = 0; i < kExpectedBindingsSize; ++i) {
+        const auto& actual = shdr.bindings[i];
+        const auto& expected = kExpectedBindings[i];
+
+        ASSERT_LT(actual.nameIdx, shdr.nameTable.size());
+        EXPECT_EQ(shdr.nameTable[actual.nameIdx], kForwardPassBindingNameTable[i])
+            << "Binding name mismatch at index " << i;
+
+        EXPECT_EQ(actual.id, kForwardPassBindingIDs[i])
+            << "Binding ID mismatch at index " << i;
+
+        EXPECT_EQ(actual.set, expected.set) << "Set mismatch at binding index " << i;
+        EXPECT_EQ(actual.binding, expected.binding)
+            << "Binding index mismatch at binding index " << i;
+        EXPECT_EQ(actual.resourceType, expected.resourceType)
+            << "Resource type mismatch at binding index " << i;
+        if (actual.resourceType == sa::ResourceType::UniformBuffer) {
+            EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize)
+                << "Buffer size mismatch at binding index " << i;
+        }
     }
 }

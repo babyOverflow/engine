@@ -7,7 +7,7 @@ namespace core {
 wgpu::BindGroupLayoutDescriptor Application::GetGlobalLayouDesc() {
     static const std::array<wgpu::BindGroupLayoutEntry, 1> entries{wgpu::BindGroupLayoutEntry{
         .binding = 0,
-        .visibility = wgpu::ShaderStage::Vertex,
+        .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
         .buffer =
             wgpu::BufferBindingLayout{
                 .type = wgpu::BufferBindingType::Uniform,

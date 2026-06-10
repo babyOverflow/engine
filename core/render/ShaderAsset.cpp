@@ -7,16 +7,16 @@ namespace core::render {
 ShaderAsset ShaderAsset::Create(wgpu::ShaderModule shaderModule,
                                 std::unique_ptr<ShaderAssetFormat> shaderAssetFormat,
                                 ShaderReflection shaderReflection,
-    std::vector<std::array<wgpu::BindGroupLayout, 4>> bindGroupLayoutSets) {
+                                std::array<wgpu::BindGroupLayout, 4> bindGroupLayoutSets) {
     return ShaderAsset(shaderModule, std::move(shaderAssetFormat), std::move(shaderReflection),
                        bindGroupLayoutSets);
 }
 
-std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(uint32_t entryIdx,
+std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(
                                                                       uint32_t setIdx) const {
-    const auto& groups = m_layouts[entryIdx];
     return std::span<const ShaderAssetFormat::Binding>(
-        m_shaderAssetFormat->bindings.begin() + (groups[setIdx].offset), groups[setIdx].count);
+        m_shaderAssetFormat->bindings.begin() + (m_layouts[setIdx].offset),
+        m_layouts[setIdx].count);
 };
 
 std::span<const ShaderReflection::Binding> ShaderReflection::GetAllBindings() const {
@@ -66,24 +66,19 @@ ShaderReflection ShaderReflection::Create(ShaderAssetFormat* shaderAssetFormat) 
                      std::ranges::to<std::vector>();
 
     const auto& bindings = shaderAssetFormat->bindings;
-    std::vector<std::array<GroupRange, 4>> layouts;
-    layouts.reserve(shaderAssetFormat->entryPoints.size());
-    for (uint32_t entry = 0; entry < shaderAssetFormat->entryPoints.size(); ++entry) {
-        std::array<GroupRange, 4> groups{};
-        for (uint32_t j = shaderAssetFormat->entryPoints[entry].bindingStartIndex;
-             j < shaderAssetFormat->entryPoints[entry].bindingStartIndex +
-                     shaderAssetFormat->entryPoints[entry].bindingCount;
-             ++j) {
-            const ShaderAssetFormat::Binding& binding = bindings[j];
-
+    std::array<GroupRange, 4> groups{};
+    for (uint32_t j = 0; j < bindings.size(); ++j) {
+        const ShaderAssetFormat::Binding& binding = bindings[j];
+        if (binding.set < 4) {
             if (groups[binding.set].count == 0) {
                 groups[binding.set].offset = j;
             }
             groups[binding.set].count++;
         }
-        layouts.push_back(groups);
     }
-    return ShaderReflection(shaderAssetFormat, std::move(nametable), std::move(layouts));
+
+
+    return ShaderReflection(shaderAssetFormat, std::move(nametable), std::move(groups));
 }
 
 }  // namespace core::render

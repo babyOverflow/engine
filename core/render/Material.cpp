@@ -73,54 +73,45 @@ bool Material::IsDirty() const {
 
 wgpu::BindGroup Material::CreateBindGroupForPass(uint32_t passId) {
     const ShaderReflection& reflection = m_shaderView->GetReflection();
-    const uint32_t shaderEntryCount = reflection.GetEntryPointCount();
 
-    const auto pass = m_passManager->CreatePass(passId);
-    const auto entryOpt = reflection.GetEntryPointOffsetByName(pass->GetVertexEntryName());
-
-    if (!entryOpt.has_value()) {
-        return nullptr;
-    }
-
-    uint32_t shaderEntry = entryOpt.value();
     const wgpu::BindGroupLayout bindGroupLayout =
-        m_shaderView->GetBindGroupLayout(shaderEntry, BindSlot::Material);
+        m_shaderView->GetBindGroupLayout(BindSlot::Material);
     std::span<const ShaderReflection::Binding> bindings =
-        reflection.GetGroup(shaderEntry, BindSlot::Material);
+        reflection.GetGroup(BindSlot::Material);
 
-    std::vector<wgpu::BindGroupEntry> entries;
+    std::vector<wgpu::BindGroupEntry> bindGroupEntries;
     for (uint32_t i = 0; i < bindings.size(); ++i) {
-        const auto& entryInfo = bindings[i];
-        switch (entryInfo.resourceType) {
+        const ShaderReflection::Binding& bindingInfo = bindings[i];
+        switch (bindingInfo.resourceType) {
             case core::ShaderAssetFormat::ResourceType::UniformBuffer: {
                 wgpu::BindGroupEntry bufferEntry{
-                    .binding = entryInfo.binding,
+                    .binding = bindingInfo.binding,
                     .buffer = m_uniformBuffer,
                     .offset = 0,
                     .size = reflection.materialUniformSize,
                 };
-                entries.push_back(bufferEntry);
+                bindGroupEntries.push_back(bufferEntry);
                 break;
             }
             case core::ShaderAssetFormat::ResourceType::Texture: {
-                auto it = m_textures.find(entryInfo.id);
+                auto it = m_textures.find(bindingInfo.id);
                 if (it == m_textures.end()) {
                     it = m_textures.find(ToPropertyID(Texture::kDefaultTexture.value));
                 }
                 const auto& texture = it->second;
                 wgpu::BindGroupEntry textureEntry{
-                    .binding = entryInfo.binding,
+                    .binding = bindingInfo.binding,
                     .textureView = texture->GetView(),
                 };
-                entries.push_back(textureEntry);
+                bindGroupEntries.push_back(textureEntry);
                 break;
             }
             case core::ShaderAssetFormat::ResourceType::Sampler: {
                 wgpu::BindGroupEntry samplerEntry{
-                    .binding = entryInfo.binding,
+                    .binding = bindingInfo.binding,
                     .sampler = m_sampler,
                 };
-                entries.push_back(samplerEntry);
+                bindGroupEntries.push_back(samplerEntry);
                 break;
             }
             default:
@@ -132,15 +123,14 @@ wgpu::BindGroup Material::CreateBindGroupForPass(uint32_t passId) {
 
     wgpu::BindGroupDescriptor bindGroupDesc{
         .layout = bindGroupLayout,
-        .entryCount = static_cast<uint32_t>(entries.size()),
-        .entries = entries.data(),
+        .entryCount = static_cast<uint32_t>(bindGroupEntries.size()),
+        .entries = bindGroupEntries.data(),
     };
     return m_device->CreateBindGroup(bindGroupDesc);
 }
 
 void Material::RebuildBindGroup() {
     const ShaderReflection& reflection = m_shaderView->GetReflection();
-    const uint32_t shaderEntryCount = reflection.GetEntryPointCount();
 
     for (auto id : m_activePassIds) {
         m_bindGroups[id] = CreateBindGroupForPass(id);

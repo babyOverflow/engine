@@ -124,14 +124,12 @@ struct ShaderAssetFormat {
         uint16_t bindingCount = 0;                  // 10
         uint16_t entryPointCount = 0;               // 12
         uint16_t variableCount = 0;                 // reserved
-        uint16_t indexCount = 0;                    // 18
         uint32_t nameTableSize = 0;                 // 
         uint32_t shaderSize = 0;                    // 
         uint32_t parameterOffset;                   // 
         uint32_t bindingOffset;                     // 
         uint32_t entryPointOffset;                  // 
         uint32_t variableOffset;                    // 
-        uint32_t indexOffset;                       // 
         uint32_t nameTableOffset;                   // 
         uint32_t shaderOffset;                      // 
         uint16_t passNameIndex = kInvalidIdx;       // 
@@ -218,11 +216,10 @@ struct ShaderAssetFormat {
         PropertyId id;
 
         uint32_t ioStartIndex;
-        uint32_t bindingStartIndex;
-
         uint16_t ioCount;
-        uint16_t bindingCount;
 
+        uint16_t _padding0 = 0;
+        uint32_t _padding1 = 0;
     };
     static_assert(sizeof(EntryPoint) == 24, "EntryPoint size must be 24 bytes!");
 

@@ -19,7 +19,7 @@ class ShaderManager {
     AssetView<ShaderAsset> GetStandardShader() { return m_assetRepo->GetShaderAsset(m_standardShader); }
 
   private:
-    std::vector< std::array<wgpu::BindGroupLayout, 4>> CreateGroupLayouts(
+    std::array<wgpu::BindGroupLayout, 4> CreateGroupLayouts(
         const core::render::ShaderReflection& reflection);
     Device* m_device;
     AssetManager* m_assetRepo;

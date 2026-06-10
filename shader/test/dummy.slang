@@ -12,9 +12,11 @@ struct DifuseMaterial : IMaterial {
     static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
                                                        float3 worldPosition,
                                                        float3 worldNormal,
-                                                       float2 uv) {
+                                                       float2 uv,
+                                                       float3 tangent = 0,
+                                                       float3 bitangent = 0) {
         SurfaceAttributes attributes;
-        attributes.baseColor = data.diffuseMap.Sample(data.linearSampler, uv).rgb;
+        attributes.baseColor = data.diffuseMap.Sample(data.linearSampler, uv);
         return attributes;
     }
 };
@@ -68,7 +70,7 @@ struct GBufferPass<Material : IMaterial> : IRenderPass {
         GBufferColors outTargets;
         SurfaceAttributes surfaceAttrs =
             M.evaluateSurfaceAttributes(material, input.worldPos, input.normal, input.uv);
-        outTargets.albedo = float4(surfaceAttrs.baseColor, 1.0);
+        outTargets.albedo = surfaceAttrs.baseColor;
         outTargets.normal = float4(input.normal * 0.5 + 0.5, 1.0);
         outTargets.linearDepth = float4(input.worldPos.z, 0.0, 0.0, 1.0);
         return outTargets;
@@ -129,7 +131,7 @@ struct ForwardPass<Material : IMaterial> : IRenderPass {
         ForwardColor outTarget;
         // Compute lighting using shadowMap and lightData...
         float3 baseColor =
-            M.evaluateSurfaceAttributes(material, input.worldPos, input.normal, input.uv).baseColor;
+            M.evaluateSurfaceAttributes(material, input.worldPos, input.normal, input.uv).baseColor.rgb;
         outTarget.sceneColor = float4(baseColor, 1.0);
         return outTarget;
     }

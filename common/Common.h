@@ -114,7 +114,6 @@ constexpr uint32_t kSetNumberMaterial = 1;
 constexpr uint32_t kSetNumberInstance = 2;
 }  // namespace core
 
-// std::unordered_map�� Key�� ���� ���� �ؽ� Ư��ȭ
 template <>
 struct std::hash<core::AssetPath> {
     std::size_t operator()(const core::AssetPath& k) const {

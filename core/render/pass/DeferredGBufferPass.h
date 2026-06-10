@@ -16,8 +16,6 @@ class DeferredGBufferPass : public core::render::IRenderPass {
 
     void Setup(PassSetupContext& context) override;
 
-    std::string GetVertexEntryName() override { return "vertexDeferredGBuffer"; }
-    std::string GetFragmentEntryName() override { return "fragmentDeferredGBuffer"; }
     std::string GetPassName() override { return "DeferredGBufferPass"; }
 
   private:

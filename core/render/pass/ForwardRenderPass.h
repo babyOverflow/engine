@@ -19,8 +19,6 @@ class ForwardRenderPass : public core::render::IRenderPass {
                  std::span<const wgpu::RenderPipeline> pipelines) override;
 
     std::string GetPassName() override { return "ForwardRenderPass"; }
-    std::string GetVertexEntryName() override { return "vertexMain"; }
-    std::string GetFragmentEntryName() override { return "fragmentMain"; }
 
   private:
 };

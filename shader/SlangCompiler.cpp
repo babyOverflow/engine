@@ -665,7 +665,7 @@ std::vector<CompilerBinding> ReflectRecursively(VariableLayoutReflection* varLay
     std::string varName = "";
     if (!ctx.skipResourceDetails) {
         const char* rawName = varLayout->getName();
-        std::string varName = rawName == nullptr ? "" : std::string(rawName);
+        varName = rawName == nullptr ? "" : std::string(rawName);
     }
 
     if (kind == TypeReflection::Kind::ParameterBlock) {
@@ -917,7 +917,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
     std::vector<CompilerBinding> compilerBindings =
         GenerateBindingsFromLayout(programLayout, context);
 
-    std::vector<sa::Binding> bindings;
     uint32_t entryCount = programLayout->getEntryPointCount();
     std::vector<sa::EntryPoint> entryPoints;
     for (uint32_t i = 0; i < entryCount; ++i) {
@@ -943,38 +942,26 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
             }
         }
 
-        entryPoint.bindingStartIndex = bindings.size();
-        entryPoint.bindingCount = static_cast<uint16_t>(compilerBindings.size());
-        for (uint32_t j = 0; j < compilerBindings.size(); ++j) {
-            bindings.push_back(sa::Binding{
-                .set = compilerBindings[j].set,
-                .binding = compilerBindings[j].binding,
-                .id = compilerBindings[j].id,
-                .nameIdx = getNameId(compilerBindings[j].name),
-                .resource = compilerBindings[j].resource,
-                .resourceType = compilerBindings[j].resourceType,
-                .visibility = compilerBindings[j].visibility | entryPoint.stage,
-            });
-        }
+
         uint32_t nameIdx = getNameId(entry->getName());
         entryPoint.nameIdx = nameIdx;
 
         entryPoints.push_back(entryPoint);
     }
 
-    //std::vector<sa::Binding> bindings =
-    //    compilerBindings | std::views::transform([&](CompilerBinding& cb) -> sa::Binding {
-    //        return sa::Binding{
-    //            .set = cb.set,
-    //            .binding = cb.binding,
-    //            .id = cb.id,
-    //            .nameIdx = getNameId(cb.name),
-    //            .resource = cb.resource,
-    //            .resourceType = cb.resourceType,
-    //            .visibility = cb.visibility,
-    //        };
-    //    }) |
-    //    std::ranges::to<std::vector>();
+    std::vector<sa::Binding> bindings =
+        compilerBindings | std::views::transform([&](CompilerBinding& cb) -> sa::Binding {
+            return sa::Binding{
+                .set = cb.set,
+                .binding = cb.binding,
+                .id = cb.id,
+                .nameIdx = getNameId(cb.name),
+                .resource = cb.resource,
+                .resourceType = cb.resourceType,
+                .visibility = sa::ShaderVisibility::Render,
+            };
+        }) |
+        std::ranges::to<std::vector>();
 
     uint32_t nameTableSize = std::ranges::fold_left(
         nameTable, 0u, [](uint32_t acc, const std::string& name) { return acc + name.size() + 1; });

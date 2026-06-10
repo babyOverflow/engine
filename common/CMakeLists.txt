@@ -11,5 +11,5 @@ target_include_directories(common INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(common PUBLIC magic_enum::magic_enum)
 
-# (¿É¼Ç) C++ ¹öÀü ¼³Á¤
+# (ï¿½É¼ï¿½) C++ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 target_compile_features(common PUBLIC cxx_std_23)

@@ -87,7 +87,7 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
 
     const ShaderAsset& shaderAsset = assetRegistry.shaders[key.bits.shaderId];
     auto entryOpt =
-        shaderAsset.GetReflection().GetEntryPointOffsetByName(pass->GetVertexEntryName());
+        shaderAsset.GetReflection().GetEntryPointOffsetByName("vertexMain");
     assert(entryOpt.has_value() && "Invalid vertex shader entry point name in pass signature");
 
     uint32_t entryIdx = entryOpt.value();
@@ -126,7 +126,7 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
         m_globalBindGroupLayout,
     };
     for (uint32_t i = 1; i < 4; ++i) {
-        bindGroupLayouts.push_back(shaderAsset.GetBindGroupLayout(entryIdx, i));
+        bindGroupLayouts.push_back(shaderAsset.GetBindGroupLayout(i));
     }
 
     wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{
@@ -140,7 +140,7 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
         .blend = &wgx::BlendState::kReplace,  // TODO!(Sunghyun): Support blend state variations in
                                               // PipelineKey and PassSignature
         .writeMask = wgpu::ColorWriteMask::All};
-    std::string fragmentEntry = pass->GetFragmentEntryName();
+    std::string fragmentEntry("fragmentMain");
     wgpu::FragmentState fragment = wgpu::FragmentState{.module = shaderAsset.GetShaderModule(),
                                                        .entryPoint = fragmentEntry.c_str(),
                                                        .targetCount = 1,
@@ -152,7 +152,7 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
         m_device->CreateRenderPipeline(wgpu::RenderPipelineDescriptor{
             .layout = renderPipelineLayout,
             .vertex = wgpu::VertexState{.module = shaderAsset.GetShaderModule(),
-                                        .entryPoint = pass->GetVertexEntryName().c_str(),
+                                        .entryPoint = "vertexMain",
                                         .bufferCount = vertexLayouts.size(),
                                         .buffers = vertexLayouts.data()},
             .primitive =

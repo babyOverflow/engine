@@ -3,7 +3,6 @@
 [[vk::binding(0, BindSlot::Global)]]
 ConstantBuffer<GlobalUniforms> globalUniforms;
 
-
 // [[vk::binding(0, BindSlot::Instance)]]
 // ConstantBuffer<InstanceUniforms> instanceUniforms;
 
@@ -35,25 +34,6 @@ struct ColorVertexStageOutput {
     float4 sv_position : SV_Position;
     float4 color : COLOR;
 };
-
-[shader("vertex")]
-ColorVertexStageOutput vertexMain_Color(ColorVertex colorVertex) {
-    ColorVertexStageOutput output;
-
-    float3 position = colorVertex.position;
-
-    output.sv_position = mul(globalUniforms.viewProj, float4(position, 1.0f));
-    output.color = colorVertex.color;
-
-    return output;
-}
-
-[shader("fragment")]
-Fragment fragmentMain_Color(float4 color: COLOR) : SV_Target {
-    Fragment output;
-    output.color = color;
-    return output;
-}
 
 struct Varyings {
     float3 normal;
@@ -97,7 +77,6 @@ struct MaterialData {
 };
 [[vk::binding(0, BindSlot::Material)]]
 ParameterBlock<MaterialData> materialData;
-
 
 [shader("fragment")]
 Fragment fragmentMain(Varyings coarseVertex: CoarseVertex) : SV_Target {
@@ -169,13 +148,13 @@ struct GBuffer {
     Texture2D<float4> normal;
     DepthTexture2D depth;
 };
-[[vk::binding(0, BindSlot::Pass)]]
-ParameterBlock<GBuffer> gBuffer;
+// [[vk::binding(0, BindSlot::Pass)]]
+// ParameterBlock<GBuffer> gBuffer;
 
-[shader("fragment")]
-Fragment fragmentLightingMain(float2 uv: TexCoord) : SV_Target {
-    Fragment output;
-    float3 lightDir = normalize(float3(1.0f, 1.0f, 0.5f));
+// [shader("fragment")]
+// Fragment fragmentLightingMain(float2 uv: TexCoord) : SV_Target {
+//    Fragment output;
+//    float3 lightDir = normalize(float3(1.0f, 1.0f, 0.5f));
 
-    return output;
-}
+// return output;
+// }

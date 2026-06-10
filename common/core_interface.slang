@@ -1,7 +1,9 @@
 #pragma once
 
+struct EmptyData {};
+
 struct SurfaceAttributes {
-    float3 baseColor;
+    float4 baseColor;
     float3 worldNormal;
     float roughness;
     float metallic;
@@ -13,11 +15,13 @@ interface IMaterial {
     static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
                                                        float3 worldPosition,
                                                        float3 worldNormal,
-                                                       float2 uv);
+                                                       float2 uv,
+                                                       float3 tangent = 0,
+                                                       float3 bitangent = 0);
 }
 
 interface IRenderPass {
-    associatedtype M: IMaterial;
+    associatedtype M : IMaterial;
 
     associatedtype VertexInputType;
     associatedtype VertexOutputType;
@@ -36,9 +40,3 @@ interface IRenderPass {
                                        FragmentInputType input);
 }
 
-struct GlobalResources {
-    float4x4 viewProjMatrix;
-    float3 cameraPosition;
-};
-
-struct EmptyData {};

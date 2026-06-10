@@ -18,7 +18,7 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
     }
 
     for (auto& materialResult : result.materials) {
-        materialResult.materialAsset.shaderName.value = std::string("assets/tri.shdr");
+        materialResult.materialAsset.shaderName.value = std::string("assets/ForwardPass.shdr");
         core::Handle _ = m_materialManager->LoadMaterial(materialResult);
     }
 
