@@ -62,7 +62,7 @@ std::unique_ptr<core::render::IRenderPass> core::render::PassManager::CreatePass
     return m_creators[id]();
 }
 
-uint8_t core::render::PassManager::GetPassID(const std::string& passName) const {
+uint8_t core::render::PassManager::GetPassID(const std::string_view passName) const {
     auto it = m_nameToId.find(passName);
     if (it == m_nameToId.end()) {
         assert(false && "Pass ID not found");

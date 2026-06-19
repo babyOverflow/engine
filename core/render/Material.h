@@ -6,10 +6,8 @@
 #include <vector>
 
 #include "LayoutCache.h"
-#include "ShaderAsset.h"
 #include "Texture.h"
 #include "render.h"
-
 
 namespace core::render {
 class PassManager;
@@ -21,6 +19,7 @@ concept ValidMaterialVariableType =
     std::is_same_v<T, glm::mat4>;
 
 class Material {
+    friend class MaterialMutator;
     friend class MaterialManager;
 
   public:
@@ -35,6 +34,10 @@ class Material {
 
     void SetTexture(const std::string& name, AssetView<Texture> texture);
     void SetTexture(PropertyId id, AssetView<Texture> texture);
+
+    AssetView<Texture> GetTexture(PropertyId id);
+
+    wgpu::Sampler GetSampler() { return m_sampler; }
 
     template <ValidMaterialVariableType T>
     void SetVariable(PropertyId id, const T value) {
@@ -53,16 +56,10 @@ class Material {
 
     bool IsDirty() const;
 
-    AssetView<ShaderAsset> GetShader() const { return m_shaderView; }
-
-    std::span<const uint8_t> GetActivePassIDs() const { return m_activePassIds; }
-    void AddPassID(uint8_t passId) { m_activePassIds.push_back(passId); }
+    uint8_t GetActiveTechniqueID() const { return m_activeTechniqueId; }
+    void SetTechniqueID(uint8_t techniqueId) { m_activeTechniqueId = techniqueId; }
 
     void UpdateUniform();
-
-    wgpu::BindGroup GetBindGroup(uint32_t passId) const;
-
-    void FlushDirtyBindGroups();
 
   private:
     struct VariableInfo {
@@ -71,28 +68,23 @@ class Material {
     };
 
     Material(Device* device,
-             PassManager* passManager,
-             AssetView<ShaderAsset> shaderView,
              wgpu::Buffer uniformBuffer = nullptr,
              std::vector<std::byte> cpuData = {},
              std::unordered_map<PropertyId, VariableInfo> variableInfo = {});
 
-    wgpu::BindGroup CreateBindGroupForPass(uint32_t passId);
-    void RebuildBindGroup();
+    // void RebuildBindGroup();
 
     Device* m_device = nullptr;
-    PassManager* m_passManager = nullptr;
-    AssetView<ShaderAsset> m_shaderView;
-    std::array<wgpu::BindGroup, 255> m_bindGroups;
-    std::bitset<255> m_bindGroupDirtyFlags;
-    wgpu::Sampler m_sampler = nullptr;
+    bool m_isDirty = true;
 
+    wgpu::Sampler m_sampler = nullptr;
     wgpu::Buffer m_uniformBuffer = nullptr;
     std::vector<std::byte> m_cpuVariableBufferData;
     std::unordered_map<PropertyId, VariableInfo> m_variableInfo;
 
     std::unordered_map<PropertyId, AssetView<Texture>> m_textures;
-    std::vector<uint8_t> m_activePassIds;
+
+    uint8_t m_activeTechniqueId;
 };
 
 }  // namespace core::render

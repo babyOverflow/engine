@@ -5,6 +5,7 @@
 #include "AssetManager.h"
 #include "Layer.h"
 #include "Window.h"
+#include "render/BindGroupManager.h"
 #include "render/MaterialManager.h"
 #include "render/MeshManager.h"
 #include "render/PipelineManager.h"
@@ -59,7 +60,8 @@ class Application {
                 std::unique_ptr<render::ShaderManager> shaderManager,
                 std::unique_ptr<render::TextureManager> textureManager,
                 std::unique_ptr<render::MaterialManager> materialManager,
-                std::unique_ptr<render::MeshManager> meshManager)
+                std::unique_ptr<render::MeshManager> meshManager,
+                std::unique_ptr<render::BindGroupManager> bindGroupManager)
         : m_window(std::move(window)),
           m_device(std::move(device)),
           m_assetManager(std::move(assetManager)),
@@ -72,7 +74,7 @@ class Application {
           m_shaderManager(std::move(shaderManager)),
           m_textureManager(std::move(textureManager)),
           m_meshManager(std::move(meshManager)),
-          m_materialManager(std::move(materialManager)) {}
+          m_materialManager(std::move(materialManager)), m_bindGroupManager(std::move(bindGroupManager)) {}
 
     Window m_window;
     std::unique_ptr<render::Device> m_device;
@@ -89,6 +91,7 @@ class Application {
     std::unique_ptr<render::MeshManager> m_meshManager;
     render::RenderGraph m_renderGraph;
     std::unique_ptr<render::MaterialManager> m_materialManager;
+    std::unique_ptr<render::BindGroupManager> m_bindGroupManager;
     Scene m_scene;
 
     std::vector<std::unique_ptr<Layer>> m_Layers;

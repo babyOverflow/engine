@@ -7,17 +7,36 @@
 #include "AssetManager.h"
 #include "IRenderPass.h"
 #include "Material.h"
-#include "ShaderManager.h"
 #include "TextureManager.h"
 
 namespace core::render {
+
+class MaterialManager;
+
+class MaterialMutator {
+  public:
+    MaterialMutator(MaterialManager* manager, AssetView<Material> material)
+        : m_materialManager(manager), m_material(material) {}
+
+    void SetTexture(const std::string& name, AssetView<Texture> texture);
+    void SetTexture(PropertyId id, AssetView<Texture> texture);
+
+    template <ValidMaterialVariableType T>
+    void SetVariable(PropertyId id, const T value);
+
+    template <ValidMaterialVariableType T>
+    void SetVariable(const std::string& name, const T value);
+
+  private:
+    MaterialManager* m_materialManager;
+    AssetView<Material> m_material;
+};
 
 class MaterialManager {
   public:
     MaterialManager() = delete;
     MaterialManager(Device* device,
                     AssetManager* assetManager,
-                    ShaderManager* shaderManager,
                     TextureManager* textureManager,
                     PassManager* passManager,
                     LayoutCache* layoutCache);
@@ -47,17 +66,27 @@ class MaterialManager {
         return m_assetManager->GetMaterial(handle);
     }
 
-  private:
-    Material CreateMaterialFromShader(AssetView<ShaderAsset> shaderAsset);
+    void AddDirtyMaterial(Handle materialHandle);
+    std::span<Handle> GetDirtyMaterials() { return m_dirtymaterials; }
+    void ClearDirties();
 
+    uint32_t GetTechniqueID(std::string_view techniequeName);
+
+    MaterialMutator GetMaterialMutator(Handle materialHandle);
+
+  private:
     Device* m_device;
     AssetManager* m_assetManager;
     TextureManager* m_textureManager;
-    ShaderManager* m_shaderManager;
     PassManager* m_passManager;
     LayoutCache* m_layoutCache;
 
     std::unordered_map<AssetPath, Handle> m_materialCache;
+
+    std::unordered_map<std::string, uint32_t, transparent_string_hash, std::equal_to<>>
+        m_nameToTechniqueIdCache;
+
+    std::vector<Handle> m_dirtymaterials;
 };
 
 }  // namespace core::render

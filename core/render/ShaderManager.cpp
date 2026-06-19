@@ -5,6 +5,13 @@
 
 namespace core::render {
 
+void ShaderLookupTable::Initialize(AssetView<ShaderAsset> shaderFallBack) {
+    shaderFallback = shaderFallBack;
+    for (auto& pass : m_table) {
+        pass.fill(shaderFallBack.handle);
+    }
+}
+
 std::array<wgpu::BindGroupLayout, 4> ShaderManager::CreateGroupLayouts(
     const core::render::ShaderReflection& reflection) {
     std::array<wgpu::BindGroupLayout, 4>;
@@ -21,13 +28,29 @@ std::array<wgpu::BindGroupLayout, 4> ShaderManager::CreateGroupLayouts(
             .entryCount = entries.size(),
             .entries = entries.data(),
         };
+        #ifndef NDEBUG
+        std::string bindGroupLabel;
+        bindGroupLabel += reflection.GetPassName();
+        bindGroupLabel += reflection.GetMaterialTechName();
+        bindGroupLabel += " Group: " + std::to_string(set);
+        desc.label = std::string_view(bindGroupLabel);
+        #endif
+        reflection.GetPassName();
         bindGroupLayouts[set] = m_layoutCache->GetBindGroupLayout(desc);
     }
     return bindGroupLayouts;
 }
 
-ShaderManager::ShaderManager(Device* device, AssetManager* assetRepo, LayoutCache* layoutCache)
-    : m_device(device), m_assetRepo(assetRepo), m_layoutCache(layoutCache) {
+ShaderManager::ShaderManager(Device* device,
+                             AssetManager* assetRepo,
+                             LayoutCache* layoutCache,
+                             PassManager* passManager,
+                             MaterialManager* materialManager)
+    : m_device(device),
+      m_assetRepo(assetRepo),
+      m_layoutCache(layoutCache),
+      m_passManager(passManager),
+      m_materialManager(materialManager) {
     auto blobOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_Data);
 
     if (!blobOrError.has_value()) {
@@ -49,8 +72,7 @@ ShaderAsset ShaderManager::CreateFromShaderSource(ShaderAssetFormat&& shaderAsse
     auto shaderAssetFormat = std::make_unique<ShaderAssetFormat>(std::move(shaderAsset));
     ShaderReflection reflection = ShaderReflection::Create(shaderAssetFormat.get());
 
-    std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts =
-        CreateGroupLayouts(reflection);
+    std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts = CreateGroupLayouts(reflection);
 
     return ShaderAsset::Create(shaderModule, std::move(shaderAssetFormat), std::move(reflection),
                                bindGroupLayouts);
@@ -75,7 +97,23 @@ Handle ShaderManager::LoadShader(core::importer::ShaderImportResult&& shaderResu
     }
     core::render::ShaderAsset shaderAsset =
         CreateFromShaderSource(std::move(shaderResult.shaderAsset));
+
+    std::string_view passName = shaderAsset.GetReflection().GetPassName();
+    std::string_view materialTechName = shaderAsset.GetReflection().GetMaterialTechName();
+    uint8_t passId = m_passManager->GetPassID(passName);
+    uint8_t materialTechId = m_materialManager->GetTechniqueID(materialTechName);
+
+    if (!m_techniqueBindGroups[materialTechId]) {
+        m_techniqueBindGroups[materialTechId] = shaderAsset.GetBindGroupLayout(BindSlot::Material);
+        std::span<const ShaderReflection::Binding> bindings =
+            shaderAsset.GetReflection().GetGroup(BindSlot::Material);
+        m_techniqueBindInfo[materialTechId] =
+            std::vector<ShaderReflection::Binding>(bindings.begin(), bindings.end());
+    }
+
+
     Handle handle = m_assetRepo->StoreShaderAsset(std::move(shaderAsset));
+    m_shaderLookupTable.m_table[passId][materialTechId] = handle;
     m_shaderCache[shaderResult.assetPath] = handle;
     return handle;
 }

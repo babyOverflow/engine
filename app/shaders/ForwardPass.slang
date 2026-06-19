@@ -28,14 +28,14 @@ struct Fragment {
     float4 color;
 };
 
-struct ForwardMaterial : IMaterial {
+struct OpaqueLitMaterial : IMaterial {
     typealias DataType = struct {
-        SamplerState linearSampler;
         Texture2D<float4> baseColorTexture;
         Texture2D<float4> metallicRoughnessTexture;
         Texture2D<float4> normalTexture;
     };
     static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
+                                                       EngineSamplers samplers,
                                                        float3 worldPosition,
                                                        float3 normal,
                                                        float2 uv,
@@ -50,12 +50,13 @@ struct ForwardMaterial : IMaterial {
         float3 N = normalize(normal);
 
         float3x3 TBN = float3x3(T, B, N);
-        float3 tangentNormal = data.normalTexture.Sample(data.linearSampler, uv).xyz * 2.0f - 1.0f;
+        float3 tangentNormal =
+            data.normalTexture.Sample(samplers.linearRepeat, uv).xyz * 2.0f - 1.0f;
         float3 worldNormal = normalize(mul(tangentNormal, TBN));
 
         float3 diffuse = max(dot(worldNormal, lightDir), 0.0f) * float3(1.0f, 1.0f, 1.0f);
         attributes.baseColor =
-            float4(diffuse, 1) * data.baseColorTexture.Sample(data.linearSampler, uv);
+            float4(diffuse, 1) * data.baseColorTexture.Sample(samplers.linearRepeat, uv);
         return attributes;
     }
 };
@@ -66,9 +67,8 @@ struct ForwardRenderPass<Material : IMaterial> : IRenderPass {
     typealias VertexOutputType = VertexStageOutput;
     typealias FragmentInputType = Varyings;
     typealias FragmentOutputType = Fragment;
-    typealias GlobalResourcesType = GlobalUniforms;
+    typealias GlobalResourcesType = GlobalGroup;
     typealias PassResourceType = EmptyData;
-
 
     static VertexOutputType vertex(GlobalResourcesType globalResources,
                                    M.DataType material,
@@ -85,7 +85,7 @@ struct ForwardRenderPass<Material : IMaterial> : IRenderPass {
         output.coarseVertex.normal = normal;
         output.coarseVertex.tangent = tangent;
         output.coarseVertex.bitangent = bitangent;
-        output.sv_position = mul(globalResources.viewProj, float4(position, 1.0f));
+        output.sv_position = mul(globalResources.vars.viewProj, float4(position, 1.0f));
 
         return output;
     }
@@ -95,8 +95,8 @@ struct ForwardRenderPass<Material : IMaterial> : IRenderPass {
                                        PassResourceType passResources,
                                        FragmentInputType input) {
         SurfaceAttributes attributes =
-            M.evaluateSurfaceAttributes(material, float3(0.0, 0.0, 0.0), input.normal, input.uv,
-                                        input.tangent, input.bitangent);
+            M.evaluateSurfaceAttributes(material, globalResources.samplers, float3(0.0, 0.0, 0.0),
+                                        input.normal, input.uv, input.tangent, input.bitangent);
 
         FragmentOutputType output;
         output.color = attributes.baseColor;

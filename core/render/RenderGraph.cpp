@@ -82,12 +82,27 @@ core::render::RenderGraph::RenderGraph(Device* device,
         &cameraUniformData, sizeof(CameraUniformData), wgpu::BufferUsage::Uniform);
     m_globalUniformBuffer = std::move(globalUniform);
 
-    std::array<wgpu::BindGroupEntry, 1> bindGroupEntries{wgpu::BindGroupEntry{
-        .binding = 0,
-        .buffer = m_globalUniformBuffer,
-        .offset = 0,
-        .size = sizeof(CameraUniformData),
-    }};
+    wgpu::SamplerDescriptor desc{
+        .addressModeU = wgpu::AddressMode::Repeat,
+        .addressModeV = wgpu::AddressMode::Repeat,
+        .addressModeW = wgpu::AddressMode::Repeat,
+        .magFilter = wgpu::FilterMode::Linear,
+        .minFilter = wgpu::FilterMode::Linear,
+        .mipmapFilter = wgpu::MipmapFilterMode::Linear,
+    };
+    wgpu::Sampler linearRepeat = device->GetDeivce().CreateSampler(&desc);
+    m_linearRepeatSampler = std::move(linearRepeat);
+
+    std::array<wgpu::BindGroupEntry, 2> bindGroupEntries{wgpu::BindGroupEntry{
+                                                             .binding = 0,
+                                                             .buffer = m_globalUniformBuffer,
+                                                             .offset = 0,
+                                                             .size = sizeof(CameraUniformData),
+                                                         },
+                                                         wgpu::BindGroupEntry{
+                                                             .binding = 1,
+                                                             .sampler = m_linearRepeatSampler,
+                                                         }};
     m_globalBindGroup = device->CreateBindGroup(wgpu::BindGroupDescriptor{
         .layout = globalBindGroupLayout,
         .entryCount = bindGroupEntries.size(),
@@ -231,7 +246,6 @@ void core::render::RenderGraph::Setup(std::vector<std::unique_ptr<IRenderPass>>&
 void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
     auto d = m_device->GetDeivce();
     m_vra.InjectExternalResource(0, m_device->GetCurrentTexture());
-
 
     auto& cameraData = renderQueue.cameraData;
     d.GetQueue().WriteBuffer(m_globalUniformBuffer, 0, &cameraData, sizeof(CameraUniformData));

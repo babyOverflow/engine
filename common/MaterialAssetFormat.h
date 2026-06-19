@@ -14,7 +14,7 @@ struct MaterialAssetFormat {
 
     std::unordered_map<std::string, AssetPath> textures;
 
-    std::vector<std::string> passNames;
+    std::string materialTechnique;
 
 
     template <typename T>

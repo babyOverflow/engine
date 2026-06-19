@@ -21,7 +21,6 @@ set(SOURCES
     "render/RenderGraph.cpp" 
     "render/LayoutCache.h"
     "render/LayoutCache.cpp"
-    "render/ShaderInterop.h" 
     "render/PipelineManager.h"
     "render/PipelineManager.cpp"
     "render/ShaderAsset.h" "render/ShaderAsset.cpp"
@@ -52,11 +51,11 @@ set(SOURCES
     "render/IRenderPass.cpp" 
     "render/pass/DeferredGBufferPass.h" "render/pass/DeferredGBufferPass.cpp"
     "render/pass/DeferredLightingPass.h" "render/pass/DeferredLightingPass.cpp"
-    "render/pass/ForwardRenderPass.h" "render/pass/ForwardRenderPass.cpp")
+    "render/pass/ForwardRenderPass.h" "render/pass/ForwardRenderPass.cpp" "render/BindGroupManager.h" "render/BindGroupManager.cpp")
 
 include (../cmake/ShaderCompiler.cmake)
 
-set(CORE_INTEROP_HEADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/render"
+set(CORE_INTEROP_HEADER_DIR "${CMAKE_SOURCE_DIR}/common"
     CACHE INTERNAL "Include path for shared shader headers")
 
 file(GLOB_RECURSE _TEMP_HEADERS_CORE_INTEROP_HEADERS 

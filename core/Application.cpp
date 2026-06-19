@@ -5,17 +5,24 @@
 namespace core {
 
 wgpu::BindGroupLayoutDescriptor Application::GetGlobalLayouDesc() {
-    static const std::array<wgpu::BindGroupLayoutEntry, 1> entries{wgpu::BindGroupLayoutEntry{
-        .binding = 0,
-        .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
-        .buffer =
-            wgpu::BufferBindingLayout{
-                .type = wgpu::BufferBindingType::Uniform,
-                .hasDynamicOffset = false,
-                .minBindingSize = 0,
-            },
-    }};
+    static const std::array<wgpu::BindGroupLayoutEntry, 2> entries{
+        wgpu::BindGroupLayoutEntry{
+            .binding = 0,
+            .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
+            .buffer =
+                wgpu::BufferBindingLayout{
+                    .type = wgpu::BufferBindingType::Uniform,
+                    .hasDynamicOffset = false,
+                    .minBindingSize = 0,
+                }},
+        wgpu::BindGroupLayoutEntry{
+            .binding = 1,
+            .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
+            .sampler = wgpu::SamplerBindingLayout{
+                .type = wgpu::SamplerBindingType::Filtering,
+            }}};
     return wgpu::BindGroupLayoutDescriptor{
+        .label = "GlobalBindGroup",
         .entryCount = entries.size(),
         .entries = entries.data(),
     };
@@ -48,30 +55,41 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     auto pipelineManager = std::make_unique<render::PipelineManager>(
         device.get(), layoutCache.get(), passManager.get(), vertexLayoutManager.get(),
         globalBindGroupLayout);
-    auto shaderManager = std::make_unique<render::ShaderManager>(device.get(), assetManager.get(),
-                                                                 layoutCache.get());
     auto meshManager = std::make_unique<render::MeshManager>(device.get(), assetManager.get(),
                                                              vertexLayoutManager.get());
     auto textureManager =
         std::make_unique<render::TextureManager>(device.get(), assetManager.get());
     auto materialManager = std::make_unique<render::MaterialManager>(
-        device.get(), assetManager.get(), shaderManager.get(), textureManager.get(),
-        passManager.get(), layoutCache.get());
+        device.get(), assetManager.get(), textureManager.get(), passManager.get(),
+        layoutCache.get());
+
+    auto shaderManager =
+        std::make_unique<render::ShaderManager>(device.get(), assetManager.get(), layoutCache.get(),
+                                                passManager.get(), materialManager.get());
+    auto bindGroupManager = std::make_unique<render::BindGroupManager>(
+        device.get(), layoutCache.get(), shaderManager.get(), materialManager.get());
 
     render::RenderGraph renderGraph(device.get(), assetManager.get(), pipelineManager.get(),
                                     layoutCache->GetBindGroupLayout(globalBindGroupLayout));
 
-    return Application(
-        std::move(window), std::move(device), std::move(assetManager), std::move(eventDispatcher),
-        std::move(renderGraph), std::move(vertexLayoutManager), std::move(layoutCache),
-        std::move(passManager), std::move(pipelineManager), std::move(shaderManager),
-        std::move(textureManager), std::move(materialManager), std::move(meshManager));
+    return Application(std::move(window), std::move(device), std::move(assetManager),
+                       std::move(eventDispatcher), std::move(renderGraph),
+                       std::move(vertexLayoutManager), std::move(layoutCache),
+                       std::move(passManager), std::move(pipelineManager), std::move(shaderManager),
+                       std::move(textureManager), std::move(materialManager),
+                       std::move(meshManager), std::move(bindGroupManager));
 }
 
 core::Application::~Application() {}
 
 void core::Application::Run() {
     render::RenderQueue renderQueue;
+
+    std::vector<uint32_t> passIDs{m_passManager->GetPassID("ForwardRenderPass")};
+    std::vector<std::unique_ptr<core::render::IRenderPass>> s;
+    s.push_back(
+        std::move(m_passManager->CreatePass(m_passManager->GetPassID("ForwardRenderPass"))));
+    m_renderGraph.Setup(s);
 
     while (!m_souldColose) {
         m_window.PollEvent();
@@ -83,13 +101,16 @@ void core::Application::Run() {
             layer->OnUpdate(m_scene);
         }
 
-        render::SceneCuller::ExtractRenderQueue(m_scene, m_assetManager.get(),
-                                                  m_pipelineManager.get(), renderQueue);
+        std::span<Handle> dirties = m_materialManager->GetDirtyMaterials();
+        for (auto handle : dirties) {
+            m_bindGroupManager->UpdateBindGroup(handle);
+        }
+        m_materialManager->ClearDirties();
 
-        std::vector<std::unique_ptr<core::render::IRenderPass>> s;
-        s.push_back(std::move(m_passManager->CreatePass(m_passManager->GetPassID("ForwardRenderPass"))));
+        render::SceneCuller::ExtractRenderQueue(m_scene, passIDs, m_assetManager.get(),
+                                                m_shaderManager.get(), m_pipelineManager.get(),
+                                                m_bindGroupManager.get(), renderQueue);
 
-        m_renderGraph.Setup(s);
         m_renderGraph.Execute(renderQueue);
         m_device->Present();
     }

@@ -79,7 +79,6 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
     if (it != m_pipelineIDCache.end()) {
         return it->second;
     }
-    const ShaderAsset& shader = assetRegistry.shaders[key.bits.shaderId];
     auto pass = m_passManager->CreatePass(key.bits.passId);
     auto vertexState = m_vertexLayoutManager->GetAllVertexStates()[key.bits.layoutId];
 

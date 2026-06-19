@@ -1,6 +1,7 @@
 
 add_library(common STATIC 
 	"ShaderAssetFormat.h" "ShaderAssetFormat.cpp"
+	"ShaderInterop.h"
 	"Common.h"
 	"TextureAssetFormat.h" 
 	"MaterialAssetFormat.h"

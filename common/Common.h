@@ -63,14 +63,19 @@ struct AssetView {
     T* Get() const { return data; }
 };
 
+inline uint32_t HashFNV1a(std::string_view str) {
+    uint32_t hash = 2166136261u;
+    for (char c : str) {
+        hash ^= static_cast<uint32_t>(c);
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
 using PropertyId = uint32_t;
 constexpr PropertyId ToPropertyID(std::string_view name) {
     // Simple hash function for demonstration purposes
-    PropertyId hash = 0;
-    for (char c : name) {
-        hash = hash * 31 + static_cast<unsigned char>(c);
-    }
-    return hash;
+    return HashFNV1a(name);
 }
 
 enum class Semantic {

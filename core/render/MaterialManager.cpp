@@ -3,27 +3,38 @@
 
 namespace core::render {
 
+void MaterialMutator::SetTexture(const std::string& name, AssetView<Texture> texture) {
+    m_material->SetTexture(name, texture);
+    if (!m_material->IsDirty()) {
+        m_materialManager->AddDirtyMaterial(m_material.handle);
+        m_material->m_isDirty = true;
+    }
+}
+
+void MaterialMutator::SetTexture(PropertyId id, AssetView<Texture> texture) {
+    m_material->SetTexture(id, texture);
+    if (!m_material->IsDirty()) {
+        m_materialManager->AddDirtyMaterial(m_material.handle);
+        m_material->m_isDirty = true;
+    }
+}
+
 MaterialManager::MaterialManager(Device* device,
                                  AssetManager* assetManager,
-                                 ShaderManager* shaderManager,
                                  TextureManager* textureManager,
                                  PassManager* passManager,
                                  LayoutCache* layoutCache)
     : m_device(device),
       m_assetManager(assetManager),
       m_layoutCache(layoutCache),
-      m_shaderManager(shaderManager),
       m_textureManager(textureManager),
       m_passManager(passManager) {
-    importer::MaterialResult defaultMaterialResult{
-        .materialAsset =
-            MaterialAssetFormat{
-                .passNames = {"ForwardRenderPass"},
-            },
-        .assetPath = AssetPath{"virtual://material/default"},
-    };
+    //importer::MaterialResult defaultMaterialResult{
+    //    .materialAsset = MaterialAssetFormat{},
+    //    .assetPath = AssetPath{"virtual://material/default"},
+    //};
 
-    LoadMaterial(defaultMaterialResult);
+    //LoadMaterial(defaultMaterialResult);
 }
 
 Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialResult) {
@@ -31,16 +42,10 @@ Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialRes
         return it->second;
     }
     const auto& materialAsset = materialResult.materialAsset;
-    auto shaderAssetView = m_shaderManager->GetShader(materialAsset.shaderName);
-    if (!shaderAssetView.IsValid()) {
-        return Handle();
-    }
-    auto material = CreateMaterialFromShader(shaderAssetView);
 
-    for (const auto& passName : materialAsset.passNames) {
-        uint8_t passId = m_passManager->GetPassID(passName);
-        material.AddPassID(passId);
-    }
+    Material material(m_device);
+
+    material.SetTechniqueID(GetTechniqueID(materialAsset.materialTechnique));
 
     for (const auto& [slotName, texturePath] : materialAsset.textures) {
         auto textureView = m_textureManager->GetTexture(texturePath);
@@ -52,46 +57,39 @@ Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialRes
             material.SetTexture(textureId, textureView);
         }
     }
-    material.RebuildBindGroup();
 
     Handle handle = m_assetManager->StoreMaterial(std::move(material));
     m_materialCache[materialResult.assetPath] = handle;
+    m_dirtymaterials.push_back(handle);
     return handle;
 }
 
-Material MaterialManager::CreateMaterialFromShader(AssetView<ShaderAsset> shaderAsset) {
+uint32_t MaterialManager::GetTechniqueID(std::string_view techniequeName) {
+    auto it = m_nameToTechniqueIdCache.find(techniequeName);
+    if (it != m_nameToTechniqueIdCache.end()) {
+        return it->second;
+    }
+    // If technique name is not found, assign a new ID
+    uint32_t newId = static_cast<uint32_t>(m_nameToTechniqueIdCache.size());
+    std::string key(techniequeName);
+    m_nameToTechniqueIdCache[key] = newId;
+    return newId;
+}
 
-    const ShaderReflection& bindGroupInfos = shaderAsset->GetReflection();
+void MaterialManager::AddDirtyMaterial(Handle materialHandle) {
+    m_dirtymaterials.push_back(materialHandle);
+}
 
-    //const auto variables = bindGroupInfos.GetMaterialVariableInfos();
+void MaterialManager::ClearDirties() {
+    for (auto handle : m_dirtymaterials) {
+        AssetView<Material> material = GetMaterial(handle);
+        material->m_isDirty = false;
+    }
+    m_dirtymaterials.clear();
+}
 
-    size_t bufferSize = bindGroupInfos.materialUniformSize;
-    Material material = [&]() {
-        if (bufferSize) {
-            std::unordered_map<PropertyId, Material::VariableInfo> variableInfo;
-            //for (const auto& var : variables) {
-            //    variableInfo[var.id] = {
-            //        .offset = var.offset,
-            //        .size = var.size,
-            //    };
-            //}
-
-            wgpu::BufferDescriptor bufferDesc{
-                .usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst,
-                .size = bufferSize,
-            };
-            wgpu::Buffer buffer = m_device->CreateBuffer(bufferDesc);
-            std::vector<std::byte> emptyData(bufferSize, std::byte{0});
-            return Material(m_device,m_passManager, shaderAsset, std::move(buffer), std::move(emptyData),
-                            std::move(variableInfo));
-        } else {
-            return Material(m_device,m_passManager, shaderAsset);
-        }
-    }();
-
-    material.SetTexture(ToPropertyID(Texture::kDefaultTexture.value),
-                        m_textureManager->GetTexture(Texture::kDefaultTexture));
-    return material;
+MaterialMutator MaterialManager::GetMaterialMutator(Handle materialHandle) {
+    return MaterialMutator(this, GetMaterial(materialHandle));
 }
 
 }  // namespace core::render

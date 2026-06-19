@@ -1,7 +1,8 @@
 #pragma once
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include "PipelineManager.h"
-
 #include "AssetManager.h"
 
 inline bool operator==(const wgpu::Extent3D& lhs, const wgpu::Extent3D& rhs) {
@@ -18,6 +19,7 @@ struct RenderIntent {
     uint32_t transformIndex;
     PipelineKey pipelineKey;
     // TODO(#10): Populate 64-bit sort key for Radix Sorting
+    wgpu::BindGroup bindGroup;
     union SortKey {
         uint64_t hash;
         struct {
@@ -192,10 +194,21 @@ class IRenderPass {
                          std::span<RenderIntent> context,
                          const AssetRegistry& assetRegistry,
                          std::span<const wgpu::RenderPipeline> pipelines) = 0;
-    virtual void Setup(PassSetupContext& context)  = 0;
+    virtual void Setup(PassSetupContext& context) = 0;
 
     virtual std::string GetPassName() = 0;
+};
 
+struct transparent_string_hash {
+    using is_transparent = void;
+
+    size_t operator()(std::string_view sv) const noexcept {
+        return std::hash<std::string_view>{}(sv);
+    }
+    size_t operator()(const std::string& str) const noexcept {
+        return std::hash<std::string>{}(str);
+    }
+    size_t operator()(const char* ptr) const noexcept { return std::hash<std::string_view>{}(ptr); }
 };
 
 class PassManager {
@@ -210,12 +223,13 @@ class PassManager {
         return m_nextId++;
     }
 
-    uint8_t GetPassID(const std::string& passName) const;
+    uint8_t GetPassID(const std::string_view passName) const;
     std::unique_ptr<IRenderPass> CreatePass(uint8_t id) const;
+
   private:
     uint8_t m_nextId = 0;
     std::unordered_map<uint8_t, std::string> m_IdToName;
-    std::unordered_map<std::string, uint8_t> m_nameToId;
+    std::unordered_map<std::string, uint8_t, transparent_string_hash, std::equal_to<>> m_nameToId;
     std::array<std::function<std::unique_ptr<IRenderPass>()>, 255> m_creators;
 };
 }  // namespace core::render

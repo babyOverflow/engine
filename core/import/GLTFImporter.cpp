@@ -49,7 +49,7 @@ std::expected<MaterialAssetFormat, Error> GLTFImporter::ImportMaterial(
     tryAppendTexture(gltfMaterial.occlusionTexture, "occlusionTexture");
     tryAppendTexture(gltfMaterial.emissiveTexture, "emissiveTexture");
 
-    assetFormat.passNames.push_back("ForwardRenderPass");
+    assetFormat.materialTechnique = "OpaqueLitMaterial";
 
     assetFormat.SetUniform(
         "baseColorFactor",
@@ -114,11 +114,11 @@ std::expected<GLTFImportResult, Error> GLTFImporter::ImportFromFile(const std::s
         return std::unexpected(Error::Parse("Failed to load glTF file: " + err));
     }
 
-    for (int i = 0; i < gltfModel.textures.size(); ++i) {
-        const auto& texture = gltfModel.textures[i];
+
+    for (const auto& [idx, texture] : gltfModel.textures | std::views::enumerate) {
         const auto& image = gltfModel.images[texture.source];
         auto texAsset = ImportTextureFromTinygltf(gltfModel, image).value_or({});
-        result.textures.push_back(TextureResult{texAsset, ToTextureID(i)});
+        result.textures.push_back(TextureResult{texAsset, ToTextureID(idx)});
     }
 
     for (const auto& [idx, material] : gltfModel.materials | std::views::enumerate) {

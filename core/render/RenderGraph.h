@@ -76,6 +76,7 @@ class RenderGraph {
 
     wgpu::BindGroup m_globalBindGroup;
     wgpu::Buffer m_globalUniformBuffer;
+    wgpu::Sampler m_linearRepeatSampler;
     wgpu::Texture m_depthTexture;
 
     std::array<RenderNode, 255> m_renderNodes{};

@@ -1,6 +1,16 @@
 #pragma once
+#include "ShaderInterop.h"
 
 struct EmptyData {};
+
+struct EngineSamplers {
+    SamplerState linearRepeat;
+}
+
+struct GlobalGroup {
+    GlobalUniforms vars;
+    EngineSamplers samplers;
+}
 
 struct SurfaceAttributes {
     float4 baseColor;
@@ -13,6 +23,7 @@ interface IMaterial {
     associatedtype DataType;
 
     static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
+                                                       EngineSamplers samplers,
                                                        float3 worldPosition,
                                                        float3 worldNormal,
                                                        float2 uv,

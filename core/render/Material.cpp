@@ -4,34 +4,28 @@
 
 namespace core::render {
 
-Material::Material() : m_device(nullptr), m_shaderView({}) {}
+Material::Material() : m_device(nullptr) {}
 
 Material::Material(Material&& rhs) noexcept
     : m_device(rhs.m_device),
-      m_passManager(rhs.m_passManager),
-      m_shaderView(std::move(rhs.m_shaderView)),
-      m_bindGroups(std::move(rhs.m_bindGroups)),
       m_sampler(std::move(rhs.m_sampler)),
       m_uniformBuffer(std::move(rhs.m_uniformBuffer)),
       m_cpuVariableBufferData(std::move(rhs.m_cpuVariableBufferData)),
       m_variableInfo(std::move(rhs.m_variableInfo)),
       m_textures(std::move(rhs.m_textures)),
-      m_activePassIds(std::move(rhs.m_activePassIds)) {
+      m_activeTechniqueId(std::move(rhs.m_activeTechniqueId)) {
     rhs.m_device = nullptr;
 }
 
 Material& Material::operator=(Material&& rhs) noexcept {
     if (this != &rhs) {
         m_device = rhs.m_device;
-        m_passManager = rhs.m_passManager;
-        m_shaderView = std::move(rhs.m_shaderView);
-        m_bindGroups = std::move(rhs.m_bindGroups);
         m_sampler = std::move(rhs.m_sampler);
         m_uniformBuffer = std::move(rhs.m_uniformBuffer);
         m_cpuVariableBufferData = std::move(rhs.m_cpuVariableBufferData);
         m_variableInfo = std::move(rhs.m_variableInfo);
         m_textures = std::move(rhs.m_textures);
-        m_activePassIds = std::move(rhs.m_activePassIds);
+        m_activeTechniqueId = std::move(rhs.m_activeTechniqueId);
 
         rhs.m_device = nullptr;
     }
@@ -39,14 +33,10 @@ Material& Material::operator=(Material&& rhs) noexcept {
 }
 
 Material::Material(Device* device,
-                   PassManager* passManager,
-                   AssetView<ShaderAsset> shaderView,
                    wgpu::Buffer uniformBuffer,
                    std::vector<std::byte> cpuData,
                    std::unordered_map<PropertyId, VariableInfo> variableInfo)
     : m_device(device),
-      m_passManager(passManager),
-      m_shaderView(shaderView),
       m_uniformBuffer(uniformBuffer),
       m_cpuVariableBufferData(std::move(cpuData)),
       m_variableInfo(std::move(variableInfo)) {
@@ -68,78 +58,75 @@ void Material::UpdateUniform() {
 }
 
 bool Material::IsDirty() const {
-    return !m_bindGroupDirtyFlags.none();
+    return m_isDirty;
 }
 
-wgpu::BindGroup Material::CreateBindGroupForPass(uint32_t passId) {
-    const ShaderReflection& reflection = m_shaderView->GetReflection();
+//wgpu::BindGroup Material::CreateBindGroupForPass(uint32_t passId) {
+//    const ShaderReflection& reflection = m_shaderView->GetReflection();
+//
+//    const wgpu::BindGroupLayout bindGroupLayout =
+//        m_shaderView->GetBindGroupLayout(BindSlot::Material);
+//    std::span<const ShaderReflection::Binding> bindings =
+//        reflection.GetGroup(BindSlot::Material);
+//
+    //std::vector<wgpu::BindGroupEntry> bindGroupEntries;
+    //for (uint32_t i = 0; i < bindings.size(); ++i) {
+    //    const ShaderReflection::Binding& bindingInfo = bindings[i];
+    //    switch (bindingInfo.resourceType) {
+    //        case core::ShaderAssetFormat::ResourceType::UniformBuffer: {
+    //            wgpu::BindGroupEntry bufferEntry{
+    //                .binding = bindingInfo.binding,
+    //                .buffer = m_uniformBuffer,
+    //                .offset = 0,
+    //                .size = reflection.materialUniformSize,
+    //            };
+    //            bindGroupEntries.push_back(bufferEntry);
+    //            break;
+    //        }
+    //        case core::ShaderAssetFormat::ResourceType::Texture: {
+    //            auto it = m_textures.find(bindingInfo.id);
+    //            if (it == m_textures.end()) {
+    //                it = m_textures.find(ToPropertyID(Texture::kDefaultTexture.value));
+    //            }
+    //            const auto& texture = it->second;
+    //            wgpu::BindGroupEntry textureEntry{
+    //                .binding = bindingInfo.binding,
+    //                .textureView = texture->GetView(),
+    //            };
+    //            bindGroupEntries.push_back(textureEntry);
+    //            break;
+    //        }
+    //        case core::ShaderAssetFormat::ResourceType::Sampler: {
+    //            wgpu::BindGroupEntry samplerEntry{
+    //                .binding = bindingInfo.binding,
+    //                .sampler = m_sampler,
+    //            };
+    //            bindGroupEntries.push_back(samplerEntry);
+    //            break;
+    //        }
+    //        default:
+    //            assert(false && "not supported resource type.");
 
-    const wgpu::BindGroupLayout bindGroupLayout =
-        m_shaderView->GetBindGroupLayout(BindSlot::Material);
-    std::span<const ShaderReflection::Binding> bindings =
-        reflection.GetGroup(BindSlot::Material);
+    //            break;
+    //    }
+    //}
 
-    std::vector<wgpu::BindGroupEntry> bindGroupEntries;
-    for (uint32_t i = 0; i < bindings.size(); ++i) {
-        const ShaderReflection::Binding& bindingInfo = bindings[i];
-        switch (bindingInfo.resourceType) {
-            case core::ShaderAssetFormat::ResourceType::UniformBuffer: {
-                wgpu::BindGroupEntry bufferEntry{
-                    .binding = bindingInfo.binding,
-                    .buffer = m_uniformBuffer,
-                    .offset = 0,
-                    .size = reflection.materialUniformSize,
-                };
-                bindGroupEntries.push_back(bufferEntry);
-                break;
-            }
-            case core::ShaderAssetFormat::ResourceType::Texture: {
-                auto it = m_textures.find(bindingInfo.id);
-                if (it == m_textures.end()) {
-                    it = m_textures.find(ToPropertyID(Texture::kDefaultTexture.value));
-                }
-                const auto& texture = it->second;
-                wgpu::BindGroupEntry textureEntry{
-                    .binding = bindingInfo.binding,
-                    .textureView = texture->GetView(),
-                };
-                bindGroupEntries.push_back(textureEntry);
-                break;
-            }
-            case core::ShaderAssetFormat::ResourceType::Sampler: {
-                wgpu::BindGroupEntry samplerEntry{
-                    .binding = bindingInfo.binding,
-                    .sampler = m_sampler,
-                };
-                bindGroupEntries.push_back(samplerEntry);
-                break;
-            }
-            default:
-                assert(false && "not supported resource type.");
+    //wgpu::BindGroupDescriptor bindGroupDesc{
+    //    .layout = bindGroupLayout,
+    //    .entryCount = static_cast<uint32_t>(bindGroupEntries.size()),
+    //    .entries = bindGroupEntries.data(),
+    //};
+//    return m_device->CreateBindGroup(bindGroupDesc);
+//}
 
-                break;
-        }
-    }
+//void Material::RebuildBindGroup() {
+//    const ShaderReflection& reflection = m_shaderView->GetReflection();
+//
+//    for (auto id : m_activePassIds) {
+//        m_bindGroups[id] = CreateBindGroupForPass(id);
+//    }
+//}
 
-    wgpu::BindGroupDescriptor bindGroupDesc{
-        .layout = bindGroupLayout,
-        .entryCount = static_cast<uint32_t>(bindGroupEntries.size()),
-        .entries = bindGroupEntries.data(),
-    };
-    return m_device->CreateBindGroup(bindGroupDesc);
-}
-
-void Material::RebuildBindGroup() {
-    const ShaderReflection& reflection = m_shaderView->GetReflection();
-
-    for (auto id : m_activePassIds) {
-        m_bindGroups[id] = CreateBindGroupForPass(id);
-    }
-}
-
-wgpu::BindGroup Material::GetBindGroup(uint32_t passId) const {
-    return m_bindGroups[passId];
-}
 
 void Material::SetTexture(const std::string& name, AssetView<Texture> texture) {
     SetTexture(ToPropertyID(name), texture);
@@ -149,10 +136,8 @@ void Material::SetTexture(PropertyId id, AssetView<Texture> texture) {
     m_textures[id] = texture;
 }
 
-void Material::FlushDirtyBindGroups() {
-    if (IsDirty()) {
-        RebuildBindGroup();
-        m_bindGroupDirtyFlags.reset();
-    }
+AssetView<Texture> Material::GetTexture(PropertyId id) {
+    return m_textures[id];
 }
+
 }  // namespace core::render

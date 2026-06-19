@@ -12,8 +12,7 @@ ShaderAsset ShaderAsset::Create(wgpu::ShaderModule shaderModule,
                        bindGroupLayoutSets);
 }
 
-std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(
-                                                                      uint32_t setIdx) const {
+std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(uint32_t setIdx) const {
     return std::span<const ShaderAssetFormat::Binding>(
         m_shaderAssetFormat->bindings.begin() + (m_layouts[setIdx].offset),
         m_layouts[setIdx].count);
@@ -45,7 +44,8 @@ std::span<const ShaderAssetFormat::ShaderParameter> ShaderReflection::GetEntryIn
                      m_shaderAssetFormat->entryPoints[entryIdx].ioCount);
 }
 
-std::span<const ShaderReflection::Parameter> core::render::ShaderReflection::GetEntryInputByName(const std::string& name) const {
+std::span<const ShaderReflection::Parameter> core::render::ShaderReflection::GetEntryInputByName(
+    const std::string& name) const {
     auto indexOpt = GetEntryPointOffsetByName(name);
     if (indexOpt.has_value()) {
         GetEntryInput(indexOpt.value());
@@ -56,6 +56,22 @@ std::span<const ShaderReflection::Parameter> core::render::ShaderReflection::Get
 
 std::string_view ShaderReflection::GetNameByIndex(uint32_t idx) const {
     return m_nameTable[idx];
+}
+
+std::string_view ShaderReflection::GetPassName() const {
+    if (m_shaderAssetFormat->header.passNameIndex != (uint16_t)ShaderAssetFormat::kInvalidIdx) {
+        return m_nameTable[m_shaderAssetFormat->header.passNameIndex];
+    } else {
+        return "";
+    }
+}
+
+std::string_view ShaderReflection::GetMaterialTechName() const {
+    if (m_shaderAssetFormat->header.materialNameIndex != (uint16_t)ShaderAssetFormat::kInvalidIdx) {
+        return m_nameTable[m_shaderAssetFormat->header.materialNameIndex];
+    } else {
+        return "";
+    }
 }
 
 ShaderReflection ShaderReflection::Create(ShaderAssetFormat* shaderAssetFormat) {
@@ -76,7 +92,6 @@ ShaderReflection ShaderReflection::Create(ShaderAssetFormat* shaderAssetFormat) 
             groups[binding.set].count++;
         }
     }
-
 
     return ShaderReflection(shaderAssetFormat, std::move(nametable), std::move(groups));
 }

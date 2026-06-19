@@ -44,6 +44,9 @@ class ShaderReflection {
     std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInput(uint32_t entryIdx) const;
     std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInputByName(const std::string& name) const;
 
+    std::string_view GetPassName() const;
+    std::string_view GetMaterialTechName() const;
+
   private:
     ShaderReflection(ShaderAssetFormat* shaderAssetFormat,
                      std::vector<std::string_view>&& nametable,

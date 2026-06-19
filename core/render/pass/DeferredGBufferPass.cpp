@@ -20,7 +20,7 @@ void core::render::pass::DeferredGBufferPass::Execute(
             encoder.SetVertexBuffer(i, mesh.vertexBuffer, bufferRange.offset, bufferRange.size);
         }
         encoder.SetIndexBuffer(mesh.indexBuffer, wgpu::IndexFormat::Uint32);
-        wgpu::BindGroup bindGroup = material.GetBindGroup(intent.sortKey.bits.passId);
+        wgpu::BindGroup bindGroup = intent.bindGroup;
         encoder.SetBindGroup(BindSlot::Material, bindGroup);
 
         encoder.DrawIndexed(subMesh.indexCount, 1, subMesh.indexStart);
