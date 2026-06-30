@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "BindGroupFactory.h"
 #include "LayoutCache.h"
 #include "Texture.h"
 #include "render.h"
@@ -17,6 +18,8 @@ concept ValidMaterialVariableType =
     std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> ||
     std::is_same_v<T, glm::vec2> || std::is_same_v<T, glm::vec3> || std::is_same_v<T, glm::vec4> ||
     std::is_same_v<T, glm::mat4>;
+
+
 
 class Material {
     friend class MaterialMutator;
@@ -86,5 +89,11 @@ class Material {
 
     uint8_t m_activeTechniqueId;
 };
+
+struct MaterialProvider {
+    AssetView<Material> material;
+    wgpu::TextureView GetTextureView(PropertyId id);
+};
+static_assert(BindGroupResourceProvider<MaterialProvider>);
 
 }  // namespace core::render

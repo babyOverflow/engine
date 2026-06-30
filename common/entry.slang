@@ -9,7 +9,7 @@ type_param P : IRenderPass;
 ParameterBlock<P.GlobalResourcesType> globalResources;
 
 [vk::binding(0, BindSlot::Material)]
-ParameterBlock<P.M.DataType> material;
+ParameterBlock<P.Material.DataType> material;
 
 [vk::binding(0, BindSlot::Pass)]
 ParameterBlock<P.PassResourceType> currentPass;

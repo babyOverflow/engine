@@ -37,8 +37,7 @@ std::optional<uint32_t> ShaderReflection::GetEntryPointOffsetByName(const std::s
     return std::nullopt;
 }
 
-std::span<const ShaderAssetFormat::ShaderParameter> ShaderReflection::GetEntryInput(
-    uint32_t entryIdx) const {
+std::span<const ShaderAssetFormat::ShaderParameter> core::render::ShaderReflection::GetEntryIO(uint32_t entryIdx) const {
     return std::span(m_shaderAssetFormat->parameters.data() +
                          m_shaderAssetFormat->entryPoints[entryIdx].ioStartIndex,
                      m_shaderAssetFormat->entryPoints[entryIdx].ioCount);
@@ -48,7 +47,7 @@ std::span<const ShaderReflection::Parameter> core::render::ShaderReflection::Get
     const std::string& name) const {
     auto indexOpt = GetEntryPointOffsetByName(name);
     if (indexOpt.has_value()) {
-        GetEntryInput(indexOpt.value());
+        GetEntryIO(indexOpt.value());
     }
 
     return std::span<const ShaderReflection::Parameter>();

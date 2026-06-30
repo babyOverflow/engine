@@ -1,20 +1,23 @@
 #pragma once
 #include <span>
+#include "BindGroupManager.h"
 #include "IRenderPass.h"
 #include "Scene.h"
 #include "ShaderManager.h"
-#include "BindGroupManager.h"
 #include "render.h"
 
 namespace core::render {
 
 struct RenderQueue {
-    std::vector<RenderIntent> renderIntents;
+    std::array<std::vector<RenderIntent>, PassManager::kMaxPasses> renderIntents;
+    std::array<wgpu::RenderPipeline, PassManager::kMaxPasses> proceduralPipelines;
     std::span<const glm::mat4x4> transforms;
     CameraUniformData cameraData;
 
     void Clear() {
-        renderIntents.clear();
+        for (uint32_t i = 0; i < PassManager::kMaxPasses; ++i) {
+            renderIntents[i].clear();
+        }
         transforms = {};
     }
 };

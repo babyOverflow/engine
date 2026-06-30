@@ -71,10 +71,12 @@ wgpu::Texture core::render::TransientResourcePool::Get(uint32_t index) {
 
 core::render::RenderGraph::RenderGraph(Device* device,
                                        AssetManager* assetManager,
+                                       ShaderManager* shaderManager,
                                        PipelineManager* pipelineManager,
                                        const wgpu::BindGroupLayout globalBindGroupLayout)
     : m_device(device),
       m_assetManager(assetManager),
+      m_shaderManager(shaderManager),
       m_pipelineManager(pipelineManager),
       m_vra(device) {
     CameraUniformData cameraUniformData;
@@ -93,7 +95,18 @@ core::render::RenderGraph::RenderGraph(Device* device,
     wgpu::Sampler linearRepeat = device->GetDeivce().CreateSampler(&desc);
     m_linearRepeatSampler = std::move(linearRepeat);
 
-    std::array<wgpu::BindGroupEntry, 2> bindGroupEntries{wgpu::BindGroupEntry{
+    wgpu::SamplerDescriptor pointSamplerDesc{
+        .addressModeU = wgpu::AddressMode::ClampToEdge,
+        .addressModeV = wgpu::AddressMode::ClampToEdge,
+        .addressModeW = wgpu::AddressMode::ClampToEdge,
+        .magFilter = wgpu::FilterMode::Nearest,
+        .minFilter = wgpu::FilterMode::Nearest,
+        .mipmapFilter = wgpu::MipmapFilterMode::Nearest,
+    };
+    wgpu::Sampler pointSampler = device->GetDeivce().CreateSampler(&pointSamplerDesc);
+    m_pointSampler = std::move(pointSampler);
+
+    std::array<wgpu::BindGroupEntry, 3> bindGroupEntries{wgpu::BindGroupEntry{
                                                              .binding = 0,
                                                              .buffer = m_globalUniformBuffer,
                                                              .offset = 0,
@@ -102,7 +115,13 @@ core::render::RenderGraph::RenderGraph(Device* device,
                                                          wgpu::BindGroupEntry{
                                                              .binding = 1,
                                                              .sampler = m_linearRepeatSampler,
-                                                         }};
+                                                         },
+                                                         wgpu::BindGroupEntry{
+                                                             .binding = 2,
+                                                             .sampler = m_pointSampler,
+                                                         }
+
+    };
     m_globalBindGroup = device->CreateBindGroup(wgpu::BindGroupDescriptor{
         .layout = globalBindGroupLayout,
         .entryCount = bindGroupEntries.size(),
@@ -121,20 +140,15 @@ core::render::RenderGraph::RenderGraph(Device* device,
     });
 }
 
-void core::render::RenderGraph::Setup(std::vector<std::unique_ptr<IRenderPass>>& passes) {
+void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* passManager) {
     core::render::PassSetupContext context{m_device, m_device->GetSurfaceConfig()};
 
-    auto pass_view = passes | std::views::enumerate;
-
-    std::ranges::for_each(pass_view, [&](auto&& item) {
-        auto [i, pass_ptr] = std::move(item);
-
-        const uint8_t passIdx = static_cast<uint8_t>(i);
-
-        context.SetPassID(passIdx);
+    std::ranges::for_each(passes, [&](auto& passID) {
+        IRenderPass* pass_ptr = passManager->GetPass(passID);
+        context.SetPassID(passID);
         pass_ptr->Setup(context);
 
-        m_renderNodes[passIdx] = RenderNode(std::move(pass_ptr));
+        m_renderNodes[passID] = RenderNode(std::move(pass_ptr));
     });
 
     for (uint32_t i = 0; i < context.m_subResources.size(); ++i) {
@@ -161,10 +175,10 @@ void core::render::RenderGraph::Setup(std::vector<std::unique_ptr<IRenderPass>>&
             };
         }
 
-        for (auto readPassId : resource.readPassIds) {
-            writePassNode.successorNodes.push_back(readPassId);
-            m_renderNodes[readPassId].predecessorNodes.push_back(writePassId);
-            m_renderNodes[readPassId].readResourceIndices.push_back(i);
+        for (auto readPassInfo : resource.readPassIds) {
+            writePassNode.successorNodes.push_back(readPassInfo.passId);
+            m_renderNodes[readPassInfo.passId].predecessorNodes.push_back(writePassId);
+            m_renderNodes[readPassInfo.passId].readResourceIndices.push_back(i);
         }
     }
 
@@ -200,7 +214,6 @@ void core::render::RenderGraph::Setup(std::vector<std::unique_ptr<IRenderPass>>&
     for (uint32_t i = 0; i < m_executionOrder.size(); ++i) {
         uint32_t nodeId = m_executionOrder[i];
         for (const auto& attach : m_renderNodes[nodeId].attachments) {
-            context.m_subResources[attach.resourceIdx];
             resourceUsageInfo[attach.resourceIdx].firstUse =
                 std::min(resourceUsageInfo[attach.resourceIdx].firstUse, i);
             resourceUsageInfo[attach.resourceIdx].lastUse =
@@ -235,12 +248,54 @@ void core::render::RenderGraph::Setup(std::vector<std::unique_ptr<IRenderPass>>&
                 context.m_subResources[resrcIdx].actualResource = actual;
             }
         }
+
         uint32_t nodeIdx = m_executionOrder[step];
         for (auto readResourceIdx : m_renderNodes[nodeIdx].readResourceIndices) {
             m_vra.Get(readResourceIdx);
         }
+
+        std::optional<wgpu::BindGroupLayout> layout =
+            m_shaderManager->GetPassBindGroupLayout(nodeIdx);
+        if (layout.has_value()) {
+            std::span<const ShaderAssetFormat::Binding> bindingInfo =
+                m_shaderManager->GetPassBindGroupInfo(nodeIdx);
+            const BlackBoard& blackBoard = context.GetBlackBoard();
+            ResourceResolver resolver(nodeIdx, &blackBoard, context.m_subResources, &m_vra);
+            wgpu::BindGroup passBindGroup = BindGroupFactory::Create(
+                m_device, layout.value(), bindingInfo, RenderGraphProvider{&resolver});
+            m_renderNodes[nodeIdx].m_bindGroup = passBindGroup;
+        }
     }
     m_passSetupContext = std::move(context);
+}
+
+void core::render::RenderGraph::Prepare(RenderQueue& renderQueue,
+                                        PipelineManager* pipelineManager) {
+    for (uint32_t i = 0; i < m_executionOrder.size(); ++i) {
+        uint32_t nodeId = m_executionOrder[i];
+
+        if (renderQueue.renderIntents[nodeId].empty()) {
+            auto* pass = m_renderNodes[nodeId].pass;
+
+            Handle shaderHandle =
+                m_shaderManager->GetShaderHandle(nodeId, MaterialManager::kEmptyMaterialTechniqe);
+            if (renderQueue.renderIntents[nodeId].empty() && shaderHandle.IsValid()) {
+                PipelineManager::PipelineConfig config{};
+                config.shader = m_shaderManager->GetShaderAsset(shaderHandle);
+                config.layoutId = VertexLayoutManager::kVoidVertexLayout;
+                config.passId = nodeId;
+                config.depthStencilId = DepthStencilStateManager::kNullStateID;
+
+                // 4. 멀티스레드 진입 전(Execute 이전)에 캐시에서 가져오거나 새로 구움
+                Handle pipelineHandle = pipelineManager->GetOrCreatePipeline(config);
+
+                // 5. 구워진 파이프라인을 저장 (더미 Intent를 쓰지 않기로 했으므로)
+                // 패스 로직이 Execute 중에 꺼내 쓸 수 있도록 RenderQueue의 별도 공간에 꽂아 넣음
+                renderQueue.proceduralPipelines[nodeId] =
+                    pipelineManager->GetPipeline(pipelineHandle);
+            }
+        }
+    }
 }
 
 void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
@@ -291,12 +346,46 @@ void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
         }
         auto pass = commandEncoder.BeginRenderPass(&renderPassDescriptor);
         pass.SetBindGroup(0, m_globalBindGroup);
-        m_renderNodes[nodeId].pass->Execute(pass, renderQueue.renderIntents,
-                                            m_assetManager->GetRegistry(),
-                                            m_pipelineManager->GetAllPipelines());
+        pass.SetBindGroup(BindSlot::Pass, m_renderNodes[nodeId].m_bindGroup);
+        m_renderNodes[nodeId].pass->Execute(
+            pass, {
+                      .intents = renderQueue.renderIntents[nodeId],
+                      .assetRegistry = m_assetManager->GetRegistry(),
+                      .proceduralPipeline = renderQueue.proceduralPipelines[nodeId],
+                  });
         pass.End();
     }
 
     auto commandBuffer = commandEncoder.Finish();
     d.GetQueue().Submit(1, &commandBuffer);
+}
+
+core::render::ResourceResolver::ResourceResolver(
+    uint32_t passId,
+    const BlackBoard* blackBourd,
+    std::span<const PassSetupContext::SubResource> subResource,
+    TransientResourcePool* resourcePool)
+    : m_passId(passId),
+      m_blackBoard(blackBourd),
+      m_subResources(subResource),
+      m_resourcePool(resourcePool) {}
+
+wgpu::TextureView core::render::ResourceResolver::GetTextureView(PropertyId id) const {
+    Handle virRsourceHandle = m_blackBoard->Get(id);
+    const PassSetupContext::SubResource& subResource = m_subResources[virRsourceHandle.index];
+
+    wgpu::Texture texture = m_resourcePool->Get(subResource.actualResource);
+
+    auto it = std::ranges::find(subResource.readPassIds, m_passId,
+                                &PassSetupContext::SubResource::ReadInfo::passId);
+    if (it == subResource.readPassIds.end()) {
+        assert(false);
+    }
+    const auto optViewDesc = it->viewDesc;
+    const auto* viewPtr = optViewDesc.has_value() ? &(*optViewDesc) : nullptr;
+    return texture.CreateView(viewPtr);
+}
+
+wgpu::TextureView core::render::RenderGraphProvider::GetTextureView(PropertyId id) {
+    return resolver->GetTextureView(id);
 }

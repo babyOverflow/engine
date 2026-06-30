@@ -34,6 +34,7 @@ struct ForwardMaterial : IMaterial {
         Texture2D<float4> baseColorTexture;
         Texture2D<float4> metallicRoughnessTexture;
         Texture2D<float4> normalTexture;
+        DepthTexture2D depth;
     };
     static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
                                                        float3 worldPosition,
@@ -51,10 +52,12 @@ struct ForwardMaterial : IMaterial {
         float3 tangentNormal = data.normalTexture.Sample(data.linearSampler, uv).xyz * 2.0f - 1.0f;
         float3 worldNormal = normalize(mul(tangentNormal, TBN));
 
+        let depth = data.depth.Sample(data.linearSampler, uv);
+
         SurfaceAttributes attributes;
         float3 diffuse = max(dot(worldNormal, lightDir), 0.0f) * float3(1.0f, 1.0f, 1.0f);
         attributes.baseColor =
-            float4(diffuse, 1) * data.baseColorTexture.Sample(data.linearSampler, uv);
+            float4(diffuse, 1) * data.baseColorTexture.Sample(data.linearSampler, uv) * depth;
         return attributes;
     }
 };

@@ -28,13 +28,13 @@ std::array<wgpu::BindGroupLayout, 4> ShaderManager::CreateGroupLayouts(
             .entryCount = entries.size(),
             .entries = entries.data(),
         };
-        #ifndef NDEBUG
+#ifndef NDEBUG
         std::string bindGroupLabel;
         bindGroupLabel += reflection.GetPassName();
         bindGroupLabel += reflection.GetMaterialTechName();
         bindGroupLabel += " Group: " + std::to_string(set);
         desc.label = std::string_view(bindGroupLabel);
-        #endif
+#endif
         reflection.GetPassName();
         bindGroupLayouts[set] = m_layoutCache->GetBindGroupLayout(desc);
     }
@@ -50,7 +50,8 @@ ShaderManager::ShaderManager(Device* device,
       m_assetRepo(assetRepo),
       m_layoutCache(layoutCache),
       m_passManager(passManager),
-      m_materialManager(materialManager) {
+      m_materialManager(materialManager),
+      m_passBindGorupsLayouts{} {
     auto blobOrError = ShaderAssetFormat::LoadFromMemory(kStandardPBR_Data);
 
     if (!blobOrError.has_value()) {
@@ -99,18 +100,26 @@ Handle ShaderManager::LoadShader(core::importer::ShaderImportResult&& shaderResu
         CreateFromShaderSource(std::move(shaderResult.shaderAsset));
 
     std::string_view passName = shaderAsset.GetReflection().GetPassName();
-    std::string_view materialTechName = shaderAsset.GetReflection().GetMaterialTechName();
     uint8_t passId = m_passManager->GetPassID(passName);
+    if (!m_passBindGorupsLayouts[passId]) {
+        m_passBindGorupsLayouts[passId] = shaderAsset.GetBindGroupLayout(BindSlot::Pass);
+        std::span<const ShaderReflection::Binding> bindings =
+            shaderAsset.GetReflection().GetGroup(BindSlot::Pass);
+        m_passBindInfo[passId] =
+            std::vector<ShaderReflection::Binding>(bindings.begin(), bindings.end());
+    }
+
+    std::string_view materialTechName = shaderAsset.GetReflection().GetMaterialTechName();
     uint8_t materialTechId = m_materialManager->GetTechniqueID(materialTechName);
 
-    if (!m_techniqueBindGroups[materialTechId]) {
-        m_techniqueBindGroups[materialTechId] = shaderAsset.GetBindGroupLayout(BindSlot::Material);
+    if (!m_techniqueBindGroupLayouts[materialTechId]) {
+        m_techniqueBindGroupLayouts[materialTechId] =
+            shaderAsset.GetBindGroupLayout(BindSlot::Material);
         std::span<const ShaderReflection::Binding> bindings =
             shaderAsset.GetReflection().GetGroup(BindSlot::Material);
         m_techniqueBindInfo[materialTechId] =
             std::vector<ShaderReflection::Binding>(bindings.begin(), bindings.end());
     }
-
 
     Handle handle = m_assetRepo->StoreShaderAsset(std::move(shaderAsset));
     m_shaderLookupTable.m_table[passId][materialTechId] = handle;

@@ -51,7 +51,7 @@ set(SOURCES
     "render/IRenderPass.cpp" 
     "render/pass/DeferredGBufferPass.h" "render/pass/DeferredGBufferPass.cpp"
     "render/pass/DeferredLightingPass.h" "render/pass/DeferredLightingPass.cpp"
-    "render/pass/ForwardRenderPass.h" "render/pass/ForwardRenderPass.cpp" "render/BindGroupManager.h" "render/BindGroupManager.cpp")
+    "render/pass/ForwardRenderPass.h" "render/pass/ForwardRenderPass.cpp" "render/BindGroupManager.h" "render/BindGroupManager.cpp" "render/BindGroupFactory.h" )
 
 include (../cmake/ShaderCompiler.cmake)
 

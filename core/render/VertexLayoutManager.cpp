@@ -2,6 +2,11 @@
 #include <ranges>
 #include <span>
 
+core::render::VertexLayoutManager::VertexLayoutManager() {
+    m_vertexStates.resize(1);
+    m_vertexStates[kVoidVertexLayout] = {};
+}
+
 core::Handle core::render::VertexLayoutManager::GetVertexLayout(
     const wgx::VertexBufferLayout& layout) {
     auto it = std::ranges::find_if(

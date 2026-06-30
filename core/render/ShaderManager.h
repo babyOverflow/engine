@@ -46,11 +46,23 @@ class ShaderManager {
     }
 
     wgpu::BindGroupLayout GetMaterialBindGroupLayout(uint8_t techniqueId) {
-        return m_techniqueBindGroups[techniqueId];
+        return m_techniqueBindGroupLayouts[techniqueId];
     }
 
     std::span<core::ShaderAssetFormat::Binding> GetMaterialBindGroupInfo(uint8_t techniqueId) {
         return m_techniqueBindInfo[techniqueId];
+    }
+
+    std::optional< wgpu::BindGroupLayout> GetPassBindGroupLayout(uint8_t passId) {
+        if (m_passBindGorupsLayouts[passId] == nullptr)
+        {
+            return std::nullopt;
+        }
+        return m_passBindGorupsLayouts[passId];
+    }
+
+    std::span<core::ShaderAssetFormat::Binding> GetPassBindGroupInfo(uint8_t passId) {
+        return m_passBindInfo[passId];
     }
 
   private:
@@ -64,8 +76,10 @@ class ShaderManager {
     MaterialManager* m_materialManager;
 
     std::unordered_map<AssetPath, Handle> m_shaderCache;
-    std::array<wgpu::BindGroupLayout, 255> m_techniqueBindGroups{nullptr};
+    std::array<wgpu::BindGroupLayout, 255> m_techniqueBindGroupLayouts{nullptr};
     std::array<std::vector<core::ShaderAssetFormat::Binding>, 255> m_techniqueBindInfo;
+    std::array<wgpu::BindGroupLayout, 255> m_passBindGorupsLayouts{nullptr};
+    std::array<std::vector<core::ShaderAssetFormat::Binding>, 255> m_passBindInfo;
 
     ShaderLookupTable m_shaderLookupTable;
 };

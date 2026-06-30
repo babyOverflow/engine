@@ -521,17 +521,19 @@ TEST_F(ParameterTest, ExtractsBindingsFromForwardPass) {
 
     slangCompiler::CompileResult shdr = result.value();
 
-    const static std::array<std::string, 5> kForwardPassBindingNameTable = {
-        "globalResources", "material.linearSampler", "material.baseColorTexture",
-        "material.metallicRoughnessTexture", "material.normalTexture"};
-
-    const static std::array<uint32_t, 5> kForwardPassBindingIDs = {
-        core::ToPropertyID("globalResources"),  core::ToPropertyID("linearSampler"),
-        core::ToPropertyID("baseColorTexture"), core::ToPropertyID("metallicRoughnessTexture"),
-        core::ToPropertyID("normalTexture"),
+    constexpr uint32_t kExpectedBindingsSize = 6;
+    const static std::array<std::string, kExpectedBindingsSize> kForwardPassBindingNameTable = {
+        "globalResources",           "material.linearSampler",
+        "material.baseColorTexture", "material.metallicRoughnessTexture",
+        "material.normalTexture",    "material.depth",
     };
 
-    constexpr uint32_t kExpectedBindingsSize = 5;
+    const static std::array<uint32_t, kExpectedBindingsSize> kForwardPassBindingIDs = {
+        core::ToPropertyID("globalResources"),  core::ToPropertyID("linearSampler"),
+        core::ToPropertyID("baseColorTexture"), core::ToPropertyID("metallicRoughnessTexture"),
+        core::ToPropertyID("normalTexture"),    core::ToPropertyID("depth"),
+    };
+
     const std::array<core::ShaderAssetFormat::Binding, kExpectedBindingsSize> kExpectedBindings{
         core::ShaderAssetFormat::Binding{
             .set = 0,
@@ -547,19 +549,55 @@ TEST_F(ParameterTest, ExtractsBindingsFromForwardPass) {
         core::ShaderAssetFormat::Binding{
             .set = 1,
             .binding = 1,
+            .resource =
+                {
+                    .texture =
+                        core::ShaderAssetFormat::Texture{
+                            .type = core::ShaderAssetFormat::TextureType::Float,
+                            .viewDimension = core::ShaderAssetFormat::ViewDimension::e2D,
+                            .multiSampled = 0},
+                },
             .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
         core::ShaderAssetFormat::Binding{
             .set = 1,
             .binding = 2,
+            .resource =
+                {
+                    .texture =
+                        core::ShaderAssetFormat::Texture{
+                            .type = core::ShaderAssetFormat::TextureType::Float,
+                            .viewDimension = core::ShaderAssetFormat::ViewDimension::e2D,
+                            .multiSampled = 0},
+                },
             .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
         core::ShaderAssetFormat::Binding{
             .set = 1,
             .binding = 3,
+            .resource =
+                {
+                    .texture =
+                        core::ShaderAssetFormat::Texture{
+                            .type = core::ShaderAssetFormat::TextureType::Float,
+                            .viewDimension = core::ShaderAssetFormat::ViewDimension::e2D,
+                            .multiSampled = 0},
+                },
             .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
         },
-    };
+        core::ShaderAssetFormat::Binding{
+            .set = 1,
+            .binding = 4,
+            .resource =
+                {
+                    .texture =
+                        core::ShaderAssetFormat::Texture{
+                            .type = core::ShaderAssetFormat::TextureType::Depth,
+                            .viewDimension = core::ShaderAssetFormat::ViewDimension::e2D,
+                            .multiSampled = 0},
+                },
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        }};
 
     ASSERT_EQ(shdr.bindings.size(), kExpectedBindingsSize);
     for (uint32_t i = 0; i < kExpectedBindingsSize; ++i) {
@@ -570,8 +608,7 @@ TEST_F(ParameterTest, ExtractsBindingsFromForwardPass) {
         EXPECT_EQ(shdr.nameTable[actual.nameIdx], kForwardPassBindingNameTable[i])
             << "Binding name mismatch at index " << i;
 
-        EXPECT_EQ(actual.id, kForwardPassBindingIDs[i])
-            << "Binding ID mismatch at index " << i;
+        EXPECT_EQ(actual.id, kForwardPassBindingIDs[i]) << "Binding ID mismatch at index " << i;
 
         EXPECT_EQ(actual.set, expected.set) << "Set mismatch at binding index " << i;
         EXPECT_EQ(actual.binding, expected.binding)
@@ -581,6 +618,16 @@ TEST_F(ParameterTest, ExtractsBindingsFromForwardPass) {
         if (actual.resourceType == sa::ResourceType::UniformBuffer) {
             EXPECT_EQ(actual.resource.buffer.bufferSize, expected.resource.buffer.bufferSize)
                 << "Buffer size mismatch at binding index " << i;
+        } else if (actual.resourceType == sa::ResourceType::Texture) {
+            EXPECT_EQ(actual.resource.texture.type, expected.resource.texture.type)
+                << "Texture type mismatch at binding index " << i;
+            EXPECT_EQ(actual.resource.texture.multiSampled, expected.resource.texture.multiSampled)
+                << "Texture multiSampled mismatch at binding index " << i;
+            ;
+            EXPECT_EQ(actual.resource.texture.viewDimension,
+                      expected.resource.texture.viewDimension)
+                << "Texture viewDimention mismatch at binding index " << i;
+            ;
         }
     }
 }

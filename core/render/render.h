@@ -23,6 +23,7 @@ struct CameraUniformData {
     glm::mat4x4 view;
     glm::mat4x4 proj;
     glm::mat4x4 viewProj;
+    glm::mat4x4 invViewProj;
     glm::vec4 position;
 };
 

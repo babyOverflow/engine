@@ -2,8 +2,10 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include "PipelineManager.h"
+
 #include "AssetManager.h"
+#include "BindGroupFactory.h"
+#include "PipelineManager.h"
 
 inline bool operator==(const wgpu::Extent3D& lhs, const wgpu::Extent3D& rhs) {
     return lhs.width == rhs.width && lhs.height == rhs.height &&
@@ -17,34 +19,43 @@ struct RenderIntent {
     uint32_t subMeshIndex;
     Handle materialHandle;
     uint32_t transformIndex;
-    PipelineKey pipelineKey;
+    wgpu::RenderPipeline pipeline;
     // TODO(#10): Populate 64-bit sort key for Radix Sorting
     wgpu::BindGroup bindGroup;
-    union SortKey {
-        uint64_t hash;
-        struct {
-            uint64_t passId : 8;
-            uint64_t pipelineId : 16;
-            uint64_t mateiralId : 16;
-            uint64_t depth : 24;  // For depth sorting (e.g., transparent objects)
-        } bits;
-    } sortKey;
-};
+    uint64_t sortKey;
 
-static_assert(sizeof(RenderIntent::SortKey) == sizeof(uint64_t), "SortKey must be exactly 64 bits");
+    // Helper to generate a deterministic, endian-independent key
+    static constexpr uint64_t CreateOpaqueKey(uint64_t pipeline,
+                                              uint64_t material,
+                                              uint64_t mesh,
+                                              uint64_t depth) {
+        // Bit masks to prevent accidental overflow into adjacent fields
+        constexpr uint64_t PIPELINE_MASK = 0xFFF;   // 12 bits
+        constexpr uint64_t MATERIAL_MASK = 0x3FFF;  // 14 bits
+        constexpr uint64_t MESH_MASK = 0x3FFF;      // 14 bits
+        constexpr uint64_t DEPTH_MASK = 0xFFFF;     // 16 bits
+
+        // Shift values to their designated logical MSB->LSB positions
+        return ((pipeline & PIPELINE_MASK) << 44) | ((material & MATERIAL_MASK) << 30) |
+               ((mesh & MESH_MASK) << 16) | (depth & DEPTH_MASK);
+    }
+};
 
 class BlackBoard {
   public:
     void Set(const std::string& key, Handle value);
+    void Set(PropertyId key, Handle value);
     Handle Get(const std::string& key) const;
+    Handle Get(PropertyId key) const;
 
   private:
-    std::unordered_map<std::string, Handle> m_data;
+    std::unordered_map<uint64_t, Handle> m_data;
 };
 
 class IRenderPass;
 class PassSetupContext {
     friend class RenderGraph;
+    friend struct PassSetupContextProvider;
 
   public:
     constexpr static Handle kSceneColorHandle{.index = 0, .generation = 0};
@@ -61,7 +72,7 @@ class PassSetupContext {
     using TargetSize = std::variant<wgpu::Extent3D, RelativeSize>;
 
     struct TextureDescriptor {
-        std::string name;
+        std::string label;
         wgpu::TextureUsage usage = wgpu::TextureUsage::None;
         wgpu::TextureDimension dimension = wgpu::TextureDimension::Undefined;
         TargetSize size = RelativeSize{1.0, 1.0};
@@ -155,7 +166,11 @@ class PassSetupContext {
 
     struct SubResource {
         PassSetupContext::TextureDescriptor textureDesc;
-        std::vector<uint32_t> readPassIds;
+        struct ReadInfo {
+            uint32_t passId;
+            std::optional<wgpu::TextureViewDescriptor> viewDesc;
+        };
+        std::vector<ReadInfo> readPassIds;
         struct WriteInfo {
             uint32_t passId;
             std::variant<ColorAttachment, DepthStencilAttachment> attach;
@@ -166,18 +181,21 @@ class PassSetupContext {
 
     PassSetupContext(Device* device, const wgpu::SurfaceConfiguration& surfaceConfig);
 
-    Handle DeclareTexture(const TextureDescriptor& desc);
+    Handle DeclareTexture(const std::string& bindingName, const TextureDescriptor& desc);
 
     void RegisterColorOutput(Handle texture, const ColorAttachment& attach);
     void RegisterDepthStencil(Handle texture, const DepthStencilAttachment& attach);
-    void RegisterTextureRead(Handle texture);
 
-    BlackBoard& GetBlackBoard() { return m_blackBoard; }
+    void RegisterTextureRead(Handle texture);
+    void RegisterTextureRead(Handle texture, wgpu::TextureViewDescriptor desc);
+
+    Handle GetResourceHandle(const std::string& name);
 
     void SetPassID(uint32_t id) { m_currentPassId = id; }
 
   private:
     SubResource& GetSceneColorSubResource() { return m_subResources[kSceneColorHandle.index]; }
+    BlackBoard& GetBlackBoard() { return m_blackBoard; }
 
     Device* m_device;
     uint32_t m_currentPassId;
@@ -186,14 +204,31 @@ class PassSetupContext {
     BlackBoard m_blackBoard;
 };
 
+enum class PassFlags : uint32_t {
+    None = 0,
+    DisableBlend = 1 << 0,  // 이 패스에서는 머티리얼의 블렌드 설정을 무시하고 강제로 끔
+    ClearTargets = 1 << 1,
+};
+
+struct PassTargetState {
+    PassFlags flags = PassFlags::None;
+    std::vector<wgpu::TextureFormat> colorTargetFormats;
+    wgpu::TextureFormat depthStencilFormat = wgpu::TextureFormat::Undefined;
+};
+
+struct PassExecuteContext {
+    std::span<RenderIntent> intents;
+    const AssetRegistry& assetRegistry;
+    wgpu::RenderPipeline proceduralPipeline;
+};
+
 class IRenderPass {
   public:
     IRenderPass() = default;
     virtual ~IRenderPass() = default;
-    virtual void Execute(wgpu::RenderPassEncoder encoder,
-                         std::span<RenderIntent> context,
-                         const AssetRegistry& assetRegistry,
-                         std::span<const wgpu::RenderPipeline> pipelines) = 0;
+    virtual void Execute(wgpu::RenderPassEncoder encoder, const PassExecuteContext& executeContext) = 0;
+
+    virtual const core::render::PassTargetState& GetTargetState() const = 0;
     virtual void Setup(PassSetupContext& context) = 0;
 
     virtual std::string GetPassName() = 0;
@@ -213,24 +248,26 @@ struct transparent_string_hash {
 
 class PassManager {
   public:
+    static constexpr uint32_t kMaxPasses = 255;
+
     template <typename T>
     uint8_t RegisterPass(const std::string& passName) {
         assert(m_nameToId.find(passName) == m_nameToId.end() && "Pass name collision!");
-        assert(m_nextId < 255 && "Pass ID limit exceeded!");
+        assert(m_nextId < kMaxPasses && "Pass ID limit exceeded!");
         m_nameToId[passName] = m_nextId;
         m_IdToName[m_nextId] = passName;
-        m_creators[m_nextId] = []() { return std::make_unique<T>(); };
+        m_passes[m_nextId] = std::make_unique<T>();
         return m_nextId++;
     }
 
     uint8_t GetPassID(const std::string_view passName) const;
-    std::unique_ptr<IRenderPass> CreatePass(uint8_t id) const;
+    IRenderPass* GetPass(uint8_t id) const;
 
   private:
     uint8_t m_nextId = 0;
     std::unordered_map<uint8_t, std::string> m_IdToName;
     std::unordered_map<std::string, uint8_t, transparent_string_hash, std::equal_to<>> m_nameToId;
-    std::array<std::function<std::unique_ptr<IRenderPass>()>, 255> m_creators;
+    std::array<std::unique_ptr<IRenderPass>, kMaxPasses> m_passes;
 };
 }  // namespace core::render
 

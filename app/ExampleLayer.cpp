@@ -45,7 +45,9 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
 }
 
 void ExampleLayer::OnAttach(core::Scene& scene) {
-    auto shaderHandle =  m_shaderLoader.LoadShader("assets/ForwardPass.shdr");
+    //auto shaderHandle =  m_shaderLoader.LoadShader("assets/ForwardPass.shdr");
+    auto shaderHandle1 =  m_shaderLoader.LoadShader("assets/DeferredGBufferPass.shdr");
+    auto shaderHandle0 =  m_shaderLoader.LoadShader("assets/DeferredLightingPass.shdr");
     auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");
     if (!modelOrError.has_value()) {
         std::println("failed to load");

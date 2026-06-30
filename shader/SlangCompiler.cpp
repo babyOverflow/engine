@@ -459,7 +459,7 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
 
     sa::Texture textureBinding{};
     SlangResourceShape shape = varLayout->getTypeLayout()->getType()->getResourceShape();
-    switch (shape) {
+    switch (shape & SLANG_RESOURCE_BASE_SHAPE_MASK) {
         case SLANG_TEXTURE_1D:
             textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e1D;
             break;
@@ -497,7 +497,12 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
         case TypeReflection::ScalarType::Float16:
         case TypeReflection::ScalarType::Float32:
         case TypeReflection::ScalarType::Float64:
-            textureBinding.type = sa::ShaderAssetFormat::TextureType::Float;
+            if (shape & SLANG_TEXTURE_SHADOW_FLAG) {
+                textureBinding.type = sa::ShaderAssetFormat::TextureType::Depth;
+
+            } else {
+                textureBinding.type = sa::ShaderAssetFormat::TextureType::Float;
+            }
             break;
         case TypeReflection::ScalarType::UInt16:
         case TypeReflection::ScalarType::UInt32:
@@ -597,7 +602,7 @@ bool PopulateResourceDetails(CompilerBinding& binding,
             break;
         case slang::TypeReflection::Kind::Resource: {
             SlangResourceShape shape = typeLayout->getResourceShape();
-            switch (shape) {
+            switch (shape & SLANG_RESOURCE_BASE_SHAPE_MASK) {
                 case SLANG_TEXTURE_1D:
                 case SLANG_TEXTURE_1D_ARRAY:
                 case SLANG_TEXTURE_2D:
@@ -848,12 +853,12 @@ CompilerEntryParameter GernerateEntryPointLayout(slang::EntryPointReflection* la
                                                  CompilationContext& context) {
     VaryingParameterContext varyingContext;
     slang::VariableLayoutReflection* paramaterVarLayout = layout->getVarLayout();
-    std::vector<CompilerShaderParameter> entryInputParameters =
-        CreateVaryingParameterLayout(paramaterVarLayout, varyingContext, slang::ParameterCategory::VaryingInput);
+    std::vector<CompilerShaderParameter> entryInputParameters = CreateVaryingParameterLayout(
+        paramaterVarLayout, varyingContext, slang::ParameterCategory::VaryingInput);
     slang::VariableLayoutReflection* resultVarLayout = layout->getResultVarLayout();
     // const uint32_t resultVarCount
-    std::vector<CompilerShaderParameter> entryOutpuParameters =
-        CreateVaryingParameterLayout(resultVarLayout, varyingContext, slang::ParameterCategory::VaryingOutput);
+    std::vector<CompilerShaderParameter> entryOutpuParameters = CreateVaryingParameterLayout(
+        resultVarLayout, varyingContext, slang::ParameterCategory::VaryingOutput);
     return {
         entryInputParameters,
         entryOutpuParameters,
@@ -941,7 +946,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                 attachParameter(compilerParameters.output[i]);
             }
         }
-
 
         uint32_t nameIdx = getNameId(entry->getName());
         entryPoint.nameIdx = nameIdx;

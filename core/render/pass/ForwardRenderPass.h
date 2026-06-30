@@ -10,16 +10,17 @@ class ForwardRenderPass : public core::render::IRenderPass {
   public:
     ForwardRenderPass() = default;
 
-
-
     void Setup(PassSetupContext& context) override;
+
+    const core::render::PassTargetState& GetTargetState() const override { return kSignature; }
+
     void Execute(wgpu::RenderPassEncoder encoder,
-                 std::span<RenderIntent> context,
-                 const AssetRegistry& assetRegistry,
-                 std::span<const wgpu::RenderPipeline> pipelines) override;
+                 
+                 const PassExecuteContext& executeContext) override;
 
     std::string GetPassName() override { return "ForwardRenderPass"; }
 
   private:
+    static const core::render::PassTargetState kSignature;
 };
 }  // namespace core::render::pass

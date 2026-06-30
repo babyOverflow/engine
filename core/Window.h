@@ -10,7 +10,7 @@
 
 struct GLFWWindowDestroyer {
     void operator()(GLFWwindow* ptr) const {
-        // ÀÌ¹Ì nullptrÀÎÁö´Â unique_ptrÀÌ °Ë»çÇØÁÖÁö¸¸, ¾ÈÀüÀ» À§ÇØ
+        // ï¿½Ì¹ï¿½ nullptrï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ unique_ptrï¿½ï¿½ ï¿½Ë»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (ptr) {
             glfwDestroyWindow(ptr);
         }

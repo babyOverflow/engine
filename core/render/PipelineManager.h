@@ -21,12 +21,15 @@ class DepthStencilStateManager {
   public:
     DepthStencilStateManager();
     uint64_t RegisterDepthStencilState(wgpu::DepthStencilState& state);
-    wgpu::DepthStencilState GetDepthStencilState(uint64_t id) const {
+    const wgpu::DepthStencilState* GetDepthStencilState(uint64_t id) const {
         assert(id < m_depthStencilStates.size());
-        return m_depthStencilStates[id];
+        if (id == kNullStateID) {
+            return nullptr;
+        }
+        return &m_depthStencilStates[id];
     }
 
-    constexpr static uint64_t kDefaultStateID = 0;
+    constexpr static uint64_t kNullStateID = 0;
     constexpr static uint64_t kDefaultDepthStateID = 1;
 
   private:
@@ -59,15 +62,26 @@ class PipelineManager {
   public:
     PipelineManager(Device* device,
                     LayoutCache* layoutCache,
-        PassManager* passManager,
+                    PassManager* passManager,
                     VertexLayoutManager* vertexLayoutManager,
                     wgpu::BindGroupLayoutDescriptor& globalBindGroupLayoutDesc);
 
-    Handle GetPipelineID(PipelineKey key, AssetRegistry assetRegistry);
+    struct PipelineConfig {
+        AssetView<ShaderAsset> shader;
+        uint32_t layoutId = 0;
+        BlendMode blendMode = BlendMode::Opaque;
+        uint32_t depthStencilId = 0;
+        uint32_t passId = 0;
+        wgpu::CullMode cullMode = wgpu::CullMode::Undefined;
+    };
+
+    Handle GetOrCreatePipeline(const PipelineConfig& config);
     // wgpu::RenderPipeline GetRenderPipeline(const PipelineDesc& Desc);
     std::span<const wgpu::RenderPipeline> GetAllPipelines() {
         return m_pipelinePool.GetDataSpan();
     };
+
+    wgpu::RenderPipeline GetPipeline(Handle handle) { return GetAllPipelines()[handle.index]; }
 
   private:
     Device* m_device;

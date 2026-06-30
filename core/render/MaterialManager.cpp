@@ -29,6 +29,8 @@ MaterialManager::MaterialManager(Device* device,
       m_layoutCache(layoutCache),
       m_textureManager(textureManager),
       m_passManager(passManager) {
+
+    m_nameToTechniqueIdCache[kEmptyMaterialName] = kEmptyMaterialTechniqe;
     //importer::MaterialResult defaultMaterialResult{
     //    .materialAsset = MaterialAssetFormat{},
     //    .assetPath = AssetPath{"virtual://material/default"},

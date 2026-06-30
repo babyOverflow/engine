@@ -46,6 +46,9 @@ class MaterialManager {
     MaterialManager(MaterialManager&&) noexcept = default;
     MaterialManager& operator=(MaterialManager&&) noexcept = default;
 
+    static inline std::string kEmptyMaterialName = "EmptyMaterial";
+    static constexpr uint32_t kEmptyMaterialTechniqe = 0;
+
     Handle LoadMaterial(const importer::MaterialResult& materialAssetFormat);
     Handle GetMaterialHandle(const AssetPath& assetPath) const {
         auto it = m_materialCache.find(assetPath);

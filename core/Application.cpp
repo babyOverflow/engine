@@ -1,11 +1,13 @@
 #include "Application.h"
 #include <ranges>
+#include "render/pass/DeferredGBufferPass.h"
+#include "render/pass/DeferredLightingPass.h"
 #include "render/pass/ForwardRenderPass.h"
 
 namespace core {
 
 wgpu::BindGroupLayoutDescriptor Application::GetGlobalLayouDesc() {
-    static const std::array<wgpu::BindGroupLayoutEntry, 2> entries{
+    static const std::array<wgpu::BindGroupLayoutEntry, 3> entries{
         wgpu::BindGroupLayoutEntry{
             .binding = 0,
             .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
@@ -18,9 +20,19 @@ wgpu::BindGroupLayoutDescriptor Application::GetGlobalLayouDesc() {
         wgpu::BindGroupLayoutEntry{
             .binding = 1,
             .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
-            .sampler = wgpu::SamplerBindingLayout{
-                .type = wgpu::SamplerBindingType::Filtering,
-            }}};
+            .sampler =
+                wgpu::SamplerBindingLayout{
+                    .type = wgpu::SamplerBindingType::Filtering,
+                }},
+        wgpu::BindGroupLayoutEntry{
+            .binding = 2,
+            .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
+            .sampler =
+                wgpu::SamplerBindingLayout{
+                    .type = wgpu::SamplerBindingType::NonFiltering,
+                }},
+    };
+
     return wgpu::BindGroupLayoutDescriptor{
         .label = "GlobalBindGroup",
         .entryCount = entries.size(),
@@ -51,6 +63,8 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     auto passManager = std::make_unique<render::PassManager>();
 
     passManager->RegisterPass<render::pass::ForwardRenderPass>("ForwardRenderPass");
+    passManager->RegisterPass<render::pass::DeferredGBufferPass>("DeferredGBufferPass");
+    passManager->RegisterPass<render::pass::DeferredLightingPass>("DeferredLightingPass");
 
     auto pipelineManager = std::make_unique<render::PipelineManager>(
         device.get(), layoutCache.get(), passManager.get(), vertexLayoutManager.get(),
@@ -69,7 +83,8 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     auto bindGroupManager = std::make_unique<render::BindGroupManager>(
         device.get(), layoutCache.get(), shaderManager.get(), materialManager.get());
 
-    render::RenderGraph renderGraph(device.get(), assetManager.get(), pipelineManager.get(),
+    render::RenderGraph renderGraph(device.get(), assetManager.get(), shaderManager.get(),
+                                    pipelineManager.get(),
                                     layoutCache->GetBindGroupLayout(globalBindGroupLayout));
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
@@ -85,11 +100,18 @@ core::Application::~Application() {}
 void core::Application::Run() {
     render::RenderQueue renderQueue;
 
-    std::vector<uint32_t> passIDs{m_passManager->GetPassID("ForwardRenderPass")};
-    std::vector<std::unique_ptr<core::render::IRenderPass>> s;
-    s.push_back(
-        std::move(m_passManager->CreatePass(m_passManager->GetPassID("ForwardRenderPass"))));
-    m_renderGraph.Setup(s);
+    // std::vector<uint32_t> passIDs{m_passManager->GetPassID("ForwardRenderPass")};
+    std::vector<uint32_t> passIDs{
+        //m_passManager->GetPassID("ForwardRenderPass"),
+         m_passManager->GetPassID("DeferredGBufferPass"),
+         m_passManager->GetPassID("DeferredLightingPass"),
+    };
+    std::vector<core::render::IRenderPass*> s =
+        passIDs |
+        std::views::transform([&](uint32_t passID) { return m_passManager->GetPass(passID); }) |
+        std::ranges::to<std::vector>();
+
+    m_renderGraph.Setup(passIDs, m_passManager.get());
 
     while (!m_souldColose) {
         m_window.PollEvent();
@@ -110,7 +132,7 @@ void core::Application::Run() {
         render::SceneCuller::ExtractRenderQueue(m_scene, passIDs, m_assetManager.get(),
                                                 m_shaderManager.get(), m_pipelineManager.get(),
                                                 m_bindGroupManager.get(), renderQueue);
-
+        m_renderGraph.Prepare(renderQueue, m_pipelineManager.get());
         m_renderGraph.Execute(renderQueue);
         m_device->Present();
     }

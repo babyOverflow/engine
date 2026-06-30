@@ -15,9 +15,9 @@ namespace core::render {
 
 struct RenderNode {
     RenderNode() = default;
-    RenderNode(std::unique_ptr<IRenderPass> pass) : pass(std::move(pass)) {}
+    RenderNode(IRenderPass* pass) : pass(std::move(pass)) {}
 
-    std::unique_ptr<IRenderPass> pass = nullptr;
+    IRenderPass* pass = nullptr;
     struct Attach {
         uint32_t resourceIdx;
         PassSetupContext::ColorAttachment colorAttach;
@@ -52,17 +52,42 @@ class TransientResourcePool {
     std::multimap<PassSetupContext::TextureDescriptor, uint32_t> m_freeResources;
 };
 
+class ResourceResolver {
+  private:
+    uint32_t m_passId;
+    const BlackBoard* m_blackBoard;
+    std::span<const PassSetupContext::SubResource> m_subResources;
+    TransientResourcePool* m_resourcePool;
+
+  public:
+    ResourceResolver(
+        uint32_t passId,
+        const BlackBoard* blackBourd,
+                     std::span<const PassSetupContext::SubResource> subResource,
+                     TransientResourcePool* resourcePool);
+    wgpu::TextureView GetTextureView(PropertyId id) const;
+};
+
+struct RenderGraphProvider {
+    const ResourceResolver* resolver;
+    wgpu::TextureView GetTextureView(PropertyId id);
+};
+
+static_assert(BindGroupResourceProvider<RenderGraphProvider>);
+
 class RenderGraph {
   public:
     RenderGraph(Device* device,
                 AssetManager* assetManager,
+        ShaderManager* shaderManager,
                 PipelineManager* pipelineManager,
                 const wgpu::BindGroupLayout globalBindGroupLayout);
 
     RenderGraph(RenderGraph&& rhs) noexcept = default;
 
-    void Setup(std::vector<std::unique_ptr<IRenderPass>>& passes);
+    void Setup(std::span<uint32_t> passes, PassManager* passManager);
 
+    void Prepare(RenderQueue& renderQueue, PipelineManager* pipelineManager);
     void Execute(RenderQueue& frameContext);
 
   private:
@@ -73,13 +98,16 @@ class RenderGraph {
                                    // to get necessary resource. But for now, we put asset manager
                                    // in RenderGraph for simplicity.
     PipelineManager* m_pipelineManager;
+    ShaderManager* m_shaderManager;
 
     wgpu::BindGroup m_globalBindGroup;
     wgpu::Buffer m_globalUniformBuffer;
     wgpu::Sampler m_linearRepeatSampler;
+    wgpu::Sampler m_pointSampler;
     wgpu::Texture m_depthTexture;
 
     std::array<RenderNode, 255> m_renderNodes{};
+    std::array<wgpu::BindGroup, 255> m_passBindGroups{nullptr};
     std::vector<uint32_t> m_executionOrder;
 
     TransientResourcePool m_vra;

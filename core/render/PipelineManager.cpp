@@ -11,11 +11,7 @@ DepthStencilStateManager::DepthStencilStateManager() {
     // specify any depth stencil state.
     m_depthStencilStates.resize(2);
 
-    wgpu::DepthStencilState defaultState{};
-    defaultState.format = wgpu::TextureFormat::Undefined;
-    defaultState.depthWriteEnabled = false;
-    defaultState.depthCompare = wgpu::CompareFunction::Always;
-    m_depthStencilStates[kDefaultStateID] = defaultState;
+    m_depthStencilStates[kNullStateID] = {};
 
     wgpu::DepthStencilState defaultDepthState{};
     defaultDepthState.format = wgpu::TextureFormat::Depth24PlusStencil8;
@@ -74,24 +70,34 @@ PipelineManager::PipelineManager(Device* device,
     m_globalBindGroupLayout = m_layoutCache->GetBindGroupLayout(globalBindGroupLayoutDesc);
 }
 
-Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegistry) {
+Handle PipelineManager::GetOrCreatePipeline(const PipelineConfig& config) {
+    PipelineKey key;
+    key.bits.shaderId = config.shader.handle.index;
+    key.bits.layoutId = config.layoutId;
+    key.bits.blendId =
+        static_cast<uint64_t>(config.blendMode);      // TODO: support blend mode in material
+    key.bits.depthStencilId = config.depthStencilId;  // TODO: support depth
+                                                      // state in material
+    key.bits.passId = config.passId;
+    key.bits.topology = static_cast<uint64_t>(wgpu::PrimitiveTopology::TriangleList);
+    key.bits.cullMode = static_cast<uint64_t>(config.cullMode);
+    key.bits.frontFace = static_cast<uint64_t>(wgpu::FrontFace::CCW);
+
     auto it = m_pipelineIDCache.find(key.hash);
     if (it != m_pipelineIDCache.end()) {
         return it->second;
     }
-    auto pass = m_passManager->CreatePass(key.bits.passId);
+    auto pass = m_passManager->GetPass(key.bits.passId);
     auto vertexState = m_vertexLayoutManager->GetAllVertexStates()[key.bits.layoutId];
 
     std::vector<wgpu::VertexBufferLayout> vertexLayouts;
 
-    const ShaderAsset& shaderAsset = assetRegistry.shaders[key.bits.shaderId];
-    auto entryOpt =
-        shaderAsset.GetReflection().GetEntryPointOffsetByName("vertexMain");
+    auto entryOpt = config.shader->GetReflection().GetEntryPointOffsetByName("vertexMain");
     assert(entryOpt.has_value() && "Invalid vertex shader entry point name in pass signature");
 
     uint32_t entryIdx = entryOpt.value();
     std::span<const ShaderReflection::Parameter> inputs =
-        shaderAsset.GetReflection().GetEntryInput(entryIdx);
+        config.shader->GetReflection().GetEntryIO(entryIdx);
 
     for (const auto& slot : vertexState.bufferSlots) {
         std::vector<wgx::VertexAttribute> activeAttributes;
@@ -125,7 +131,7 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
         m_globalBindGroupLayout,
     };
     for (uint32_t i = 1; i < 4; ++i) {
-        bindGroupLayouts.push_back(shaderAsset.GetBindGroupLayout(i));
+        bindGroupLayouts.push_back(config.shader->GetBindGroupLayout(i));
     }
 
     wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{
@@ -134,30 +140,43 @@ Handle PipelineManager::GetPipelineID(PipelineKey key, AssetRegistry assetRegist
 
     const auto& renderPipelineLayout = m_layoutCache->GetPipelineLayout(pipelineLayoutDesc);
 
-    wgpu::ColorTargetState targets{
-        .format = m_device->GetSurfaceConfig().format,
-        .blend = &wgx::BlendState::kReplace,  // TODO!(Sunghyun): Support blend state variations in
-                                              // PipelineKey and PassSignature
-        .writeMask = wgpu::ColorWriteMask::All};
-    std::string fragmentEntry("fragmentMain");
-    wgpu::FragmentState fragment = wgpu::FragmentState{.module = shaderAsset.GetShaderModule(),
-                                                       .entryPoint = fragmentEntry.c_str(),
-                                                       .targetCount = 1,
-                                                       .targets = &targets};
+    PassTargetState targetState = pass->GetTargetState();
+    std::vector<wgpu::ColorTargetState> targets;
+    targets.reserve(targetState.colorTargetFormats.size());
+    for (const wgpu::TextureFormat colorTargetFormat : targetState.colorTargetFormats) {
+        targets.push_back(wgpu::ColorTargetState{.format = colorTargetFormat,
+                                                 .blend = &wgx::BlendState::kReplace,
+                                                 .writeMask = wgpu::ColorWriteMask::All});
+    }
 
-    wgpu::DepthStencilState depthStencilState =
+    std::string fragmentEntry("fragmentMain");
+    wgpu::FragmentState fragment = wgpu::FragmentState{
+        .module = config.shader->GetShaderModule(),
+        .entryPoint = fragmentEntry.c_str(),
+        .targetCount = targets.size(),
+        .targets = targets.data(),
+    };
+
+    std::string passName = pass->GetPassName();
+
+    wgpu::PrimitiveState primitiveState{
+        .topology = static_cast<wgpu::PrimitiveTopology>(key.bits.topology),
+        .frontFace = static_cast<wgpu::FrontFace>(key.bits.frontFace),
+        .cullMode = static_cast<wgpu::CullMode>(key.bits.cullMode),
+
+    };
+    const wgpu::DepthStencilState* depthStencilState =
         m_depthStencilStateManager.GetDepthStencilState(key.bits.depthStencilId);
     wgpu::RenderPipeline renderPipeline =
         m_device->CreateRenderPipeline(wgpu::RenderPipelineDescriptor{
+            .label = passName.c_str(),
             .layout = renderPipelineLayout,
-            .vertex = wgpu::VertexState{.module = shaderAsset.GetShaderModule(),
+            .vertex = wgpu::VertexState{.module = config.shader->GetShaderModule(),
                                         .entryPoint = "vertexMain",
                                         .bufferCount = vertexLayouts.size(),
                                         .buffers = vertexLayouts.data()},
-            .primitive =
-                wgx::PrimitiveState::kDefault,  // TODO!(Sunghyun): Support primitive state
-                                                // variations in PipelineKey and PassSignature
-            .depthStencil = &depthStencilState,
+            .primitive = primitiveState,
+            .depthStencil = depthStencilState,
             .fragment = &fragment,
         });
 

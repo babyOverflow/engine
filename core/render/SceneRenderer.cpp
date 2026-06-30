@@ -20,32 +20,32 @@ void core::render::SceneCuller::ExtractRenderQueue(const Scene& scene,
                 if (!shaderHandle.IsValid()) {
                     continue;
                 }
-                key.bits.shaderId = shaderHandle.index;
-                key.bits.layoutId = assetManager->GetMesh(renderUnit.meshHandle)
-                                        ->GetGlobalVertexStateID(renderUnit.subMeshIndex);
-                key.bits.blendId = static_cast<uint64_t>(
-                    BlendMode::Opaque);  // TODO: support blend mode in material
-                key.bits.depthStencilId =
-                    DepthStencilStateManager::kDefaultDepthStateID;  // TODO: support depth
-                                                                     // state in material
-                key.bits.passId = passId;
-                key.bits.topology = static_cast<uint64_t>(wgpu::PrimitiveTopology::TriangleList);
-                key.bits.cullMode = static_cast<uint64_t>(wgpu::CullMode::Back);
-                key.bits.frontFace = static_cast<uint64_t>(wgpu::FrontFace::CCW);
+                AssetView<ShaderAsset> shader = shaderManager->GetShaderAsset(shaderHandle);
+
+                Handle pipelineHandle =
+                    pipelineManager->GetOrCreatePipeline(PipelineManager::PipelineConfig{
+                        .shader = shader,
+                        .layoutId = assetManager->GetMesh(renderUnit.meshHandle)
+                                        ->GetGlobalVertexStateID(renderUnit.subMeshIndex),
+                        .blendMode = BlendMode::Opaque,
+                        .depthStencilId = DepthStencilStateManager::kDefaultDepthStateID,
+                        .passId = passId,
+                        .cullMode = wgpu::CullMode::Back,
+                    });
 
                 RenderIntent intent;
                 intent.meshHandle = renderUnit.meshHandle;
                 intent.subMeshIndex = renderUnit.subMeshIndex;
                 intent.materialHandle = renderUnit.materialHandle;
                 intent.transformIndex = i;
-                intent.pipelineKey = key;
-                intent.sortKey.bits.pipelineId =
-                    pipelineManager->GetPipelineID(key, assetRegistry).index;
-                intent.sortKey.bits.passId = passId;
+                intent.pipeline = pipelineManager->GetPipeline(pipelineHandle);
+                intent.sortKey = RenderIntent::CreateOpaqueKey(pipelineHandle.index,
+                                                               renderUnit.materialHandle.index,
+                                                               renderUnit.meshHandle.index, 0);
 
-                intent.bindGroup = bindGroupManager->GetBindGroup(material.handle); // GetBindGroup!
+                intent.bindGroup = bindGroupManager->GetBindGroup(material.handle);
 
-                outRenderQueue.renderIntents.push_back(intent);
+                outRenderQueue.renderIntents[passId].push_back(intent);
             }
         }
     }

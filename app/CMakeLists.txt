@@ -55,3 +55,19 @@ add_shader_asset(
     INCLUDES "${CORE_INTEROP_HEADER_DIR}" "${CMAKE_SOURCE_DIR}/common" 
 )
 
+add_shader_asset(
+    TARGET app 
+    INPUT "${CMAKE_CURRENT_SOURCE_DIR}/shaders/DeferredGBufferPass.slang" 
+    TEMPLATE "${CMAKE_SOURCE_DIR}/common/entry.slang"
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets/DeferredGBufferPass.shdr"
+    INCLUDES "${CORE_INTEROP_HEADER_DIR}" "${CMAKE_SOURCE_DIR}/common" 
+)
+
+add_shader_asset(
+    TARGET app 
+    INPUT "${CMAKE_CURRENT_SOURCE_DIR}/shaders/DeferredLightingPass.slang" 
+    TEMPLATE "${CMAKE_SOURCE_DIR}/common/entry.slang"
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/assets/DeferredLightingPass.shdr"
+    INCLUDES "${CORE_INTEROP_HEADER_DIR}" "${CMAKE_SOURCE_DIR}/common" 
+)
+

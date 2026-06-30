@@ -85,10 +85,14 @@ core::render::CameraUniformData common::GameCamera::GetCameraUniformData() {
 
     glm::mat4x4 view = glm::lookAtRH(position, direction + position, glm::vec3(0.F, 1.F, 0.F));
 
+    glm::mat4x4 viewProj = proj.proj * view;
+    glm::mat4x4 invViewPorj = glm::inverse(viewProj);
+
     return core::render::CameraUniformData{
         .view = view,
         .proj = proj.proj,
-        .viewProj = proj.proj * view,
+        .viewProj = viewProj,
+        .invViewProj = invViewPorj,
         .position = glm::vec4(position, 0),
     };
 }

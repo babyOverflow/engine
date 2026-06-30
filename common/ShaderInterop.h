@@ -2,7 +2,7 @@
 
 #ifdef __cplusplus
 #include <cstdint>
-#include <glm/glm.hpp>  // GLM  
+#include <glm/glm.hpp>  // GLM
 
 using uint = uint32_t;
 using float2 = glm::vec2;
@@ -21,7 +21,6 @@ using float4x4 = glm::mat4;
 #error "Unknown compiler/language! This header supports only C++ and Slang."
 #endif
 
-
 struct ShaderLoc {
     static const uint Position = 0;
     static const uint Normal = 1;
@@ -38,11 +37,12 @@ struct BindSlot {
 };
 
 struct GlobalUniforms {
-    float4x4 proj;      // Camera: ProjectionMatrix
-    float4x4 view;      // Camera: ViewMatrix
-    float4x4 viewProj;  // Camera: ProjectionMatrix * ViewMatrix
-    float4 position;    // Camera: World-space position of the camera (w component is 1.0 for
-                        // compatibility with uniform buffer layout rules)
+    float4x4 proj;         // Camera: ProjectionMatrix
+    float4x4 view;         // Camera: ViewMatrix
+    float4x4 viewProj;     // Camera: ProjectionMatrix * ViewMatrix
+    float4x4 invViewProj;  // Camera: Inverse(ViewProjectionMatrix)
+    float4 position;       // Camera: World-space position of the camera (w component is 1.0 for
+                           // compatibility with uniform buffer layout rules)
 };
 
 struct InstanceUniforms {

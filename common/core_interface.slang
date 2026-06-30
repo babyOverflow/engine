@@ -5,6 +5,7 @@ struct EmptyData {};
 
 struct EngineSamplers {
     SamplerState linearRepeat;
+    SamplerState pointClamp;
 }
 
 struct GlobalGroup {
@@ -15,6 +16,7 @@ struct GlobalGroup {
 struct SurfaceAttributes {
     float4 baseColor;
     float3 worldNormal;
+    float occlusion = 1.0;
     float roughness;
     float metallic;
     float3 emissive;
@@ -32,7 +34,7 @@ interface IMaterial {
 }
 
 interface IRenderPass {
-    associatedtype M : IMaterial;
+    associatedtype Material : IMaterial;
 
     associatedtype VertexInputType;
     associatedtype VertexOutputType;
@@ -42,11 +44,11 @@ interface IRenderPass {
     associatedtype PassResourceType;
 
     static VertexOutputType vertex(GlobalResourcesType globalResources,
-                                   M.DataType material,
+                                   Material.DataType material,
                                    PassResourceType passResources,
                                    VertexInputType input);
     static FragmentOutputType fragment(GlobalResourcesType globalResources,
-                                       M.DataType material,
+                                       Material.DataType material,
                                        PassResourceType passResources,
                                        FragmentInputType input);
 }

@@ -41,7 +41,7 @@ class ShaderReflection {
 
     uint32_t GetEntryPointCount() const { return m_shaderAssetFormat->entryPoints.size(); }
 
-    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInput(uint32_t entryIdx) const;
+    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryIO(uint32_t entryIdx) const;
     std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInputByName(const std::string& name) const;
 
     std::string_view GetPassName() const;

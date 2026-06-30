@@ -20,7 +20,9 @@ class VertexLayout {
 
 class VertexLayoutManager {
   public:
-    VertexLayoutManager() = default;
+    VertexLayoutManager();
+
+    static constexpr uint32_t kVoidVertexLayout = 0;
 
     core::Handle GetVertexLayout(const wgx::VertexBufferLayout& layout);
     AssetView<VertexLayout> GetVertexLayout(core::Handle handle) { return {m_vertexLayouts.Get(handle), handle}; }
