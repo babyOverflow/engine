@@ -1,7 +1,7 @@
 #include <ranges>
 
-#include "IRenderPass.h"
-#include "Mesh.h"
+#include "render/graph/IRenderPass.h"
+#include "render/resource/Mesh.h"
 #include "PipelineManager.h"
 #include "render/util.h"
 

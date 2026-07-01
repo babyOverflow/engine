@@ -1,7 +1,7 @@
 
 #include "SceneRenderer.h"
-#include "BindGroupManager.h"
-#include "PipelineManager.h"
+#include "render/backend/BindGroupManager.h"
+#include "render/backend/PipelineManager.h"
 void core::render::SceneCuller::ExtractRenderQueue(const Scene& scene,
                                                    std::span<uint32_t> passes,
                                                    AssetManager* assetManager,

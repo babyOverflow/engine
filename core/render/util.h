@@ -16,7 +16,7 @@
 #include <GLFW/glfw3native.h>
 #include <dawn/webgpu_cpp.h>
 #include <libloaderapi.h>
-#include "ShaderAsset.h"
+#include "render/resource/ShaderAsset.h"
 #include "TextureAssetFormat.h"
 #include "Window.h"
 

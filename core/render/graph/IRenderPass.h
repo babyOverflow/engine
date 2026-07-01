@@ -4,8 +4,8 @@
 #include <unordered_map>
 
 #include "AssetManager.h"
-#include "BindGroupFactory.h"
-#include "PipelineManager.h"
+#include "render/backend/BindGroupFactory.h"
+#include "render/backend/PipelineManager.h"
 
 inline bool operator==(const wgpu::Extent3D& lhs, const wgpu::Extent3D& rhs) {
     return lhs.width == rhs.width && lhs.height == rhs.height &&

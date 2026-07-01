@@ -3,7 +3,7 @@
 #include <ranges>
 // TODO!(IsEntryEqual is in LayoutCache.h. It should be moved to proper header. If it's done remove
 // inclusion)
-#include "LayoutCache.h"
+#include "render/backend/LayoutCache.h"
 
 namespace core::util {
 std::unique_ptr<wgpu::ChainedStruct, void (*)(wgpu::ChainedStruct*)>

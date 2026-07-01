@@ -1,7 +1,7 @@
 #pragma once
 #include <dawn/webgpu_cpp.h>
 
-#include "render.h"
+#include "render/render.h"
 
 namespace core::render {
 

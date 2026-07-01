@@ -1,8 +1,8 @@
 #pragma once
 
 #include "AssetManager.h"
-#include "IRenderPass.h"
-#include "LayoutCache.h"
+#include "render/graph/IRenderPass.h"
+#include "render/backend/LayoutCache.h"
 #include "MaterialManager.h"
 #include "ShaderAsset.h"
 #include "import/ShdrImporter.h"

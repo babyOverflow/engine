@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
 
-#include "ShaderManager.h"
-#include "MaterialManager.h"
+#include "render/resource/ShaderManager.h"
+#include "render/resource/MaterialManager.h"
 
 namespace core::render {
 class BindGroupManager {

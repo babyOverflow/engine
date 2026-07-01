@@ -7,7 +7,7 @@
 
 #include "ResourcePool.h"
 
-#include "render/Mesh.h"
+#include "render/resource/Mesh.h"
 
 namespace core::importer {
 

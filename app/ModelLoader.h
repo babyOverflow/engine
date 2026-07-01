@@ -4,10 +4,10 @@
 #include <Common.h>
 #include <MeshAssetFormat.h>
 #include <ModelAssetFormat.h>
-#include <render/MaterialManager.h>
-#include <render/MeshManager.h>
-#include <render/Model.h>
-#include <render/TextureManager.h>
+#include <render/resource/MaterialManager.h>
+#include <render/resource/MeshManager.h>
+#include <render/resource/Model.h>
+#include <render/resource/TextureManager.h>
 
 namespace loader {
 class GLTFLoader {

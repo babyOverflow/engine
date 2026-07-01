@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "BindGroupFactory.h"
-#include "LayoutCache.h"
+#include "render/backend/BindGroupFactory.h"
+#include "render/backend/LayoutCache.h"
 #include "Texture.h"
-#include "render.h"
+#include "render/render.h"
 
 namespace core::render {
 class PassManager;

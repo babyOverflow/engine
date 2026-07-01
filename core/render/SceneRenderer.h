@@ -1,9 +1,9 @@
 #pragma once
 #include <span>
-#include "BindGroupManager.h"
-#include "IRenderPass.h"
+#include "render/backend/BindGroupManager.h"
+#include "render/graph/IRenderPass.h"
 #include "Scene.h"
-#include "ShaderManager.h"
+#include "render/resource/ShaderManager.h"
 #include "render.h"
 
 namespace core::render {

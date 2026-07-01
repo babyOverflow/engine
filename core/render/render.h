@@ -1,4 +1,4 @@
-﻿// render.h: 표준 시스템 포함 파일
+// render.h: 표준 시스템 포함 파일
 // 또는 프로젝트 특정 포함 파일이 들어 있는 포함 파일입니다.
 
 #pragma once
@@ -9,9 +9,9 @@
 #include <iostream>
 #include <memory>
 
-#include "GpuResource.h"
+#include "render/resource/GpuResource.h"
 #include "ShaderInterop.h"
-#include "Texture.h"
+#include "render/resource/Texture.h"
 #include "Window.h"
 #include "memory/StridedSpan.h"
 #include "wgx.h"

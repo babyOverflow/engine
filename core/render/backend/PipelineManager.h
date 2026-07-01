@@ -1,11 +1,11 @@
 #pragma once
 #include "AssetManager.h"
 #include "LayoutCache.h"
-#include "Mesh.h"
+#include "render/resource/Mesh.h"
 #include "ResourcePool.h"
-#include "ShaderAsset.h"
-#include "VertexLayoutManager.h"
-#include "render.h"
+#include "render/resource/ShaderAsset.h"
+#include "render/resource/VertexLayoutManager.h"
+#include "render/render.h"
 
 namespace core::render {
 class PassManager;

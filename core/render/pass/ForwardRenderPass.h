@@ -1,7 +1,7 @@
 #pragma once
 #include <webgpu/webgpu_cpp.h>
 #include <span>
-#include "../IRenderPass.h"
+#include "../graph/IRenderPass.h"
 #include "../render.h"
 #include "AssetManager.h"
 

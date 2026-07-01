@@ -1,6 +1,6 @@
 #include "TextureManager.h"
 #include "TextureAssetFormat.h"
-#include "util.h"
+#include "render/util.h"
 
 namespace core::render {
 TextureManager::TextureManager(Device* device, AssetManager* assetRepo)

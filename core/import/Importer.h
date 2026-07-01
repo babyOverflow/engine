@@ -6,7 +6,7 @@
 #include "MeshAssetFormat.h"
 #include "ModelAssetFormat.h"
 #include "TextureAssetFormat.h"
-#include "render/ShaderAsset.h"
+#include "render/resource/ShaderAsset.h"
 
 namespace core::render {
 class Device;

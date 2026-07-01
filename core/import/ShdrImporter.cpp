@@ -1,6 +1,6 @@
 #include "ShdrImporter.h"
-#include "render/LayoutCache.h"
-#include "render/ShaderAsset.h"
+#include "render/backend/LayoutCache.h"
+#include "render/resource/ShaderAsset.h"
 #include "util/Load.h"
 
 namespace core::importer {

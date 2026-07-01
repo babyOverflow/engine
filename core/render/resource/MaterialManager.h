@@ -5,7 +5,7 @@
 #include "import/Importer.h"
 
 #include "AssetManager.h"
-#include "IRenderPass.h"
+#include "render/graph/IRenderPass.h"
 #include "Material.h"
 #include "TextureManager.h"
 

@@ -4,8 +4,8 @@
 #include <span>
 
 #include <Common.h>
-#include "render.h"
-#include "ShaderAsset.h"
+#include "render/render.h"
+#include "render/resource/ShaderAsset.h"
 
 namespace core::render {
 template <typename T>

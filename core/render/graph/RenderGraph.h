@@ -6,10 +6,10 @@
 
 #include "AssetManager.h"
 #include "IRenderPass.h"
-#include "Material.h"
-#include "PipelineManager.h"
-#include "SceneRenderer.h"
-#include "render.h"
+#include "render/resource/Material.h"
+#include "render/backend/PipelineManager.h"
+#include "render/SceneRenderer.h"
+#include "render/render.h"
 
 namespace core::render {
 

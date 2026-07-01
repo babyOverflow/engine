@@ -2,7 +2,7 @@
 #include <expected>
 
 #include <Common.h>
-#include <render/ShaderManager.h>
+#include <render/resource/ShaderManager.h>
 
 namespace loader {
 class ShaderLoader {

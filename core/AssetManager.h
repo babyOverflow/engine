@@ -4,11 +4,11 @@
 
 #include "ResourcePool.h"
 #include "memory/StridedSpan.h"
-#include "render/Material.h"
-#include "render/Mesh.h"
-#include "render/Model.h"
-#include "render/ShaderAsset.h"
-#include "render/Texture.h"
+#include "render/resource/Material.h"
+#include "render/resource/Mesh.h"
+#include "render/resource/Model.h"
+#include "render/resource/ShaderAsset.h"
+#include "render/resource/Texture.h"
 #include "util/Load.h"
 
 namespace core {
