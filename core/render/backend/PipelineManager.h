@@ -1,9 +1,8 @@
 #pragma once
-#include "AssetManager.h"
 #include "LayoutCache.h"
-#include "render/resource/Mesh.h"
 #include "ResourcePool.h"
 #include "render/resource/ShaderAsset.h"
+#include "render/resource/MaterialManager.h"
 #include "render/resource/VertexLayoutManager.h"
 #include "render/render.h"
 
@@ -62,6 +61,7 @@ class PipelineManager {
   public:
     PipelineManager(Device* device,
                     LayoutCache* layoutCache,
+                    MaterialManager* materialManager,
                     PassManager* passManager,
                     VertexLayoutManager* vertexLayoutManager,
                     wgpu::BindGroupLayoutDescriptor& globalBindGroupLayoutDesc);
@@ -73,6 +73,7 @@ class PipelineManager {
         uint32_t depthStencilId = 0;
         uint32_t passId = 0;
         wgpu::CullMode cullMode = wgpu::CullMode::Undefined;
+        const PassTargetState* targetState;
     };
 
     Handle GetOrCreatePipeline(const PipelineConfig& config);
@@ -85,7 +86,9 @@ class PipelineManager {
 
   private:
     Device* m_device;
+    LayoutCache* m_layoutCache;
     VertexLayoutManager* m_vertexLayoutManager;
+    MaterialManager* m_materialManager;
     PassManager* m_passManager;
     DepthStencilStateManager m_depthStencilStateManager;
 
@@ -94,6 +97,5 @@ class PipelineManager {
     std::unordered_map<uint64_t, Handle> m_pipelineIDCache;
     ResourcePool<wgpu::RenderPipeline> m_pipelinePool;
     // std::unordered_map<PipelineDesc, wgpu::RenderPipeline, PipelineDescHash> m_pipelineCache;
-    LayoutCache* m_layoutCache;
 };
 }  // namespace core::render

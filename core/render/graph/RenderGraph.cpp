@@ -1,11 +1,11 @@
 #include "RenderGraph.h"
 #include <array>
-#include "render/resource/Material.h"
-#include "render/resource/Mesh.h"
 #include "render/SceneRenderer.h"
+#include "render/resource/Material.h"
 
 core::render::TransientResourcePool::TransientResourcePool(Device* device) : m_device(device) {
     m_textures.resize(1);  // Reserve index 0 for scene frame texture
+    m_config = device->GetSurfaceConfig();
 }
 
 void core::render::TransientResourcePool::InjectExternalResource(uint32_t handle,
@@ -16,8 +16,7 @@ void core::render::TransientResourcePool::InjectExternalResource(uint32_t handle
     m_textures[handle] = externalTexture;
 }
 
-uint32_t core::render::TransientResourcePool::Attache(
-    const PassSetupContext::TextureDescriptor& desc) {
+uint32_t core::render::TransientResourcePool::Attache(const TextureDescriptor& desc) {
     auto it = m_freeResources.find(desc);
     if (it != m_freeResources.end()) {
         auto nh = m_freeResources.extract(it);
@@ -31,8 +30,11 @@ uint32_t core::render::TransientResourcePool::Attache(
         .dimension = desc.dimension,
         .size =
             [&]() {
-                if (const auto* relSize = std::get_if<PassSetupContext::RelativeSize>(&desc.size)) {
-                    return wgpu::Extent3D{};
+                if (const auto* relSize = std::get_if<RelativeSize>(&desc.size)) {
+                    return wgpu::Extent3D{
+                        .width = static_cast<uint32_t>(m_config.width * relSize->widthRatio),
+                        .height = static_cast<uint32_t>(m_config.height * relSize->heightRatio),
+                    };
                 } else {
                     return *std::get_if<wgpu::Extent3D>(&desc.size);
                 }
@@ -52,7 +54,7 @@ uint32_t core::render::TransientResourcePool::Attache(
     return index;
 }
 
-void core::render::TransientResourcePool::Release(const PassSetupContext::TextureDescriptor& desc,
+void core::render::TransientResourcePool::Release(const TextureDescriptor& desc,
                                                   TransientResourcePool::Handle handle) {
     auto range = m_activeResources.equal_range(desc);
     for (auto it = range.first; it != range.second; ++it) {
@@ -141,18 +143,85 @@ core::render::RenderGraph::RenderGraph(Device* device,
 }
 
 void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* passManager) {
-    core::render::PassSetupContext context{m_device, m_device->GetSurfaceConfig()};
+    std::array<PassSetupContext, PassManager::kMaxPasses> setupContexts;
+    std::array<VirtualPassNode, PassManager::kMaxPasses> virtualPasses;
+    std::unordered_map<PropertyId, uint32_t> subResourceMap;
+    std::vector<SubResource> subResources;
 
-    std::ranges::for_each(passes, [&](auto& passID) {
-        IRenderPass* pass_ptr = passManager->GetPass(passID);
-        context.SetPassID(passID);
-        pass_ptr->Setup(context);
+    subResources.push_back(SubResource{
+        .textureDesc = TextureDescriptor{
+            .label = "SceneColor",
+            .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
+            .dimension = wgpu::TextureDimension::e2D,
+            .size = RelativeSize{1.0f, 1.0f},
+            .format = m_device->GetSurfaceConfig().format,
+        }});
+    subResourceMap[ToPropertyID(PassSetupContext::kSceneColorName)] =
+        PassSetupContext::kSceneColorHandle.index;
 
-        m_renderNodes[passID] = RenderNode(std::move(pass_ptr));
-    });
+    for (uint32_t passId : passes) {
+        IRenderPass* pass_ptr = passManager->GetPass(passId);
+        pass_ptr->Setup(setupContexts[passId]);
 
-    for (uint32_t i = 0; i < context.m_subResources.size(); ++i) {
-        const auto resource = context.m_subResources[i];
+        const PassSetupContext& ctx = setupContexts[passId];
+
+        for (auto& locTexture : ctx.m_declaredTextures) {
+            if (subResourceMap.contains(ToPropertyID(locTexture.name))) {
+                assert(false && "Pass declared a texture twice!");
+                continue;
+            }
+            subResourceMap[ToPropertyID(locTexture.name)] = subResources.size();
+            subResources.push_back(SubResource{.textureDesc = locTexture.textureDesc});
+        }
+    }
+
+    for (uint32_t passId : passes) {
+        const PassSetupContext& ctx = setupContexts[passId];
+
+        auto GetGlobalResource = [&](const std::string& name) -> uint32_t {
+            auto it = subResourceMap.find(ToPropertyID(name));
+            assert(it != subResourceMap.end() && "Pass required an undeclared texture!");
+            return it->second;
+        };
+
+        for (auto& colorAttach : ctx.m_colorAttachments) {
+            LocalTexture locTex = ctx.m_requiredTextures[colorAttach.virTextureHandle.index];
+            uint32_t virRsrcIndex = GetGlobalResource(locTex.name);
+            subResources[virRsrcIndex].writePassInfos.push_back({passId});
+            virtualPasses[passId].color.push_back(
+                {.colorAttachementsVirTextureIndex = virRsrcIndex,
+                 .colorAttachResourcePropertyID = ToPropertyID(locTex.name),
+                 .colorAttachment = colorAttach.attachemntInfo});
+            virtualPasses[passId].targetState.colorTargetFormats.push_back(
+                subResources[virRsrcIndex].textureDesc.format);
+        }
+
+        if (ctx.m_depthStencilAttachment.has_value()) {
+            LocalTexture locTex =
+                ctx.m_requiredTextures[ctx.m_depthStencilAttachment->virTextureHandle.index];
+            uint32_t virRsrcIndex = GetGlobalResource(locTex.name);
+            subResources[virRsrcIndex].writePassInfos.push_back({passId});
+            virtualPasses[passId].depthStencil = VirtualDepthDtencilAttach{
+                .virTextureIndex = virRsrcIndex,
+                .depthStencilResourcePropertyID = ToPropertyID(locTex.name),
+                .depthStencilAttachment = ctx.m_depthStencilAttachment->attachmentInfo};
+            virtualPasses[passId].targetState.depthStencilFormat =
+                subResources[virRsrcIndex].textureDesc.format;
+        }
+
+        for (auto& read : ctx.m_readTextures) {
+            LocalTexture locTex = ctx.m_requiredTextures[read.virTexture.index];
+            uint32_t virRsrcIndex = GetGlobalResource(locTex.name);
+            subResources[virRsrcIndex].readPassInfos.push_back({passId});
+            virtualPasses[passId].readInfos.push_back(
+                {.virTextureIndex = virRsrcIndex,
+                 .bindingResourcePropertyId = ToPropertyID(locTex.name),
+                 .viewDesc = read.viewDesc});
+        }
+    }
+
+    for (uint32_t i = 0; i < subResources.size(); ++i) {
+        const auto resource = subResources[i];
         if (resource.writePassInfos.size() > 1) {
             assert(
                 false &&
@@ -160,29 +229,16 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
                 "cause conflict. We will support multiple writers in the future.");
         }
         uint32_t writePassId = resource.writePassInfos[0].passId;
-        RenderNode& writePassNode = m_renderNodes[writePassId];
-        const auto& attach = resource.writePassInfos[0].attach;
-        if (const auto* colorPtr = std::get_if<PassSetupContext::ColorAttachment>(&attach)) {
-            writePassNode.attachments.push_back(RenderNode::Attach{
-                .resourceIdx = i,
-                .colorAttach = *colorPtr,
-            });
-        } else if (const auto* depthPtr =
-                       std::get_if<PassSetupContext::DepthStencilAttachment>(&attach)) {
-            writePassNode.depthStencilAttachment = RenderNode::DepthStencilAttach{
-                .resourceIdx = i,
-                .depthStencilAttach = *depthPtr,
-            };
-        }
+        VirtualPassNode& writePassNode = virtualPasses[writePassId];
 
-        for (auto readPassInfo : resource.readPassIds) {
+        for (auto readPassInfo : resource.readPassInfos) {
             writePassNode.successorNodes.push_back(readPassInfo.passId);
-            m_renderNodes[readPassInfo.passId].predecessorNodes.push_back(writePassId);
-            m_renderNodes[readPassInfo.passId].readResourceIndices.push_back(i);
+            virtualPasses[readPassInfo.passId].predecessorNodes.push_back(writePassId);
         }
     }
 
-    uint32_t sceneColorPassId = context.GetSceneColorSubResource().writePassInfos[0].passId;
+    uint32_t sceneColorPassId =
+        subResources[PassSetupContext::kSceneColorHandle.index].writePassInfos[0].passId;
 
     std::array<bool, 255> visited{};
     std::array<bool, 255> onStack{};
@@ -191,7 +247,7 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
     std::function<void(uint32_t)> dfs = [&](uint32_t nodeId) {
         visited[nodeId] = true;
         onStack[nodeId] = true;
-        for (auto predecessor : m_renderNodes[nodeId].predecessorNodes) {
+        for (auto predecessor : virtualPasses[nodeId].predecessorNodes) {
             if (!visited[predecessor]) {
                 dfs(predecessor);
             } else if (onStack[predecessor]) {
@@ -210,63 +266,88 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
         uint32_t lastUse = 0;
     };
 
-    std::vector<ResourceUsageInfo> resourceUsageInfo(context.m_subResources.size());
+    std::vector<ResourceUsageInfo> resourceUsageInfo(subResources.size());
     for (uint32_t i = 0; i < m_executionOrder.size(); ++i) {
         uint32_t nodeId = m_executionOrder[i];
-        for (const auto& attach : m_renderNodes[nodeId].attachments) {
-            resourceUsageInfo[attach.resourceIdx].firstUse =
-                std::min(resourceUsageInfo[attach.resourceIdx].firstUse, i);
-            resourceUsageInfo[attach.resourceIdx].lastUse =
-                std::max(resourceUsageInfo[attach.resourceIdx].lastUse, i);
+        for (const auto& colorAttach : virtualPasses[nodeId].color) {
+            uint32_t virRsrcIndex = colorAttach.colorAttachementsVirTextureIndex;
+            resourceUsageInfo[virRsrcIndex].firstUse =
+                std::min(resourceUsageInfo[virRsrcIndex].firstUse, i);
+            resourceUsageInfo[virRsrcIndex].lastUse =
+                std::max(resourceUsageInfo[virRsrcIndex].lastUse, i);
         }
-        if (m_renderNodes[nodeId].depthStencilAttachment.has_value()) {
-            const auto& attach = m_renderNodes[nodeId].depthStencilAttachment.value();
-            resourceUsageInfo[attach.resourceIdx].firstUse =
-                std::min(resourceUsageInfo[attach.resourceIdx].firstUse, i);
-            resourceUsageInfo[attach.resourceIdx].lastUse =
-                std::max(resourceUsageInfo[attach.resourceIdx].lastUse, i);
+        if (virtualPasses[nodeId].depthStencil.has_value()) {
+            const auto& resourceIdx = virtualPasses[nodeId].depthStencil->virTextureIndex;
+            resourceUsageInfo[resourceIdx].firstUse =
+                std::min(resourceUsageInfo[resourceIdx].firstUse, i);
+            resourceUsageInfo[resourceIdx].lastUse =
+                std::max(resourceUsageInfo[resourceIdx].lastUse, i);
         }
 
-        for (auto readResourceIdx : m_renderNodes[nodeId].readResourceIndices) {
-            resourceUsageInfo[readResourceIdx].firstUse =
-                std::min(resourceUsageInfo[readResourceIdx].firstUse, i);
-            resourceUsageInfo[readResourceIdx].lastUse =
-                std::max(resourceUsageInfo[readResourceIdx].lastUse, i);
+        for (auto readInfo : virtualPasses[nodeId].readInfos) {
+            resourceUsageInfo[readInfo.virTextureIndex].firstUse =
+                std::min(resourceUsageInfo[readInfo.virTextureIndex].firstUse, i);
+            resourceUsageInfo[readInfo.virTextureIndex].lastUse =
+                std::max(resourceUsageInfo[readInfo.virTextureIndex].lastUse, i);
         }
     }
 
     for (uint32_t step = 0; step < m_executionOrder.size(); ++step) {
         for (uint32_t resrcIdx = 0; resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
-            const auto& virResource = context.m_subResources[resrcIdx];
+            const auto& sub = subResources[resrcIdx];
             if (resourceUsageInfo[resrcIdx].lastUse == step - 1) {
-                m_vra.Release(virResource.textureDesc, virResource.actualResource);
+                m_vra.Release(sub.textureDesc, sub.actualResource);
             }
 
             if (resourceUsageInfo[resrcIdx].firstUse == step &&
                 resrcIdx != PassSetupContext::kSceneColorHandle.index) {
-                TransientResourcePool::Handle actual = m_vra.Attache(virResource.textureDesc);
-                context.m_subResources[resrcIdx].actualResource = actual;
+                TransientResourcePool::Handle actual = m_vra.Attache(sub.textureDesc);
+                subResources[resrcIdx].actualResource = actual;
             }
         }
+    }
 
+    for (uint32_t step = 0; step < m_executionOrder.size(); ++step) {
         uint32_t nodeIdx = m_executionOrder[step];
-        for (auto readResourceIdx : m_renderNodes[nodeIdx].readResourceIndices) {
-            m_vra.Get(readResourceIdx);
-        }
 
+        wgpu::BindGroup passBindGroup = nullptr;
         std::optional<wgpu::BindGroupLayout> layout =
             m_shaderManager->GetPassBindGroupLayout(nodeIdx);
         if (layout.has_value()) {
             std::span<const ShaderAssetFormat::Binding> bindingInfo =
                 m_shaderManager->GetPassBindGroupInfo(nodeIdx);
-            const BlackBoard& blackBoard = context.GetBlackBoard();
-            ResourceResolver resolver(nodeIdx, &blackBoard, context.m_subResources, &m_vra);
-            wgpu::BindGroup passBindGroup = BindGroupFactory::Create(
-                m_device, layout.value(), bindingInfo, RenderGraphProvider{&resolver});
-            m_renderNodes[nodeIdx].m_bindGroup = passBindGroup;
+            ResourceResolver resolver(virtualPasses[nodeIdx], subResourceMap, subResources, &m_vra);
+            passBindGroup = BindGroupFactory::Create(m_device, layout.value(), bindingInfo,
+                                                     RenderGraphProvider{&resolver});
         }
+
+        std::vector<RenderNode::ColorAttach> colorAttachments =
+            virtualPasses[nodeIdx].color |
+            std::views::transform([&subResources](const VirtualColorAttach& color) {
+                return RenderNode::ColorAttach{
+                    .resourceIdx =
+                        subResources[color.colorAttachementsVirTextureIndex].actualResource,
+                    .colorAttach = color.colorAttachment,
+                };
+            }) |
+            std::ranges::to<std::vector>();
+        std::optional<RenderNode::DepthStencilAttach> depthAttach =
+            virtualPasses[nodeIdx].depthStencil.transform(
+                [&subResources](VirtualDepthDtencilAttach& depth) {
+                    return RenderNode::DepthStencilAttach{
+                        .resourceIdx = subResources[depth.virTextureIndex].actualResource,
+                        .depthStencilAttach = depth.depthStencilAttachment,
+                    };
+                });
+        RenderNode node{
+            .pass = passManager->GetPass(nodeIdx),
+            .attachments = std::move(colorAttachments),
+            .depthStencilAttachment = depthAttach,
+            .m_bindGroup = passBindGroup,
+        };
+        m_renderNodes[nodeIdx] = node;
+        m_targetStates[nodeIdx] = virtualPasses[nodeIdx].targetState;
     }
-    m_passSetupContext = std::move(context);
 }
 
 void core::render::RenderGraph::Prepare(RenderQueue& renderQueue,
@@ -275,8 +356,6 @@ void core::render::RenderGraph::Prepare(RenderQueue& renderQueue,
         uint32_t nodeId = m_executionOrder[i];
 
         if (renderQueue.renderIntents[nodeId].empty()) {
-            auto* pass = m_renderNodes[nodeId].pass;
-
             Handle shaderHandle =
                 m_shaderManager->GetShaderHandle(nodeId, MaterialManager::kEmptyMaterialTechniqe);
             if (renderQueue.renderIntents[nodeId].empty() && shaderHandle.IsValid()) {
@@ -285,12 +364,10 @@ void core::render::RenderGraph::Prepare(RenderQueue& renderQueue,
                 config.layoutId = VertexLayoutManager::kVoidVertexLayout;
                 config.passId = nodeId;
                 config.depthStencilId = DepthStencilStateManager::kNullStateID;
+                config.targetState = &m_targetStates[nodeId];
 
-                // 4. 멀티스레드 진입 전(Execute 이전)에 캐시에서 가져오거나 새로 구움
                 Handle pipelineHandle = pipelineManager->GetOrCreatePipeline(config);
 
-                // 5. 구워진 파이프라인을 저장 (더미 Intent를 쓰지 않기로 했으므로)
-                // 패스 로직이 Execute 중에 꺼내 쓸 수 있도록 RenderQueue의 별도 공간에 꽂아 넣음
                 renderQueue.proceduralPipelines[nodeId] =
                     pipelineManager->GetPipeline(pipelineHandle);
             }
@@ -313,10 +390,8 @@ void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
 
         std::vector<wgpu::RenderPassColorAttachment> colorAttachments;
         colorAttachments.reserve(m_renderNodes[nodeId].attachments.size());
-        auto& subResources = m_passSetupContext->m_subResources;
         for (const auto& attach : m_renderNodes[nodeId].attachments) {
-            const auto& subResource = subResources[attach.resourceIdx];
-            wgpu::TextureView view = m_vra.Get(subResource.actualResource).CreateView();
+            wgpu::TextureView view = m_vra.Get(attach.resourceIdx).CreateView();
             colorAttachments.push_back(wgpu::RenderPassColorAttachment{
                 .view = view,
                 .loadOp = attach.colorAttach.loadOp,
@@ -330,11 +405,10 @@ void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
 
         wgpu::RenderPassDepthStencilAttachment depthStencilAttach;
         if (m_renderNodes[nodeId].depthStencilAttachment) {
-            const auto& subResource =
-                subResources[m_renderNodes[nodeId].depthStencilAttachment->resourceIdx];
             const auto& desc = m_renderNodes[nodeId].depthStencilAttachment->depthStencilAttach;
 
-            depthStencilAttach.view = m_vra.Get(subResource.actualResource).CreateView();
+            depthStencilAttach.view =
+                m_vra.Get(m_renderNodes[nodeId].depthStencilAttachment->resourceIdx).CreateView();
             depthStencilAttach.depthClearValue = desc.depthClearValue;
             depthStencilAttach.depthLoadOp = desc.depthLoadOp;
             depthStencilAttach.depthStoreOp = desc.depthStoreOp;
@@ -360,27 +434,32 @@ void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
     d.GetQueue().Submit(1, &commandBuffer);
 }
 
+std::span<const core::render::PassTargetState> core::render::RenderGraph::GetTargetStates() {
+    return m_targetStates;
+}
+
 core::render::ResourceResolver::ResourceResolver(
-    uint32_t passId,
-    const BlackBoard* blackBourd,
-    std::span<const PassSetupContext::SubResource> subResource,
+    const VirtualPassNode& passNode,
+    const std::unordered_map<PropertyId, uint32_t>& subResourceMap,
+    std::span<const SubResource> subResource,
     TransientResourcePool* resourcePool)
-    : m_passId(passId),
-      m_blackBoard(blackBourd),
+    : m_passNode(passNode),
+      m_subResourceMap(subResourceMap),
       m_subResources(subResource),
       m_resourcePool(resourcePool) {}
 
 wgpu::TextureView core::render::ResourceResolver::GetTextureView(PropertyId id) const {
-    Handle virRsourceHandle = m_blackBoard->Get(id);
-    const PassSetupContext::SubResource& subResource = m_subResources[virRsourceHandle.index];
+    uint32_t virRsourceIndex = m_subResourceMap.at(id);
+    const SubResource& subResource = m_subResources[virRsourceIndex];
 
     wgpu::Texture texture = m_resourcePool->Get(subResource.actualResource);
 
-    auto it = std::ranges::find(subResource.readPassIds, m_passId,
-                                &PassSetupContext::SubResource::ReadInfo::passId);
-    if (it == subResource.readPassIds.end()) {
+    auto it =
+        std::ranges::find(m_passNode.readInfos, id, &VirtualReadInfo::bindingResourcePropertyId);
+    if (it == m_passNode.readInfos.end()) {
         assert(false);
     }
+
     const auto optViewDesc = it->viewDesc;
     const auto* viewPtr = optViewDesc.has_value() ? &(*optViewDesc) : nullptr;
     return texture.CreateView(viewPtr);

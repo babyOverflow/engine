@@ -4,7 +4,6 @@
 #include <fstream>
 #include <print>
 #include <ranges>
-#include <unordered_set>
 
 #include <slang-com-helper.h>
 #include <slang-com-ptr.h>
@@ -19,7 +18,7 @@ namespace slangCompiler {
 slangCompiler::SlangCompiler::SlangCompiler(ComPtr<IGlobalSession> globalSession,
                                             std::vector<std::string> paths,
                                             std::string entryTemplate)
-    : m_globalSession(std::move(globalSession)), m_paths(paths), m_entryTemplate(entryTemplate) {}
+    : m_paths(paths), m_globalSession(std::move(globalSession)), m_entryTemplate(entryTemplate) {}
 
 std::expected<Slang::ComPtr<slang::IModule>, Error> SlangCompiler::LoadModuleFromFile(
     slang::ISession* session,

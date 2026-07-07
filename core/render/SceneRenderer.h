@@ -1,10 +1,11 @@
 #pragma once
 #include <span>
-#include "render/backend/BindGroupManager.h"
-#include "render/graph/IRenderPass.h"
 #include "Scene.h"
-#include "render/resource/ShaderManager.h"
 #include "render.h"
+#include "render/backend/BindGroupManager.h"
+#include "render/backend/PipelineManager.h"
+#include "render/graph/IRenderPass.h"
+#include "render/resource/ShaderManager.h"
 
 namespace core::render {
 
@@ -30,6 +31,7 @@ class SceneCuller {
                                    ShaderManager* shaderManager,
                                    PipelineManager* pipelineManager,
                                    BindGroupManager* bindGroupManager,
+                                   std::span<const PassTargetState> passTargetStates,
                                    RenderQueue& outRenderQueue);
 };
 }  // namespace core::render

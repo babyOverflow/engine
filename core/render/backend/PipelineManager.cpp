@@ -1,9 +1,6 @@
-#include <ranges>
 
-#include "render/graph/IRenderPass.h"
-#include "render/resource/Mesh.h"
 #include "PipelineManager.h"
-#include "render/util.h"
+#include "render/graph/IRenderPass.h"
 
 namespace core::render {
 DepthStencilStateManager::DepthStencilStateManager() {
@@ -60,13 +57,16 @@ static constexpr wgpu::VertexStepMode MapStepMode(MeshAssetFormat::StepMode step
 
 PipelineManager::PipelineManager(Device* device,
                                  LayoutCache* layoutCache,
+                                 MaterialManager* materialManager,
                                  PassManager* passManager,
                                  VertexLayoutManager* vertexLayoutManager,
                                  wgpu::BindGroupLayoutDescriptor& globalBindGroupLayoutDesc)
     : m_device(device),
       m_layoutCache(layoutCache),
-      m_passManager(passManager),
-      m_vertexLayoutManager(vertexLayoutManager) {
+      m_vertexLayoutManager(vertexLayoutManager),
+      m_materialManager(materialManager),
+      m_passManager(passManager)
+{
     m_globalBindGroupLayout = m_layoutCache->GetBindGroupLayout(globalBindGroupLayoutDesc);
 }
 
@@ -140,10 +140,9 @@ Handle PipelineManager::GetOrCreatePipeline(const PipelineConfig& config) {
 
     const auto& renderPipelineLayout = m_layoutCache->GetPipelineLayout(pipelineLayoutDesc);
 
-    PassTargetState targetState = pass->GetTargetState();
     std::vector<wgpu::ColorTargetState> targets;
-    targets.reserve(targetState.colorTargetFormats.size());
-    for (const wgpu::TextureFormat colorTargetFormat : targetState.colorTargetFormats) {
+    targets.reserve(config.targetState->colorTargetFormats.size());
+    for (const wgpu::TextureFormat colorTargetFormat : config.targetState->colorTargetFormats) {
         targets.push_back(wgpu::ColorTargetState{.format = colorTargetFormat,
                                                  .blend = &wgx::BlendState::kReplace,
                                                  .writeMask = wgpu::ColorWriteMask::All});

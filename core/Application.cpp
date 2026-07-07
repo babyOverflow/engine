@@ -66,16 +66,18 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
     passManager->RegisterPass<render::pass::DeferredGBufferPass>("DeferredGBufferPass");
     passManager->RegisterPass<render::pass::DeferredLightingPass>("DeferredLightingPass");
 
-    auto pipelineManager = std::make_unique<render::PipelineManager>(
-        device.get(), layoutCache.get(), passManager.get(), vertexLayoutManager.get(),
-        globalBindGroupLayout);
-    auto meshManager = std::make_unique<render::MeshManager>(device.get(), assetManager.get(),
-                                                             vertexLayoutManager.get());
     auto textureManager =
         std::make_unique<render::TextureManager>(device.get(), assetManager.get());
+
     auto materialManager = std::make_unique<render::MaterialManager>(
         device.get(), assetManager.get(), textureManager.get(), passManager.get(),
         layoutCache.get());
+
+    auto meshManager = std::make_unique<render::MeshManager>(device.get(), assetManager.get(),
+                                                             vertexLayoutManager.get());
+    auto pipelineManager = std::make_unique<render::PipelineManager>(
+        device.get(), layoutCache.get(), materialManager.get(), passManager.get(),
+        vertexLayoutManager.get(), globalBindGroupLayout);
 
     auto shaderManager =
         std::make_unique<render::ShaderManager>(device.get(), assetManager.get(), layoutCache.get(),
@@ -102,9 +104,9 @@ void core::Application::Run() {
 
     // std::vector<uint32_t> passIDs{m_passManager->GetPassID("ForwardRenderPass")};
     std::vector<uint32_t> passIDs{
-        //m_passManager->GetPassID("ForwardRenderPass"),
-         m_passManager->GetPassID("DeferredGBufferPass"),
-         m_passManager->GetPassID("DeferredLightingPass"),
+        // m_passManager->GetPassID("ForwardRenderPass"),
+        m_passManager->GetPassID("DeferredGBufferPass"),
+        m_passManager->GetPassID("DeferredLightingPass"),
     };
     std::vector<core::render::IRenderPass*> s =
         passIDs |
@@ -129,9 +131,9 @@ void core::Application::Run() {
         }
         m_materialManager->ClearDirties();
 
-        render::SceneCuller::ExtractRenderQueue(m_scene, passIDs, m_assetManager.get(),
-                                                m_shaderManager.get(), m_pipelineManager.get(),
-                                                m_bindGroupManager.get(), renderQueue);
+        render::SceneCuller::ExtractRenderQueue(
+            m_scene, passIDs, m_assetManager.get(), m_shaderManager.get(), m_pipelineManager.get(),
+            m_bindGroupManager.get(), m_renderGraph.GetTargetStates(), renderQueue);
         m_renderGraph.Prepare(renderQueue, m_pipelineManager.get());
         m_renderGraph.Execute(renderQueue);
         m_device->Present();

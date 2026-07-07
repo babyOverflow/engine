@@ -1,33 +1,15 @@
 #include "ForwardRenderPass.h"
 
-const core::render::PassTargetState core::render::pass::ForwardRenderPass::kSignature{
-    .flags = PassFlags::ClearTargets,
-    .colorTargetFormats =
-        {
-            wgpu::TextureFormat::BGRA8Unorm,
-        },
-    .depthStencilFormat = wgpu::TextureFormat::Depth24PlusStencil8,
-};
-
-void core::render::pass::ForwardRenderPass::Setup(PassSetupContext& context) {
-    context.RegisterColorOutput(PassSetupContext::kSceneColorHandle,
-                                PassSetupContext::ColorAttachment{
-                                    .loadOp = wgpu::LoadOp::Clear,
-                                    .storeOp = wgpu::StoreOp::Store,
-                                    .clearValue = {1.0f, 1.0f, 1.0f, 1.0f},
-                                });
+void core::render::pass::ForwardRenderPass::Setup(core::render::PassSetupContext& context) {
     Handle depthStencilHandle = context.DeclareTexture(
-        "depthStencil", PassSetupContext::TextureDescriptor{
+        "depthStencil", TextureDescriptor{
                             .usage = wgpu::TextureUsage::RenderAttachment,
                             .dimension = wgpu::TextureDimension::e2D,
-                            .size = PassSetupContext::RelativeSize{1.0f, 1.0f},
+                            .size = RelativeSize{1.0f, 1.0f},
                             .format = wgpu::TextureFormat::Depth24PlusStencil8,
                         });
 
-    context.RegisterDepthStencil(depthStencilHandle, PassSetupContext::DepthStencilAttachment{
-                                                         .depthLoadOp = wgpu::LoadOp::Clear,
-                                                         .depthStoreOp = wgpu::StoreOp::Store,
-                                                         .depthClearValue = 1.0f});
+    context.RegisterPassOutputs({{PassSetupContext::kSceneColorHandle}}, DepthStencilAttachment{depthStencilHandle});
 }
 
 void core::render::pass::ForwardRenderPass::Execute(wgpu::RenderPassEncoder pass,

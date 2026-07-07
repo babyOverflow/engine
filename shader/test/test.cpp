@@ -2,12 +2,10 @@
 #include <slang-com-ptr.h>
 #include <slang.h>
 #include <filesystem>
-#include <fstream>
 #include <print>
 #include <source_location>
 #include "SlangCompiler.h"
 
-#include "ShaderInterop.h"
 #include "test.h"
 #include "util.h"
 
@@ -97,7 +95,6 @@ TEST_F(SlangCompilerTest, DebugCodeCompilation) {
     ASSERT_EQ(shrd.nameTable[shrd.entryPoints[0].nameIdx], "vertexMain");
     ASSERT_EQ(shrd.nameTable[shrd.entryPoints[1].nameIdx], "fragmentMain");
 
-    const sa::EntryPoint& ve = shrd.entryPoints[0];
     ASSERT_EQ(shrd.bindings.size(), 1);
 
     const sa::Binding& binding = shrd.bindings[0];

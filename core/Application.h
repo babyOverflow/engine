@@ -5,14 +5,14 @@
 #include "AssetManager.h"
 #include "Layer.h"
 #include "Window.h"
+#include "render/graph/RenderGraph.h"
 #include "render/backend/BindGroupManager.h"
+#include "render/backend/PipelineManager.h"
+#include "render/render.h"
 #include "render/resource/MaterialManager.h"
 #include "render/resource/MeshManager.h"
-#include "render/backend/PipelineManager.h"
-#include "render/SceneRenderer.h"
 #include "render/resource/ShaderManager.h"
 #include "render/resource/TextureManager.h"
-#include "render/render.h"
 
 namespace core {
 
@@ -66,15 +66,16 @@ class Application {
           m_device(std::move(device)),
           m_assetManager(std::move(assetManager)),
           m_eventDispatcher(std::move(eventDispatcher)),
-          m_renderGraph(std::move(renderGraph)),
           m_vertexLayoutManager(std::move(vertexLayoutManager)),
           m_layoutCache(std::move(layoutCache)),
           m_passManager(std::move(passManager)),
-          m_pipelineManager(std::move(pipelineManager)),
-          m_shaderManager(std::move(shaderManager)),
           m_textureManager(std::move(textureManager)),
+          m_shaderManager(std::move(shaderManager)),
           m_meshManager(std::move(meshManager)),
-          m_materialManager(std::move(materialManager)), m_bindGroupManager(std::move(bindGroupManager)) {}
+          m_renderGraph(std::move(renderGraph)),
+          m_materialManager(std::move(materialManager)),
+          m_pipelineManager(std::move(pipelineManager)),
+          m_bindGroupManager(std::move(bindGroupManager)) {}
 
     Window m_window;
     std::unique_ptr<render::Device> m_device;
@@ -85,12 +86,12 @@ class Application {
     std::unique_ptr<render::VertexLayoutManager> m_vertexLayoutManager;
     std::unique_ptr<render::LayoutCache> m_layoutCache;
     std::unique_ptr<render::PassManager> m_passManager;
-    std::unique_ptr<render::PipelineManager> m_pipelineManager;
     std::unique_ptr<render::TextureManager> m_textureManager;
     std::unique_ptr<render::ShaderManager> m_shaderManager;
     std::unique_ptr<render::MeshManager> m_meshManager;
     render::RenderGraph m_renderGraph;
     std::unique_ptr<render::MaterialManager> m_materialManager;
+    std::unique_ptr<render::PipelineManager> m_pipelineManager;
     std::unique_ptr<render::BindGroupManager> m_bindGroupManager;
     Scene m_scene;
 

@@ -8,13 +8,12 @@ void core::render::SceneCuller::ExtractRenderQueue(const Scene& scene,
                                                    ShaderManager* shaderManager,
                                                    PipelineManager* pipelineManager,
                                                    BindGroupManager* bindGroupManager,
+                                                   std::span<const PassTargetState> passTargetStates,
                                                    RenderQueue& outRenderQueue) {
-    auto assetRegistry = assetManager->GetRegistry();
     for (uint32_t i = 0; i < scene.models.size(); ++i) {
         for (const auto& renderUnit : scene.models[i]->renderUnits) {
             AssetView<Material> material = assetManager->GetMaterial(renderUnit.materialHandle);
             for (uint32_t passId : passes) {
-                PipelineKey key;
                 Handle shaderHandle =
                     shaderManager->GetShaderHandle(passId, material->GetActiveTechniqueID());
                 if (!shaderHandle.IsValid()) {
@@ -31,6 +30,7 @@ void core::render::SceneCuller::ExtractRenderQueue(const Scene& scene,
                         .depthStencilId = DepthStencilStateManager::kDefaultDepthStateID,
                         .passId = passId,
                         .cullMode = wgpu::CullMode::Back,
+                        .targetState = &passTargetStates[passId],
                     });
 
                 RenderIntent intent;

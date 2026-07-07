@@ -4,7 +4,6 @@
 #include <source_location>
 
 #include "SlangCompiler.h"
-#include "util.h"
 
 using namespace slangCompiler;
 

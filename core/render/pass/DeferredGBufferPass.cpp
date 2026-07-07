@@ -1,11 +1,10 @@
 #include "DeferredGBufferPass.h"
 
-void core::render::pass::DeferredGBufferPass::Execute(wgpu::RenderPassEncoder encoder, const PassExecuteContext& executeContext) {
+void core::render::pass::DeferredGBufferPass::Execute(wgpu::RenderPassEncoder encoder,
+                                                      const PassExecuteContext& executeContext) {
     for (uint32_t i = 0; i < executeContext.intents.size(); ++i) {
         const auto& intent = executeContext.intents[i];
         const Mesh& mesh = executeContext.assetRegistry.meshes[intent.meshHandle.index];
-        const Material& material =
-            executeContext.assetRegistry.materials[intent.materialHandle.index];
 
         const MeshAssetFormat::SubMeshInfo& subMesh = mesh.GetSubMeshInfo(intent.subMeshIndex);
         auto pipeline = intent.pipeline;
@@ -24,76 +23,45 @@ void core::render::pass::DeferredGBufferPass::Execute(wgpu::RenderPassEncoder en
     }
 }
 
-const core::render::PassTargetState core::render::pass::DeferredGBufferPass::kSignature{
-    .flags = PassFlags::ClearTargets,
-    .colorTargetFormats =
-        {
-            wgpu::TextureFormat::RGBA8Unorm,
-            wgpu::TextureFormat::RGBA16Float,
-            wgpu::TextureFormat::RGBA16Float,
-        },
-    .depthStencilFormat = wgpu::TextureFormat::Depth24PlusStencil8,
-};
-
-void core::render::pass::DeferredGBufferPass::Setup(PassSetupContext& context) { 
-    const PassTargetState& targetState = GetTargetState();
+void core::render::pass::DeferredGBufferPass::Setup(core::render::PassSetupContext& context) {
 
     Handle albedoHandle = context.DeclareTexture(
         "deferredGBufferAlbedo",
-        PassSetupContext::TextureDescriptor{
+        TextureDescriptor{
             .label = "GBufferAlbedo",
             .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
             .dimension = wgpu::TextureDimension::e2D,
-            .size = PassSetupContext::RelativeSize{1.0f, 1.0f},
-            .format = targetState.colorTargetFormats[0],
+            .size = RelativeSize{1.0f, 1.0f},
+            .format = wgpu::TextureFormat::RGBA8Unorm,
         });
     Handle materialHandle = context.DeclareTexture(
         "deferredGBufferMaterial",
-        PassSetupContext::TextureDescriptor{
+        TextureDescriptor{
             .label = "GBufferMaterial",
             .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
             .dimension = wgpu::TextureDimension::e2D,
-            .size = PassSetupContext::RelativeSize{1.0f, 1.0f},
-            .format = targetState.colorTargetFormats[1],
+            .size = RelativeSize{1.0f, 1.0f},
+            .format = wgpu::TextureFormat::RGBA16Float,
         });
     Handle normalHandle = context.DeclareTexture(
         "deferredGBufferNormal",
-        PassSetupContext::TextureDescriptor{
+        TextureDescriptor{
             .label = "GBufferNormal",
             .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
             .dimension = wgpu::TextureDimension::e2D,
-            .size = PassSetupContext::RelativeSize{1.0f, 1.0f},
-            .format = targetState.colorTargetFormats[2],
+            .size = RelativeSize{1.0f, 1.0f},
+            .format = wgpu::TextureFormat::RGBA16Float,
         });
-
 
     Handle depthStencilHandle = context.DeclareTexture(
         "depthStencil",
-        PassSetupContext::TextureDescriptor{
+        TextureDescriptor{
             .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
             .dimension = wgpu::TextureDimension::e2D,
-            .size = PassSetupContext::RelativeSize{1.0f, 1.0f},
-            .format = targetState.depthStencilFormat,
+            .size = RelativeSize{1.0f, 1.0f},
+            .format = wgpu::TextureFormat::Depth24PlusStencil8,
         });
 
-    context.RegisterColorOutput(materialHandle, PassSetupContext::ColorAttachment{
-                                                    .loadOp = wgpu::LoadOp::Clear,
-                                                    .storeOp = wgpu::StoreOp::Store,
-                                                    .clearValue = {0.0f, 0.0f, 0.0f, 1.0f},
-                                                });
-    context.RegisterColorOutput(normalHandle, PassSetupContext::ColorAttachment{
-                                                  .loadOp = wgpu::LoadOp::Clear,
-                                                  .storeOp = wgpu::StoreOp::Store,
-                                                  .clearValue = {0.0f, 0.0f, 0.0f, 1.0f},
-                                              });
-
-    context.RegisterColorOutput(albedoHandle, PassSetupContext::ColorAttachment{
-                                                  .loadOp = wgpu::LoadOp::Clear,
-                                                  .storeOp = wgpu::StoreOp::Store,
-                                                  .clearValue = {0.0f, 0.0f, 0.0f, 1.0f},
-                                              });
-    context.RegisterDepthStencil(depthStencilHandle, PassSetupContext::DepthStencilAttachment{
-                                                         .depthLoadOp = wgpu::LoadOp::Clear,
-                                                         .depthStoreOp = wgpu::StoreOp::Store,
-                                                         .depthClearValue = 1.0f});
+    context.RegisterPassOutputs({{albedoHandle}, {materialHandle}, {normalHandle}},
+                                DepthStencilAttachment{depthStencilHandle});
 }
