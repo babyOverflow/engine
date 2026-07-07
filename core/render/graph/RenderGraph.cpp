@@ -165,7 +165,10 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
 
         const PassSetupContext& ctx = setupContexts[passId];
 
-        for (auto& locTexture : ctx.m_declaredTextures) {
+        // start at [1] because we need to skip the scene color texture
+        for (uint32_t i = PassSetupContext::kSceneColorHandle.index + 1;
+             i < ctx.m_declaredTextures.size(); ++i) {
+            const auto& locTexture = ctx.m_declaredTextures[i];
             if (subResourceMap.contains(ToPropertyID(locTexture.name))) {
                 assert(false && "Pass declared a texture twice!");
                 continue;

@@ -3,28 +3,23 @@
 void core::render::pass::DeferredGBufferPass::Execute(wgpu::RenderPassEncoder encoder,
                                                       const PassExecuteContext& executeContext) {
     for (uint32_t i = 0; i < executeContext.intents.size(); ++i) {
-        const auto& intent = executeContext.intents[i];
-        const Mesh& mesh = executeContext.assetRegistry.meshes[intent.meshHandle.index];
+        const RenderIntent& intent = executeContext.intents[i];
 
-        const MeshAssetFormat::SubMeshInfo& subMesh = mesh.GetSubMeshInfo(intent.subMeshIndex);
         auto pipeline = intent.pipeline;
         encoder.SetPipeline(pipeline);
-        std::span<const MeshAssetFormat::BufferRange> bufferRanges =
-            mesh.GetBufferRanges(subMesh.bufferRangeStart, subMesh.bufferRangeCount);
-        for (uint i = 0; i < bufferRanges.size(); ++i) {
-            const auto bufferRange = bufferRanges[i];
-            encoder.SetVertexBuffer(i, mesh.vertexBuffer, bufferRange.offset, bufferRange.size);
+        for (uint i = 0; i < intent.bufferRange.size(); ++i) {
+            const auto bufferRange = intent.bufferRange[i];
+            encoder.SetVertexBuffer(i, intent.vertexBuffer, bufferRange.offset, bufferRange.size);
         }
-        encoder.SetIndexBuffer(mesh.indexBuffer, wgpu::IndexFormat::Uint32);
+        encoder.SetIndexBuffer(intent.indexBuffer, wgpu::IndexFormat::Uint32);
         wgpu::BindGroup bindGroup = intent.bindGroup;
         encoder.SetBindGroup(BindSlot::Material, bindGroup);
 
-        encoder.DrawIndexed(subMesh.indexCount, 1, subMesh.indexStart);
+        encoder.DrawIndexed(intent.subMeshInfo.indexCount, 1, intent.subMeshInfo.indexStart);
     }
 }
 
 void core::render::pass::DeferredGBufferPass::Setup(core::render::PassSetupContext& context) {
-
     Handle albedoHandle = context.DeclareTexture(
         "deferredGBufferAlbedo",
         TextureDescriptor{

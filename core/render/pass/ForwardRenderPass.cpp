@@ -16,22 +16,18 @@ void core::render::pass::ForwardRenderPass::Execute(wgpu::RenderPassEncoder pass
                                                     const PassExecuteContext& executeContext) {
     for (uint32_t i = 0; i < executeContext.intents.size(); ++i) {
         const auto& intent = executeContext.intents[i];
-        const Mesh& mesh = executeContext.assetRegistry.meshes[intent.meshHandle.index];
         const Material& material =
             executeContext.assetRegistry.materials[intent.materialHandle.index];
 
-        const MeshAssetFormat::SubMeshInfo& subMesh = mesh.GetSubMeshInfo(intent.subMeshIndex);
         auto pipeline = intent.pipeline;
         pass.SetPipeline(pipeline);
-        std::span<const MeshAssetFormat::BufferRange> bufferRanges =
-            mesh.GetBufferRanges(subMesh.bufferRangeStart, subMesh.bufferRangeCount);
-        for (uint i = 0; i < bufferRanges.size(); ++i) {
-            const auto bufferRange = bufferRanges[i];
-            pass.SetVertexBuffer(i, mesh.vertexBuffer, bufferRange.offset, bufferRange.size);
+        for (uint i = 0; i < intent.bufferRange.size(); ++i) {
+            const auto bufferRange = intent.bufferRange[i];
+            pass.SetVertexBuffer(i, intent.vertexBuffer, bufferRange.offset, bufferRange.size);
         }
-        pass.SetIndexBuffer(mesh.indexBuffer, wgpu::IndexFormat::Uint32);
+        pass.SetIndexBuffer(intent.indexBuffer, wgpu::IndexFormat::Uint32);
         pass.SetBindGroup(BindSlot::Material, intent.bindGroup);
 
-        pass.DrawIndexed(subMesh.indexCount, 1, subMesh.indexStart);
+        pass.DrawIndexed(intent.subMeshInfo.indexCount, 1, intent.subMeshInfo.indexStart);
     }
 }

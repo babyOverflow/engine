@@ -2,16 +2,22 @@
 #include "SceneRenderer.h"
 #include "render/backend/BindGroupManager.h"
 #include "render/backend/PipelineManager.h"
-void core::render::SceneCuller::ExtractRenderQueue(const Scene& scene,
-                                                   std::span<uint32_t> passes,
-                                                   AssetManager* assetManager,
-                                                   ShaderManager* shaderManager,
-                                                   PipelineManager* pipelineManager,
-                                                   BindGroupManager* bindGroupManager,
-                                                   std::span<const PassTargetState> passTargetStates,
-                                                   RenderQueue& outRenderQueue) {
+void core::render::SceneCuller::ExtractRenderQueue(
+    const Scene& scene,
+    std::span<uint32_t> passes,
+    AssetManager* assetManager,
+    ShaderManager* shaderManager,
+    PipelineManager* pipelineManager,
+    BindGroupManager* bindGroupManager,
+    std::span<const PassTargetState> passTargetStates,
+    RenderQueue& outRenderQueue) {
     for (uint32_t i = 0; i < scene.models.size(); ++i) {
         for (const auto& renderUnit : scene.models[i]->renderUnits) {
+            AssetView<Mesh> mesh = assetManager->GetMesh(renderUnit.meshHandle);
+            const MeshAssetFormat::SubMeshInfo& subMesh =
+                mesh->GetSubMeshInfo(renderUnit.subMeshIndex);
+            std::span<const MeshAssetFormat::BufferRange> bufferRanges =
+                mesh->GetBufferRanges(subMesh.bufferRangeStart, subMesh.bufferRangeCount);
             AssetView<Material> material = assetManager->GetMaterial(renderUnit.materialHandle);
             for (uint32_t passId : passes) {
                 Handle shaderHandle =
@@ -24,8 +30,7 @@ void core::render::SceneCuller::ExtractRenderQueue(const Scene& scene,
                 Handle pipelineHandle =
                     pipelineManager->GetOrCreatePipeline(PipelineManager::PipelineConfig{
                         .shader = shader,
-                        .layoutId = assetManager->GetMesh(renderUnit.meshHandle)
-                                        ->GetGlobalVertexStateID(renderUnit.subMeshIndex),
+                        .layoutId = mesh->GetGlobalVertexStateID(renderUnit.subMeshIndex),
                         .blendMode = BlendMode::Opaque,
                         .depthStencilId = DepthStencilStateManager::kDefaultDepthStateID,
                         .passId = passId,
@@ -34,11 +39,13 @@ void core::render::SceneCuller::ExtractRenderQueue(const Scene& scene,
                     });
 
                 RenderIntent intent;
-                intent.meshHandle = renderUnit.meshHandle;
-                intent.subMeshIndex = renderUnit.subMeshIndex;
                 intent.materialHandle = renderUnit.materialHandle;
                 intent.transformIndex = i;
                 intent.pipeline = pipelineManager->GetPipeline(pipelineHandle);
+                intent.vertexBuffer = mesh->vertexBuffer;
+                intent.indexBuffer = mesh->indexBuffer;
+                intent.bufferRange = bufferRanges;
+                intent.subMeshInfo = subMesh;
                 intent.sortKey = RenderIntent::CreateOpaqueKey(pipelineHandle.index,
                                                                renderUnit.materialHandle.index,
                                                                renderUnit.meshHandle.index, 0);

@@ -13,11 +13,13 @@ inline bool operator==(const wgpu::Extent3D& lhs, const wgpu::Extent3D& rhs) {
 namespace core::render {
 
 struct RenderIntent {
-    Handle meshHandle;
-    uint32_t subMeshIndex;
     Handle materialHandle;
     uint32_t transformIndex;
     wgpu::RenderPipeline pipeline;
+    wgpu::Buffer vertexBuffer;
+    wgpu::Buffer indexBuffer;
+    MeshAssetFormat::SubMeshInfo subMeshInfo;
+    std::span<const MeshAssetFormat::BufferRange> bufferRange;
     // TODO(#10): Populate 64-bit sort key for Radix Sorting
     wgpu::BindGroup bindGroup;
     uint64_t sortKey;
