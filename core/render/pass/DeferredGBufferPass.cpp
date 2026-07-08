@@ -2,18 +2,25 @@
 
 void core::render::pass::DeferredGBufferPass::Execute(wgpu::RenderPassEncoder encoder,
                                                       const PassExecuteContext& executeContext) {
+    wgpu::RenderPipeline pipeline = nullptr;
+    wgpu::BindGroup materialBindGroup;
     for (uint32_t i = 0; i < executeContext.intents.size(); ++i) {
         const RenderIntent& intent = executeContext.intents[i];
 
-        auto pipeline = intent.pipeline;
-        encoder.SetPipeline(pipeline);
+        if (pipeline.Get() != intent.pipeline.Get()) {
+            pipeline = intent.pipeline;
+            encoder.SetPipeline(pipeline);
+        }
         for (uint i = 0; i < intent.bufferRange.size(); ++i) {
             const auto bufferRange = intent.bufferRange[i];
             encoder.SetVertexBuffer(i, intent.vertexBuffer, bufferRange.offset, bufferRange.size);
         }
         encoder.SetIndexBuffer(intent.indexBuffer, wgpu::IndexFormat::Uint32);
-        wgpu::BindGroup bindGroup = intent.bindGroup;
-        encoder.SetBindGroup(BindSlot::Material, bindGroup);
+
+        if (materialBindGroup.Get() != intent.bindGroup.Get()) {
+            materialBindGroup = intent.bindGroup;
+            encoder.SetBindGroup(BindSlot::Material, materialBindGroup);
+        }
 
         encoder.DrawIndexed(intent.subMeshInfo.indexCount, 1, intent.subMeshInfo.indexStart);
     }

@@ -13,7 +13,6 @@ inline bool operator==(const wgpu::Extent3D& lhs, const wgpu::Extent3D& rhs) {
 namespace core::render {
 
 struct RenderIntent {
-    Handle materialHandle;
     uint32_t transformIndex;
     wgpu::RenderPipeline pipeline;
     wgpu::Buffer vertexBuffer;

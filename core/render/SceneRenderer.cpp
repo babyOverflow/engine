@@ -39,7 +39,6 @@ void core::render::SceneCuller::ExtractRenderQueue(
                     });
 
                 RenderIntent intent;
-                intent.materialHandle = renderUnit.materialHandle;
                 intent.transformIndex = i;
                 intent.pipeline = pipelineManager->GetPipeline(pipelineHandle);
                 intent.vertexBuffer = mesh->vertexBuffer;

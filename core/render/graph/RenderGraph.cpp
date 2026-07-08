@@ -353,6 +353,54 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
     }
 }
 
+inline void RadixSortRenderIntents64(std::vector<core::render::RenderIntent>& intents) {
+    if (intents.empty()) return;
+
+    // Allocate single scratch buffer to prevent per-pass heap allocations
+    std::vector<core::render::RenderIntent> scratchBuffer(intents.size());
+
+    auto* src = &intents;
+    auto* dst = &scratchBuffer;
+
+    const int bitsPerPass = 8;
+    const int bucketCount = 1 << bitsPerPass; // 256 buckets
+    const int passCount = sizeof(uint64_t);   // 4 passes for 64-bit integer
+
+    for (int pass = 0; pass < passCount; ++pass) {
+        size_t counts[bucketCount] = {0};
+        size_t offsets[bucketCount] = {0};
+
+        const int shift = pass * bitsPerPass;
+
+        // 1. Compute frequencies using pure logical shifting (Endian-Safe)
+        for (const auto& intent : *src) {
+            uint8_t bucket = (intent.sortKey >> shift) & 0xFF;
+            counts[bucket]++;
+        }
+
+        // 2. Compute prefix sums (exclusive offsets)
+        size_t total = 0;
+        for (int i = 0; i < bucketCount; ++i) {
+            offsets[i] = total;
+            total += counts[i];
+        }
+
+        // 3. Scatter elements into destination buffer maintaining stability
+        for (const auto& intent : *src) {
+            uint8_t bucket = (intent.sortKey >> shift) & 0xFF;
+            (*dst)[offsets[bucket]++] = intent;
+        }
+
+        // Ping-pong pointer swap
+        std::swap(src, dst);
+    }
+
+    // If final sorted array points to the scratch buffer, move it back to intents
+    if (src != &intents) {
+        intents = std::move(scratchBuffer);
+    }
+}
+
 void core::render::RenderGraph::Prepare(RenderQueue& renderQueue,
                                         PipelineManager* pipelineManager) {
     for (uint32_t i = 0; i < m_executionOrder.size(); ++i) {
@@ -375,6 +423,8 @@ void core::render::RenderGraph::Prepare(RenderQueue& renderQueue,
                     pipelineManager->GetPipeline(pipelineHandle);
             }
         }
+
+        RadixSortRenderIntents64(renderQueue.renderIntents[nodeId]);
     }
 }
 
@@ -421,16 +471,16 @@ void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
 
             renderPassDescriptor.depthStencilAttachment = &depthStencilAttach;
         }
-        auto pass = commandEncoder.BeginRenderPass(&renderPassDescriptor);
-        pass.SetBindGroup(0, m_globalBindGroup);
-        pass.SetBindGroup(BindSlot::Pass, m_renderNodes[nodeId].m_bindGroup);
+        wgpu::RenderPassEncoder encoder = commandEncoder.BeginRenderPass(&renderPassDescriptor);
+        encoder.SetBindGroup(0, m_globalBindGroup);
+        encoder.SetBindGroup(BindSlot::Pass, m_renderNodes[nodeId].m_bindGroup);
         m_renderNodes[nodeId].pass->Execute(
-            pass, {
+            encoder, {
                       .intents = renderQueue.renderIntents[nodeId],
                       .assetRegistry = m_assetManager->GetRegistry(),
                       .proceduralPipeline = renderQueue.proceduralPipelines[nodeId],
                   });
-        pass.End();
+        encoder.End();
     }
 
     auto commandBuffer = commandEncoder.Finish();

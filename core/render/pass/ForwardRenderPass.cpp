@@ -16,8 +16,6 @@ void core::render::pass::ForwardRenderPass::Execute(wgpu::RenderPassEncoder pass
                                                     const PassExecuteContext& executeContext) {
     for (uint32_t i = 0; i < executeContext.intents.size(); ++i) {
         const auto& intent = executeContext.intents[i];
-        const Material& material =
-            executeContext.assetRegistry.materials[intent.materialHandle.index];
 
         auto pipeline = intent.pipeline;
         pass.SetPipeline(pipeline);
