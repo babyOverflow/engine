@@ -2,18 +2,31 @@
 
 #include <webgpu/webgpu_cpp.h>
 #include <array>
+#include <span>
+#include <vector>
 
-#include "AssetManager.h"
 #include "IRenderPass.h"
-#include "render/SceneRenderer.h"
 #include "render/backend/PipelineManager.h"
 #include "render/render.h"
 #include "render/resource/Material.h"
 
 namespace core::render {
 
-struct RenderNode {
+struct RenderQueue {
+    std::array<std::vector<RenderIntent>, PassManager::kMaxPasses> renderIntents;
+    std::array<wgpu::RenderPipeline, PassManager::kMaxPasses> proceduralPipelines;
+    std::span<const glm::mat4x4> transforms;
+    CameraUniformData cameraData;
 
+    void Clear() {
+        for (uint32_t i = 0; i < PassManager::kMaxPasses; ++i) {
+            renderIntents[i].clear();
+        }
+        transforms = {};
+    }
+};
+
+struct RenderNode {
     IRenderPass* pass = nullptr;
     struct ColorAttach {
         uint32_t resourceIdx;
@@ -64,7 +77,6 @@ struct VirtualReadInfo {
     std::optional<wgpu::TextureViewDescriptor> viewDesc;
 };
 
-
 struct VirtualPassNode {
     std::vector<VirtualColorAttach> color;
     std::optional<VirtualDepthDtencilAttach> depthStencil;
@@ -99,43 +111,27 @@ struct RenderGraphProvider {
 
 static_assert(BindGroupResourceProvider<RenderGraphProvider>);
 
+struct CompiledGraph {
+    std::vector<uint32_t> executionOrder;
+    std::array<RenderNode, PassManager::kMaxPasses> renderNodes{};
+    std::array<PassTargetState, PassManager::kMaxPasses> targetStates{};
+
+    std::vector<SubResource> subResources;
+    std::unordered_map<PropertyId, uint32_t> subResourceMap;
+};
+
 class RenderGraph {
   public:
-    RenderGraph(Device* device,
-                AssetManager* assetManager,
-                ShaderManager* shaderManager,
-                PipelineManager* pipelineManager,
-                const wgpu::BindGroupLayout globalBindGroupLayout);
+    RenderGraph(Device* device);
 
     RenderGraph(RenderGraph&& rhs) noexcept = default;
 
-    void Setup(std::span<uint32_t> passes, PassManager* passManager);
-
-    void Prepare(RenderQueue& renderQueue, PipelineManager* pipelineManager);
-    void Execute(RenderQueue& frameContext);
-
-    std::span<const PassTargetState> GetTargetStates();
+    CompiledGraph Compile(std::span<uint32_t> passes,
+                          PassManager* passManager,
+                          ShaderManager* shaderManager,
+                          TransientResourcePool& vra);
 
   private:
     Device* m_device;
-
-    AssetManager* m_assetManager;  // TODO!(#2, #8; Sunghyun) m_assetManager will be removed in
-    // future, and each RenderPass will directly access asset manager
-    // to get necessary resource. But for now, we put asset manager
-    // in RenderGraph for simplicity.
-    ShaderManager* m_shaderManager;
-    PipelineManager* m_pipelineManager;
-
-    wgpu::BindGroup m_globalBindGroup;
-    wgpu::Buffer m_globalUniformBuffer;
-    wgpu::Sampler m_linearRepeatSampler;
-    wgpu::Sampler m_pointSampler;
-    wgpu::Texture m_depthTexture;
-
-    std::array<RenderNode, PassManager::kMaxPasses> m_renderNodes{};
-    std::array<PassTargetState, PassManager::kMaxPasses> m_targetStates{};
-    std::vector<uint32_t> m_executionOrder;
-
-    TransientResourcePool m_vra;
 };
 }  // namespace core::render

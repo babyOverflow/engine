@@ -71,78 +71,13 @@ wgpu::Texture core::render::TransientResourcePool::Get(uint32_t index) {
     return m_textures[index];
 }
 
-core::render::RenderGraph::RenderGraph(Device* device,
-                                       AssetManager* assetManager,
-                                       ShaderManager* shaderManager,
-                                       PipelineManager* pipelineManager,
-                                       const wgpu::BindGroupLayout globalBindGroupLayout)
-    : m_device(device),
-      m_assetManager(assetManager),
-      m_shaderManager(shaderManager),
-      m_pipelineManager(pipelineManager),
-      m_vra(device) {
-    CameraUniformData cameraUniformData;
-    wgpu::Buffer globalUniform = device->CreateBufferFromData(
-        &cameraUniformData, sizeof(CameraUniformData), wgpu::BufferUsage::Uniform);
-    m_globalUniformBuffer = std::move(globalUniform);
+core::render::RenderGraph::RenderGraph(Device* device) : m_device(device) {}
 
-    wgpu::SamplerDescriptor desc{
-        .addressModeU = wgpu::AddressMode::Repeat,
-        .addressModeV = wgpu::AddressMode::Repeat,
-        .addressModeW = wgpu::AddressMode::Repeat,
-        .magFilter = wgpu::FilterMode::Linear,
-        .minFilter = wgpu::FilterMode::Linear,
-        .mipmapFilter = wgpu::MipmapFilterMode::Linear,
-    };
-    wgpu::Sampler linearRepeat = device->GetDeivce().CreateSampler(&desc);
-    m_linearRepeatSampler = std::move(linearRepeat);
-
-    wgpu::SamplerDescriptor pointSamplerDesc{
-        .addressModeU = wgpu::AddressMode::ClampToEdge,
-        .addressModeV = wgpu::AddressMode::ClampToEdge,
-        .addressModeW = wgpu::AddressMode::ClampToEdge,
-        .magFilter = wgpu::FilterMode::Nearest,
-        .minFilter = wgpu::FilterMode::Nearest,
-        .mipmapFilter = wgpu::MipmapFilterMode::Nearest,
-    };
-    wgpu::Sampler pointSampler = device->GetDeivce().CreateSampler(&pointSamplerDesc);
-    m_pointSampler = std::move(pointSampler);
-
-    std::array<wgpu::BindGroupEntry, 3> bindGroupEntries{wgpu::BindGroupEntry{
-                                                             .binding = 0,
-                                                             .buffer = m_globalUniformBuffer,
-                                                             .offset = 0,
-                                                             .size = sizeof(CameraUniformData),
-                                                         },
-                                                         wgpu::BindGroupEntry{
-                                                             .binding = 1,
-                                                             .sampler = m_linearRepeatSampler,
-                                                         },
-                                                         wgpu::BindGroupEntry{
-                                                             .binding = 2,
-                                                             .sampler = m_pointSampler,
-                                                         }
-
-    };
-    m_globalBindGroup = device->CreateBindGroup(wgpu::BindGroupDescriptor{
-        .layout = globalBindGroupLayout,
-        .entryCount = bindGroupEntries.size(),
-        .entries = bindGroupEntries.data(),
-    });
-
-    m_depthTexture = device->CreateTexture(wgpu::TextureDescriptor{
-        .usage = wgpu::TextureUsage::RenderAttachment,
-        .size =
-            wgpu::Extent3D{
-                .width = device->GetSurfaceConfig().width,
-                .height = device->GetSurfaceConfig().height,
-                .depthOrArrayLayers = 1,
-            },
-        .format = wgpu::TextureFormat::Depth24Plus,
-    });
-}
-
-void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* passManager) {
+core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_t> passes,
+                                                               PassManager* passManager,
+                                                               ShaderManager* shaderManager,
+                                                               TransientResourcePool& vra) {
+    CompiledGraph compiledGraph;
     std::array<PassSetupContext, PassManager::kMaxPasses> setupContexts;
     std::array<VirtualPassNode, PassManager::kMaxPasses> virtualPasses;
     std::unordered_map<PropertyId, uint32_t> subResourceMap;
@@ -262,7 +197,7 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
     };
 
     dfs(sceneColorPassId);
-    m_executionOrder = std::move(executionOrder);
+    compiledGraph.executionOrder = std::move(executionOrder);
 
     struct ResourceUsageInfo {
         uint32_t firstUse = UINT32_MAX;
@@ -270,8 +205,8 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
     };
 
     std::vector<ResourceUsageInfo> resourceUsageInfo(subResources.size());
-    for (uint32_t i = 0; i < m_executionOrder.size(); ++i) {
-        uint32_t nodeId = m_executionOrder[i];
+    for (uint32_t i = 0; i < compiledGraph.executionOrder.size(); ++i) {
+        uint32_t nodeId = compiledGraph.executionOrder[i];
         for (const auto& colorAttach : virtualPasses[nodeId].color) {
             uint32_t virRsrcIndex = colorAttach.colorAttachementsVirTextureIndex;
             resourceUsageInfo[virRsrcIndex].firstUse =
@@ -295,31 +230,31 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
         }
     }
 
-    for (uint32_t step = 0; step < m_executionOrder.size(); ++step) {
+    for (uint32_t step = 0; step < compiledGraph.executionOrder.size(); ++step) {
         for (uint32_t resrcIdx = 0; resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
             const auto& sub = subResources[resrcIdx];
             if (resourceUsageInfo[resrcIdx].lastUse == step - 1) {
-                m_vra.Release(sub.textureDesc, sub.actualResource);
+                vra.Release(sub.textureDesc, sub.actualResource);
             }
 
             if (resourceUsageInfo[resrcIdx].firstUse == step &&
                 resrcIdx != PassSetupContext::kSceneColorHandle.index) {
-                TransientResourcePool::Handle actual = m_vra.Attache(sub.textureDesc);
+                TransientResourcePool::Handle actual = vra.Attache(sub.textureDesc);
                 subResources[resrcIdx].actualResource = actual;
             }
         }
     }
 
-    for (uint32_t step = 0; step < m_executionOrder.size(); ++step) {
-        uint32_t nodeIdx = m_executionOrder[step];
+    for (uint32_t step = 0; step < compiledGraph.executionOrder.size(); ++step) {
+        uint32_t nodeIdx = compiledGraph.executionOrder[step];
 
         wgpu::BindGroup passBindGroup = nullptr;
         std::optional<wgpu::BindGroupLayout> layout =
-            m_shaderManager->GetPassBindGroupLayout(nodeIdx);
+            shaderManager->GetPassBindGroupLayout(nodeIdx);
         if (layout.has_value()) {
             std::span<const ShaderAssetFormat::Binding> bindingInfo =
-                m_shaderManager->GetPassBindGroupInfo(nodeIdx);
-            ResourceResolver resolver(virtualPasses[nodeIdx], subResourceMap, subResources, &m_vra);
+                shaderManager->GetPassBindGroupInfo(nodeIdx);
+            ResourceResolver resolver(virtualPasses[nodeIdx], subResourceMap, subResources, &vra);
             passBindGroup = BindGroupFactory::Create(m_device, layout.value(), bindingInfo,
                                                      RenderGraphProvider{&resolver});
         }
@@ -348,147 +283,14 @@ void core::render::RenderGraph::Setup(std::span<uint32_t> passes, PassManager* p
             .depthStencilAttachment = depthAttach,
             .m_bindGroup = passBindGroup,
         };
-        m_renderNodes[nodeIdx] = node;
-        m_targetStates[nodeIdx] = virtualPasses[nodeIdx].targetState;
-    }
-}
-
-inline void RadixSortRenderIntents64(std::vector<core::render::RenderIntent>& intents) {
-    if (intents.empty()) return;
-
-    // Allocate single scratch buffer to prevent per-pass heap allocations
-    std::vector<core::render::RenderIntent> scratchBuffer(intents.size());
-
-    auto* src = &intents;
-    auto* dst = &scratchBuffer;
-
-    const int bitsPerPass = 8;
-    const int bucketCount = 1 << bitsPerPass; // 256 buckets
-    const int passCount = sizeof(uint64_t);   // 4 passes for 64-bit integer
-
-    for (int pass = 0; pass < passCount; ++pass) {
-        size_t counts[bucketCount] = {0};
-        size_t offsets[bucketCount] = {0};
-
-        const int shift = pass * bitsPerPass;
-
-        // 1. Compute frequencies using pure logical shifting (Endian-Safe)
-        for (const auto& intent : *src) {
-            uint8_t bucket = (intent.sortKey >> shift) & 0xFF;
-            counts[bucket]++;
-        }
-
-        // 2. Compute prefix sums (exclusive offsets)
-        size_t total = 0;
-        for (int i = 0; i < bucketCount; ++i) {
-            offsets[i] = total;
-            total += counts[i];
-        }
-
-        // 3. Scatter elements into destination buffer maintaining stability
-        for (const auto& intent : *src) {
-            uint8_t bucket = (intent.sortKey >> shift) & 0xFF;
-            (*dst)[offsets[bucket]++] = intent;
-        }
-
-        // Ping-pong pointer swap
-        std::swap(src, dst);
+        compiledGraph.renderNodes[nodeIdx] = node;
+        compiledGraph.targetStates[nodeIdx] = virtualPasses[nodeIdx].targetState;
     }
 
-    // If final sorted array points to the scratch buffer, move it back to intents
-    if (src != &intents) {
-        intents = std::move(scratchBuffer);
-    }
-}
+    compiledGraph.subResources = std::move(subResources);
+    compiledGraph.subResourceMap = std::move(subResourceMap);
 
-void core::render::RenderGraph::Prepare(RenderQueue& renderQueue,
-                                        PipelineManager* pipelineManager) {
-    for (uint32_t i = 0; i < m_executionOrder.size(); ++i) {
-        uint32_t nodeId = m_executionOrder[i];
-
-        if (renderQueue.renderIntents[nodeId].empty()) {
-            Handle shaderHandle =
-                m_shaderManager->GetShaderHandle(nodeId, MaterialManager::kEmptyMaterialTechniqe);
-            if (renderQueue.renderIntents[nodeId].empty() && shaderHandle.IsValid()) {
-                PipelineManager::PipelineConfig config{};
-                config.shader = m_shaderManager->GetShaderAsset(shaderHandle);
-                config.layoutId = VertexLayoutManager::kVoidVertexLayout;
-                config.passId = nodeId;
-                config.depthStencilId = DepthStencilStateManager::kNullStateID;
-                config.targetState = &m_targetStates[nodeId];
-
-                Handle pipelineHandle = pipelineManager->GetOrCreatePipeline(config);
-
-                renderQueue.proceduralPipelines[nodeId] =
-                    pipelineManager->GetPipeline(pipelineHandle);
-            }
-        }
-
-        RadixSortRenderIntents64(renderQueue.renderIntents[nodeId]);
-    }
-}
-
-void core::render::RenderGraph::Execute(RenderQueue& renderQueue) {
-    auto d = m_device->GetDeivce();
-    m_vra.InjectExternalResource(0, m_device->GetCurrentTexture());
-
-    auto& cameraData = renderQueue.cameraData;
-    d.GetQueue().WriteBuffer(m_globalUniformBuffer, 0, &cameraData, sizeof(CameraUniformData));
-
-    auto commandEncoder = d.CreateCommandEncoder();
-    for (uint32_t i = 0; i < m_executionOrder.size(); ++i) {
-        uint32_t nodeId = m_executionOrder[i];
-
-        wgpu::RenderPassDescriptor renderPassDescriptor{};
-
-        std::vector<wgpu::RenderPassColorAttachment> colorAttachments;
-        colorAttachments.reserve(m_renderNodes[nodeId].attachments.size());
-        for (const auto& attach : m_renderNodes[nodeId].attachments) {
-            wgpu::TextureView view = m_vra.Get(attach.resourceIdx).CreateView();
-            colorAttachments.push_back(wgpu::RenderPassColorAttachment{
-                .view = view,
-                .loadOp = attach.colorAttach.loadOp,
-                .storeOp = attach.colorAttach.storeOp,
-                .clearValue = attach.colorAttach.clearValue,
-            });
-        }
-
-        renderPassDescriptor.colorAttachmentCount = colorAttachments.size();
-        renderPassDescriptor.colorAttachments = colorAttachments.data();
-
-        wgpu::RenderPassDepthStencilAttachment depthStencilAttach;
-        if (m_renderNodes[nodeId].depthStencilAttachment) {
-            const auto& desc = m_renderNodes[nodeId].depthStencilAttachment->depthStencilAttach;
-
-            depthStencilAttach.view =
-                m_vra.Get(m_renderNodes[nodeId].depthStencilAttachment->resourceIdx).CreateView();
-            depthStencilAttach.depthClearValue = desc.depthClearValue;
-            depthStencilAttach.depthLoadOp = desc.depthLoadOp;
-            depthStencilAttach.depthStoreOp = desc.depthStoreOp;
-            depthStencilAttach.stencilClearValue = desc.stencilClearValue;
-            depthStencilAttach.stencilLoadOp = desc.stencilLoadOp;
-            depthStencilAttach.stencilStoreOp = desc.stencilStoreOp;
-
-            renderPassDescriptor.depthStencilAttachment = &depthStencilAttach;
-        }
-        wgpu::RenderPassEncoder encoder = commandEncoder.BeginRenderPass(&renderPassDescriptor);
-        encoder.SetBindGroup(0, m_globalBindGroup);
-        encoder.SetBindGroup(BindSlot::Pass, m_renderNodes[nodeId].m_bindGroup);
-        m_renderNodes[nodeId].pass->Execute(
-            encoder, {
-                      .intents = renderQueue.renderIntents[nodeId],
-                      .assetRegistry = m_assetManager->GetRegistry(),
-                      .proceduralPipeline = renderQueue.proceduralPipelines[nodeId],
-                  });
-        encoder.End();
-    }
-
-    auto commandBuffer = commandEncoder.Finish();
-    d.GetQueue().Submit(1, &commandBuffer);
-}
-
-std::span<const core::render::PassTargetState> core::render::RenderGraph::GetTargetStates() {
-    return m_targetStates;
+    return compiledGraph;
 }
 
 core::render::ResourceResolver::ResourceResolver(

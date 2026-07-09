@@ -200,29 +200,27 @@ struct PassReadInfo {
 };
 
 struct PassSetupContext {
-      constexpr static Handle kSceneColorHandle{.index = 0, .generation = 0};
-      constexpr static char const* kSceneColorName = "SceneColor";
+    constexpr static Handle kSceneColorHandle{.index = 0, .generation = 0};
+    constexpr static char const* kSceneColorName = "SceneColor";
 
-      Handle DeclareTexture(const std::string& bindingName, const TextureDescriptor& desc);
+    Handle DeclareTexture(const std::string& bindingName, const TextureDescriptor& desc);
 
-      void RegisterPassOutputs(
-          std::vector<ColorAttachment> colorAttachments,
-          std::optional<DepthStencilAttachment> depthStencilAttachment = std::nullopt);
+    void RegisterPassOutputs(
+        std::vector<ColorAttachment> colorAttachments,
+        std::optional<DepthStencilAttachment> depthStencilAttachment = std::nullopt);
 
-      void RegisterTextureRead(Handle texture);
-      void RegisterTextureRead(Handle texture, wgpu::TextureViewDescriptor desc);
+    void RegisterTextureRead(Handle texture);
+    void RegisterTextureRead(Handle texture, wgpu::TextureViewDescriptor desc);
 
-      Handle GetResourceHandle(const std::string& name);
+    Handle GetResourceHandle(const std::string& name);
 
-      std::vector<LocalTexture> m_declaredTextures = {{"SceneColor"}};
-      std::vector<ColorAttachment> m_colorAttachments;
-      std::optional<DepthStencilAttachment> m_depthStencilAttachment;
+    std::vector<LocalTexture> m_declaredTextures = {{"SceneColor"}};
+    std::vector<ColorAttachment> m_colorAttachments;
+    std::optional<DepthStencilAttachment> m_depthStencilAttachment;
 
-      std::vector<LocalTexture> m_requiredTextures = {{"SceneColor"}};
-      std::vector<PassReadInfo> m_readTextures;
+    std::vector<LocalTexture> m_requiredTextures = {{"SceneColor"}};
+    std::vector<PassReadInfo> m_readTextures;
 };
-
-
 
 struct PassExecuteContext {
     std::span<RenderIntent> intents;
@@ -238,8 +236,6 @@ class IRenderPass {
                          const PassExecuteContext& executeContext) = 0;
 
     virtual void Setup(PassSetupContext& context) = 0;
-
-    virtual std::string GetPassName() = 0;
 };
 
 struct transparent_string_hash {
@@ -270,6 +266,7 @@ class PassManager {
 
     uint8_t GetPassID(const std::string_view passName) const;
     IRenderPass* GetPass(uint8_t id) const;
+    const std::string& GetPassName(uint8_t id) const;
 
   private:
     uint8_t m_nextId = 0;

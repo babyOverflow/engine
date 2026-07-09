@@ -7,11 +7,10 @@ class DeferredLightingPass : public core::render::IRenderPass {
   public:
     DeferredLightingPass() = default;
     ~DeferredLightingPass() {}
-    void Execute(wgpu::RenderPassEncoder encoder, const PassExecuteContext& executeContext) override;
+    void Execute(wgpu::RenderPassEncoder encoder,
+                 const PassExecuteContext& executeContext) override;
 
     void Setup(PassSetupContext& context) override;
-
-    std::string GetPassName() override { return "DeferredLightingPass"; }
 
   private:
     static const core::render::PassTargetState kSignature;

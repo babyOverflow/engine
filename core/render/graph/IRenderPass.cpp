@@ -59,3 +59,12 @@ uint8_t core::render::PassManager::GetPassID(const std::string_view passName) co
     }
     return it->second;
 }
+
+const std::string& core::render::PassManager::GetPassName(uint8_t id) const {
+    auto it = m_IdToName.find(id);
+    if (it == m_IdToName.end()) {
+        assert(false && "Pass Name not found");
+    }
+    return it->second;
+}
+

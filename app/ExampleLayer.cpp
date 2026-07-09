@@ -1,11 +1,8 @@
 #include <slang.h>
-#include <array>
 #include <glm/glm.hpp>
 #include <print>
-#include <string_view>
 
 #include "ExampleLayer.h"
-#include "util.h"
 
 struct Uniform {
     glm::mat4x4 modelViewProjection;
@@ -20,9 +17,6 @@ struct Vertex {
 
 std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     core::render::Device* device = app->GetDevice();
-    core::render::PipelineManager* pipelineManager = app->GetPipelineManager();
-    core::AssetManager* assetManager = app->GetAssetManager();
-    core::render::ShaderManager* shaderManager = app->GetShaderManager();
 
     using namespace core::render;
 
@@ -45,7 +39,7 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
 }
 
 void ExampleLayer::OnAttach(core::Scene& scene) {
-    //auto shaderHandle =  m_shaderLoader.LoadShader("assets/ForwardPass.shdr");
+    auto shaderHandle =  m_shaderLoader.LoadShader("assets/ForwardPass.shdr");
     auto shaderHandle1 =  m_shaderLoader.LoadShader("assets/DeferredGBufferPass.shdr");
     auto shaderHandle0 =  m_shaderLoader.LoadShader("assets/DeferredLightingPass.shdr");
     auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");

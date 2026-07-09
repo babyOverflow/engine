@@ -156,7 +156,7 @@ Handle PipelineManager::GetOrCreatePipeline(const PipelineConfig& config) {
         .targets = targets.data(),
     };
 
-    std::string passName = pass->GetPassName();
+    std::string passName = m_passManager->GetPassName(config.passId);
 
     wgpu::PrimitiveState primitiveState{
         .topology = static_cast<wgpu::PrimitiveTopology>(key.bits.topology),

@@ -9,12 +9,8 @@ class ForwardRenderPass : public core::render::IRenderPass {
 
     void Setup(PassSetupContext& context) override;
 
-
     void Execute(wgpu::RenderPassEncoder encoder,
 
                  const PassExecuteContext& executeContext) override;
-
-    std::string GetPassName() override { return "ForwardRenderPass"; }
-
 };
 }  // namespace core::render::pass
