@@ -5,9 +5,9 @@
 #include "import/Importer.h"
 
 #include "AssetManager.h"
-#include "render/graph/IRenderPass.h"
 #include "Material.h"
 #include "TextureManager.h"
+#include "render/graph/IRenderPass.h"
 
 namespace core::render {
 
@@ -35,18 +35,14 @@ class MaterialMutator {
 class MaterialManager {
   public:
     MaterialManager() = delete;
-    MaterialManager(Device* device,
-                    AssetManager* assetManager,
-                    TextureManager* textureManager,
-                    PassManager* passManager,
-                    LayoutCache* layoutCache);
+    MaterialManager(Device* device, AssetManager* assetManager, TextureManager* textureManager);
     ~MaterialManager() = default;
     MaterialManager(const MaterialManager&) = delete;
     MaterialManager& operator=(const MaterialManager&) = delete;
     MaterialManager(MaterialManager&&) noexcept = default;
     MaterialManager& operator=(MaterialManager&&) noexcept = default;
 
-    static inline std::string kEmptyMaterialName = "EmptyMaterial";
+    static constexpr std::string_view kEmptyMaterialName = "EmptyMaterial";
     static constexpr uint32_t kEmptyMaterialTechniqe = 0;
 
     Handle LoadMaterial(const importer::MaterialResult& materialAssetFormat);
@@ -81,8 +77,6 @@ class MaterialManager {
     Device* m_device;
     AssetManager* m_assetManager;
     TextureManager* m_textureManager;
-    PassManager* m_passManager;
-    LayoutCache* m_layoutCache;
 
     std::unordered_map<AssetPath, Handle> m_materialCache;
 

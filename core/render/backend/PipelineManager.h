@@ -1,10 +1,10 @@
 #pragma once
 #include "LayoutCache.h"
 #include "ResourcePool.h"
-#include "render/resource/ShaderAsset.h"
-#include "render/resource/MaterialManager.h"
-#include "render/resource/VertexLayoutManager.h"
+#include "render/graph/IRenderPass.h"
 #include "render/render.h"
+#include "render/resource/ShaderAsset.h"
+#include "render/resource/VertexLayoutManager.h"
 
 namespace core::render {
 class PassManager;
@@ -61,7 +61,6 @@ class PipelineManager {
   public:
     PipelineManager(Device* device,
                     LayoutCache* layoutCache,
-                    MaterialManager* materialManager,
                     PassManager* passManager,
                     VertexLayoutManager* vertexLayoutManager,
                     wgpu::BindGroupLayoutDescriptor& globalBindGroupLayoutDesc);
@@ -88,7 +87,6 @@ class PipelineManager {
     Device* m_device;
     LayoutCache* m_layoutCache;
     VertexLayoutManager* m_vertexLayoutManager;
-    MaterialManager* m_materialManager;
     PassManager* m_passManager;
     DepthStencilStateManager m_depthStencilStateManager;
 

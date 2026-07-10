@@ -1,8 +1,8 @@
 #pragma once
 #include "AssetManager.h"
 #include "Texture.h"
-#include "render/render.h"
 #include "import/Importer.h"
+#include "render/render.h"
 
 namespace core::render {
 class TextureManager {
@@ -31,6 +31,5 @@ class TextureManager {
     AssetManager* m_assetRepo;
 
     std::unordered_map<AssetPath, Handle> m_textureCache;
-
 };
 }  // namespace core::render

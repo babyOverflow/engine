@@ -9,11 +9,11 @@
 #include <iostream>
 #include <memory>
 
-#include "render/resource/GpuResource.h"
 #include "ShaderInterop.h"
-#include "render/resource/Texture.h"
 #include "Window.h"
 #include "memory/StridedSpan.h"
+#include "render/resource/GpuResource.h"
+#include "render/resource/Texture.h"
 #include "wgx.h"
 
 namespace core {

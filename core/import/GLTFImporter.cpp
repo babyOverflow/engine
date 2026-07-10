@@ -12,11 +12,11 @@ using core::memory::StridedSpan;
 
 namespace core::importer {
 
-const std::string kGltfPosition = "POSITION";
-const std::string kGltfTexCoord0 = "TEXCOORD_0";
-const std::string kGltfNormal = "NORMAL";
-const std::string kGltfTangent = "TANGENT";
-const std::string kGltfColor = "COLOR_0";
+const char* kGltfPosition = "POSITION";
+const char* kGltfTexCoord0 = "TEXCOORD_0";
+const char* kGltfNormal = "NORMAL";
+const char* kGltfTangent = "TANGENT";
+const char* kGltfColor = "COLOR_0";
 
 AssetPath GLTFImporter::ToTextureID(int gltfTextureIndex) {
     return AssetPath{std::format("virtual://tex/{}", gltfTextureIndex)};
@@ -113,7 +113,6 @@ std::expected<GLTFImportResult, Error> GLTFImporter::ImportFromFile(const std::s
         // TODO! log
         return std::unexpected(Error::Parse("Failed to load glTF file: " + err));
     }
-
 
     for (const auto& [idx, texture] : gltfModel.textures | std::views::enumerate) {
         const auto& image = gltfModel.images[texture.source];

@@ -1,4 +1,3 @@
-#include <print>
 #include "Camera3D.h"
 
 bool common::CameraController::OnKeyboardPress(core::event::KeyPressEvent& event) {
@@ -22,10 +21,9 @@ bool common::CameraController::OnKeyboardPress(core::event::KeyPressEvent& event
     return true;
 }
 
-bool common::CameraController::OnMouseMove(core::event::CursorPosEvent& event)
-{
+bool common::CameraController::OnMouseMove(core::event::CursorPosEvent& event) {
     rotateHorizontal += prevCusorX - event.x;
-    rotateVertical  += prevCusorY - event.y;
+    rotateVertical += prevCusorY - event.y;
     prevCusorX = event.x;
     prevCusorY = event.y;
     return true;

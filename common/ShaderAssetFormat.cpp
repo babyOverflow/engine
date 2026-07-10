@@ -84,11 +84,11 @@ std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(
         shaderAsset.bindings.resize(header.bindingCount);
         std::memcpy(shaderAsset.bindings.data(), ptr + bindingsOffset,
                     sizeof(Binding) * header.bindingCount);
-        
+
         for (uint32_t i = 0; i < header.bindingCount; ++i) {
             const auto& b = shaderAsset.bindings[i];
-            std::println("DEBUG LOAD: Binding[{}] - set: {}, binding: {}, type: {}, visibility: {}", 
-                         i, b.set, b.binding, (int)b.resourceType, (int)b.visibility);
+            std::println("DEBUG LOAD: Binding[{}] - set: {}, binding: {}, type: {}, visibility: {}",
+                         i, b.set, b.binding, static_cast<int>(b.resourceType), static_cast<int>(b.visibility));
         }
     }
 
@@ -110,7 +110,6 @@ std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(
         std::memcpy(shaderAsset.code.data(), ptr + codeOffset, header.shaderSize);
     }
 
-    shaderAsset.tokens;
     if (header.nameTableSize > 0) {
         shaderAsset.nameTableData.resize(header.nameTableSize);
         std::memcpy(shaderAsset.nameTableData.data(), ptr + nameTableOffset, header.nameTableSize);

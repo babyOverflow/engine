@@ -57,16 +57,13 @@ static constexpr wgpu::VertexStepMode MapStepMode(MeshAssetFormat::StepMode step
 
 PipelineManager::PipelineManager(Device* device,
                                  LayoutCache* layoutCache,
-                                 MaterialManager* materialManager,
                                  PassManager* passManager,
                                  VertexLayoutManager* vertexLayoutManager,
                                  wgpu::BindGroupLayoutDescriptor& globalBindGroupLayoutDesc)
     : m_device(device),
       m_layoutCache(layoutCache),
       m_vertexLayoutManager(vertexLayoutManager),
-      m_materialManager(materialManager),
-      m_passManager(passManager)
-{
+      m_passManager(passManager) {
     m_globalBindGroupLayout = m_layoutCache->GetBindGroupLayout(globalBindGroupLayoutDesc);
 }
 
@@ -87,7 +84,6 @@ Handle PipelineManager::GetOrCreatePipeline(const PipelineConfig& config) {
     if (it != m_pipelineIDCache.end()) {
         return it->second;
     }
-    auto pass = m_passManager->GetPass(key.bits.passId);
     auto vertexState = m_vertexLayoutManager->GetAllVertexStates()[key.bits.layoutId];
 
     std::vector<wgpu::VertexBufferLayout> vertexLayouts;

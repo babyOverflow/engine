@@ -121,7 +121,6 @@ class StridedSpan {
         return MakeRepeated(kZero, count);
     }
 
-
     // �ε��� ����
     T& operator[](size_type index) const {
         assert(index < m_count);

@@ -18,6 +18,4 @@ std::expected<ShaderImportResult, Error> core::importer::ShdrImporter::ShdrImpor
     };
 }
 
-
-
 }  // namespace core::importer

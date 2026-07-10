@@ -1,9 +1,7 @@
 #include "ModelLoader.h"
 #include <import/GLTFImporter.h>
 
-std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
-    const std::string& path) {
-
+std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(const std::string& path) {
     if (m_modelCache.find(path) != m_modelCache.end()) {
         return m_modelCache[path];
     }
@@ -48,9 +46,8 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
             model.renderUnits.push_back(std::move(renderUnit));
         }
     }
-    
+
     core::Handle modelHandle = m_assetManager->StoreModel(std::move(model));
     m_modelCache[path] = modelHandle;
     return modelHandle;
-    
 }

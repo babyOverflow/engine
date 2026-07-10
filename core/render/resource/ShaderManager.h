@@ -1,11 +1,11 @@
 #pragma once
 
 #include "AssetManager.h"
-#include "render/graph/IRenderPass.h"
-#include "render/backend/LayoutCache.h"
 #include "MaterialManager.h"
 #include "ShaderAsset.h"
 #include "import/ShdrImporter.h"
+#include "render/backend/LayoutCache.h"
+#include "render/graph/IRenderPass.h"
 
 namespace core::render {
 
@@ -17,7 +17,7 @@ struct ShaderLookupTable {
     void Initialize(AssetView<ShaderAsset> shaderFallBack);
 
     [[nodiscard]] inline Handle GetShader(uint8_t passId, uint8_t materialTechId) const {
-        if (passId >= MAX_PASSES || materialTechId >= MAX_MATERIAL_TECHS) {
+        if (passId >= MAX_PASSES) {
             return Handle{.index = 0, .generation = Handle::kInvalidGen};
         }
         return m_table[passId][materialTechId];
@@ -53,9 +53,8 @@ class ShaderManager {
         return m_techniqueBindInfo[techniqueId];
     }
 
-    std::optional< wgpu::BindGroupLayout> GetPassBindGroupLayout(uint8_t passId) {
-        if (m_passBindGorupsLayouts[passId] == nullptr)
-        {
+    std::optional<wgpu::BindGroupLayout> GetPassBindGroupLayout(uint8_t passId) {
+        if (m_passBindGorupsLayouts[passId] == nullptr) {
             return std::nullopt;
         }
         return m_passBindGorupsLayouts[passId];

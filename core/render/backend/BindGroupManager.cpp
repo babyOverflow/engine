@@ -4,11 +4,9 @@
 #include "BindGroupManager.h"
 
 core::render::BindGroupManager::BindGroupManager(Device* device,
-                                                 LayoutCache* layoutCache,
                                                  ShaderManager* shaderManager,
                                                  MaterialManager* materialManager)
     : m_device(device),
-      m_layoutCache(layoutCache),
       m_shaderManager(shaderManager),
       m_materialManager(materialManager) {}
 
@@ -23,7 +21,7 @@ void core::render::BindGroupManager::UpdateBindGroup(Handle materialHandle) {
     wgpu::BindGroupLayout bindGroupLayout = m_shaderManager->GetMaterialBindGroupLayout(technique);
     std::span<ShaderAssetFormat::Binding> bindings =
         m_shaderManager->GetMaterialBindGroupInfo(technique);
- 
+
     MaterialProvider provider{
         .material = material,
     };

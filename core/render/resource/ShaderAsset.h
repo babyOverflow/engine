@@ -1,12 +1,10 @@
 #pragma once
 #include <dawn/webgpu_cpp.h>
 #include <array>
-#include <expected>
 #include <memory>
 
 #include "Common.h"
 #include "ShaderAssetFormat.h"
-#include "render/render.h"
 
 namespace core::render {
 
@@ -23,14 +21,12 @@ class ShaderReflection {
 
     static ShaderReflection Create(ShaderAssetFormat* shaderAssetFormat);
 
-
     size_t materialUniformSize = 0;
 
     struct GroupRange {
         uint32_t offset = 0;
         uint32_t count = 0;
     };
-
 
     std::span<const Binding> GetGroup(uint32_t setIdx) const;
     std::span<const Binding> GetAllBindings() const;
@@ -42,7 +38,8 @@ class ShaderReflection {
     uint32_t GetEntryPointCount() const { return m_shaderAssetFormat->entryPoints.size(); }
 
     std::span<const ShaderAssetFormat::ShaderParameter> GetEntryIO(uint32_t entryIdx) const;
-    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInputByName(const std::string& name) const;
+    std::span<const ShaderAssetFormat::ShaderParameter> GetEntryInputByName(
+        const std::string& name) const;
 
     std::string_view GetPassName() const;
     std::string_view GetMaterialTechName() const;
@@ -51,7 +48,9 @@ class ShaderReflection {
     ShaderReflection(ShaderAssetFormat* shaderAssetFormat,
                      std::vector<std::string_view>&& nametable,
                      std::array<GroupRange, 4>&& layouts)
-        : m_shaderAssetFormat(shaderAssetFormat), m_nameTable(std::move(nametable)), m_layouts(std::move(layouts)) {}
+        : m_shaderAssetFormat(shaderAssetFormat),
+          m_nameTable(std::move(nametable)),
+          m_layouts(std::move(layouts)) {}
 
     const ShaderAssetFormat* m_shaderAssetFormat;
     std::vector<std::string_view> m_nameTable;
@@ -65,7 +64,7 @@ class ShaderAsset {
 
   public:
     using sa = core::ShaderAssetFormat;
-    ShaderAsset() = default;
+    ShaderAsset() = delete;
     ShaderAsset(const ShaderAsset&) = delete;
     ShaderAsset& operator=(const ShaderAsset&) = delete;
     ShaderAsset(ShaderAsset&&) noexcept = default;
@@ -96,9 +95,9 @@ class ShaderAsset {
 
                 std::array<wgpu::BindGroupLayout, 4> bindGroupLayout)
         : m_shaderModule(shaderModule),
+          m_bindGroupLayouts(bindGroupLayout),
           m_shaderAssetFormat(std::move(shaderAssetFormat)),
-          m_reflection(reflection),
-          m_bindGroupLayouts(bindGroupLayout) {}
+          m_reflection(reflection) {}
 
     wgpu::ShaderModule m_shaderModule = nullptr;
     std::array<wgpu::BindGroupLayout, 4> m_bindGroupLayouts;

@@ -5,9 +5,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Texture.h"
 #include "render/backend/BindGroupFactory.h"
 #include "render/backend/LayoutCache.h"
-#include "Texture.h"
 #include "render/render.h"
 
 namespace core::render {
@@ -18,8 +18,6 @@ concept ValidMaterialVariableType =
     std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> ||
     std::is_same_v<T, glm::vec2> || std::is_same_v<T, glm::vec3> || std::is_same_v<T, glm::vec4> ||
     std::is_same_v<T, glm::mat4>;
-
-
 
 class Material {
     friend class MaterialMutator;

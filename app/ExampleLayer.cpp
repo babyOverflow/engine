@@ -35,13 +35,14 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
         app->GetShaderManager(),
     };
 
-    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, loader, shaderLoader));
+    return std::unique_ptr<ExampleLayer>(
+        new ExampleLayer(app, device, gameCamera, loader, shaderLoader));
 }
 
 void ExampleLayer::OnAttach(core::Scene& scene) {
-    auto shaderHandle =  m_shaderLoader.LoadShader("assets/ForwardPass.shdr");
-    auto shaderHandle1 =  m_shaderLoader.LoadShader("assets/DeferredGBufferPass.shdr");
-    auto shaderHandle0 =  m_shaderLoader.LoadShader("assets/DeferredLightingPass.shdr");
+    auto shaderHandle = m_shaderLoader.LoadShader("assets/ForwardPass.shdr");
+    auto shaderHandle1 = m_shaderLoader.LoadShader("assets/DeferredGBufferPass.shdr");
+    auto shaderHandle0 = m_shaderLoader.LoadShader("assets/DeferredLightingPass.shdr");
     auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");
     if (!modelOrError.has_value()) {
         std::println("failed to load");
@@ -51,7 +52,6 @@ void ExampleLayer::OnAttach(core::Scene& scene) {
     core::AssetView<core::render::Model> model = m_app->GetAssetManager()->GetModel(m_modelHandle);
 
     scene.AddModel(model, glm::mat4x4(1.F));
-
 }
 
 void ExampleLayer::OnUpdate(core::Scene& scene) {

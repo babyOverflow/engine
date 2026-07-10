@@ -9,7 +9,8 @@ void core::render::pass::ForwardRenderPass::Setup(core::render::PassSetupContext
                             .format = wgpu::TextureFormat::Depth24PlusStencil8,
                         });
 
-    context.RegisterPassOutputs({{PassSetupContext::kSceneColorHandle}}, DepthStencilAttachment{depthStencilHandle});
+    context.RegisterPassOutputs({{PassSetupContext::kSceneColorHandle}},
+                                DepthStencilAttachment{depthStencilHandle});
 }
 
 void core::render::pass::ForwardRenderPass::Execute(wgpu::RenderPassEncoder pass,

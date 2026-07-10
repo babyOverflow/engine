@@ -47,7 +47,6 @@ core::Handle core::render::PassSetupContext::GetResourceHandle(const std::string
     return Handle(index);
 }
 
-
 core::render::IRenderPass* core::render::PassManager::GetPass(uint8_t id) const {
     return m_passes[id].get();
 }
@@ -67,4 +66,3 @@ const std::string& core::render::PassManager::GetPassName(uint8_t id) const {
     }
     return it->second;
 }
-

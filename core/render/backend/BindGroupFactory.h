@@ -48,7 +48,7 @@ wgpu::BindGroup core::render::BindGroupFactory::Create(
                 break;
             }
             case core::ShaderAssetFormat::ResourceType::Texture: {
-                wgpu::BindGroupEntry textureEntry {
+                wgpu::BindGroupEntry textureEntry{
                     .binding = bindingInfo.binding,
                     .textureView = provider.GetTextureView(bindingInfo.id),
                 };

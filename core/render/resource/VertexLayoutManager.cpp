@@ -38,7 +38,6 @@ core::Handle core::render::VertexLayoutManager::GetVertexLayout(
 
 uint8_t core::render::VertexLayoutManager::GetVertexStateID(
     const MeshAssetFormat::MeshVertexState& vertexState) {
-
     auto it = std::ranges::find(m_vertexStates, vertexState);
     if (it != m_vertexStates.end()) {
         uint8_t id = static_cast<uint8_t>(std::distance(m_vertexStates.begin(), it));

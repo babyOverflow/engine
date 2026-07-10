@@ -1,8 +1,8 @@
 #pragma once
-#include "import/Importer.h"
-#include "VertexLayoutManager.h"
 #include "AssetManager.h"
 #include "MeshAssetFormat.h"
+#include "VertexLayoutManager.h"
+#include "import/Importer.h"
 #include "render/render.h"
 
 namespace core::render {
@@ -12,8 +12,12 @@ class MeshManager {
     MeshManager() = default;
     ~MeshManager() = default;
 
-    MeshManager(Device* device, AssetManager* assetManager, VertexLayoutManager* vertexLayoutManager)
-        : m_device(device), m_assetManager(assetManager), m_vertexLayoutManager(vertexLayoutManager) {}
+    MeshManager(Device* device,
+                AssetManager* assetManager,
+                VertexLayoutManager* vertexLayoutManager)
+        : m_device(device),
+          m_assetManager(assetManager),
+          m_vertexLayoutManager(vertexLayoutManager) {}
 
     Handle LoadMesh(const importer::MeshResult& meshAssetFormat);
     Handle GetMeshHandle(const AssetPath& assetPath) const {
@@ -26,6 +30,7 @@ class MeshManager {
     AssetView<Mesh> GetMesh(Handle handle) {
         return {m_assetManager->GetMesh(handle).Get(), handle};
     }
+
   private:
     Device* m_device = nullptr;
     AssetManager* m_assetManager = nullptr;

@@ -14,8 +14,6 @@ void ShaderLookupTable::Initialize(AssetView<ShaderAsset> shaderFallBack) {
 
 std::array<wgpu::BindGroupLayout, 4> ShaderManager::CreateGroupLayouts(
     const core::render::ShaderReflection& reflection) {
-    std::array<wgpu::BindGroupLayout, 4>;
-
     std::array<wgpu::BindGroupLayout, 4> bindGroupLayouts = {};
     for (uint32_t set = 0; set < 4; ++set) {
         const std::span<const ShaderAssetFormat::Binding> bindings = reflection.GetGroup(set);

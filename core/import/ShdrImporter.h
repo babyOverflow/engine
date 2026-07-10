@@ -10,8 +10,6 @@ class ShaderReflection;
 }
 namespace core::importer {
 
-
-
 class ShdrImporter {
   public:
     static std::expected<ShaderImportResult, Error> ShdrImport(const std::string& shaderPath);

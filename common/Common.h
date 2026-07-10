@@ -113,10 +113,6 @@ enum class Semantic {
 };
 
 Semantic NameToSemantic(const std::string& name, uint32_t index);
-
-constexpr uint32_t kSetNumberGlobal = 0;
-constexpr uint32_t kSetNumberMaterial = 1;
-constexpr uint32_t kSetNumberInstance = 2;
 }  // namespace core
 
 template <>

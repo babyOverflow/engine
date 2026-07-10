@@ -1,8 +1,8 @@
 #pragma once
 
 #include <expected>
-#include <memory>
 #include <functional>
+#include <memory>
 
 #include <GLFW/glfw3.h>
 
@@ -44,7 +44,7 @@ class Window {
     void PollEvent();
 
   private:
-    Window(GLFWwindow* window, WindowSpec spec) : m_window(window), m_spec(spec) {}
+    Window(GLFWwindow* window, WindowSpec spec) : m_spec(spec), m_window(window) {}
     WindowSpec m_spec;
     std::unique_ptr<GLFWwindow, GLFWWindowDestroyer> m_window;
 };

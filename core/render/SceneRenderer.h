@@ -1,16 +1,15 @@
 #pragma once
-#include <span>
 #include <memory>
-#include <vector>
+#include <span>
 #include "Scene.h"
 #include "render.h"
 #include "render/backend/BindGroupManager.h"
 #include "render/backend/PipelineManager.h"
 #include "render/graph/IRenderPass.h"
 #include "render/graph/RenderGraph.h"
-#include "render/resource/ShaderManager.h"
 #include "render/resource/MaterialManager.h"
 #include "render/resource/MeshManager.h"
+#include "render/resource/ShaderManager.h"
 #include "render/resource/TextureManager.h"
 
 namespace core::render {
@@ -29,7 +28,9 @@ class SceneCuller {
 
 class SceneRenderer {
   public:
-    SceneRenderer(Device* device, AssetManager* assetManager, wgpu::BindGroupLayoutDescriptor globalBindGroupLayoutDesc);
+    SceneRenderer(Device* device,
+                  AssetManager* assetManager,
+                  wgpu::BindGroupLayoutDescriptor globalBindGroupLayoutDesc);
     ~SceneRenderer() = default;
 
     SceneRenderer(const SceneRenderer&) = delete;

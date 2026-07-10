@@ -1,8 +1,5 @@
 #include "Application.h"
 #include <ranges>
-#include "render/pass/DeferredGBufferPass.h"
-#include "render/pass/DeferredLightingPass.h"
-#include "render/pass/ForwardRenderPass.h"
 
 namespace core {
 
@@ -56,10 +53,11 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
 
     Window window = std::move(re.value());
     std::unique_ptr<render::Device> device = render::Device::Create(window);
-    auto assetManager = std::make_unique<AssetManager>(AssetManager::Create(device.get()));
+    auto assetManager = std::make_unique<AssetManager>(AssetManager::Create());
     auto globalBindGroupLayout = GetGlobalLayouDesc();
 
-    auto sceneRenderer = std::make_unique<render::SceneRenderer>(device.get(), assetManager.get(), globalBindGroupLayout);
+    auto sceneRenderer = std::make_unique<render::SceneRenderer>(device.get(), assetManager.get(),
+                                                                 globalBindGroupLayout);
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
                        std::move(eventDispatcher), std::move(sceneRenderer));

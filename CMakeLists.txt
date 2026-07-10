@@ -1,7 +1,7 @@
-﻿# CMakeList.txt : 최상위 CMake 프로젝트 파일, 전역 구성을 수행하고
+# CMakeList.txt : 최상위 CMake 프로젝트 파일, 전역 구성을 수행하고
 # 여기에 하위 프로젝트를 포함합니다.
 #
-cmake_minimum_required (VERSION 3.12)
+cmake_minimum_required (VERSION 3.25)
 
 set(CMAKE_CXX_CLANG_TIDY
     "clang-tidy"
@@ -24,6 +24,10 @@ set(CMAKE_CXX_CLANG_TIDY
 #  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 #endif()
 project ("render")
+
+# Treat external library headers (e.g., vcpkg dependencies) as system headers
+# to prevent clang-tidy from analyzing them and wasting CPU resources.
+set(CMAKE_EXTERNAL_HEADERS_ARE_SYSTEM ON)
 add_compile_definitions(
     _AMD64_                  # 강제로 x64 아키텍처 명시
     NOMINMAX                 # min/max 매크로 충돌 방지

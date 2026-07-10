@@ -1,6 +1,4 @@
-#include "render/graph/IRenderPass.h"
 #include "Material.h"
-#include "render/util.h"
 
 namespace core::render {
 
@@ -73,8 +71,7 @@ AssetView<Texture> Material::GetTexture(PropertyId id) {
     return m_textures[id];
 }
 
-wgpu::TextureView MaterialProvider::GetTextureView(PropertyId id)
-{
+wgpu::TextureView MaterialProvider::GetTextureView(PropertyId id) {
     return material->GetTexture(id)->GetView();
 }
 

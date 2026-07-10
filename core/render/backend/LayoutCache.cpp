@@ -18,7 +18,8 @@ BindGroupLayoutKey core::render::BindGroupLayoutKey::From(wgpu::BindGroupLayoutD
     };
 }
 
-wgpu::BindGroupLayout core::render::LayoutCache::GetBindGroupLayout(wgpu::BindGroupLayoutDescriptor& desc) {
+wgpu::BindGroupLayout core::render::LayoutCache::GetBindGroupLayout(
+    wgpu::BindGroupLayoutDescriptor& desc) {
     auto key = BindGroupLayoutKey::From(desc);
 
     if (m_bindGroupLayoutCache.contains(key)) {
@@ -56,8 +57,6 @@ bool BindGroupLayoutKey::operator==(const BindGroupLayoutKey& other) const {
     }
     return true;
 }
-
-
 
 bool PipelineLayoutKey::operator==(const PipelineLayoutKey& other) const {
     if (layouts.size() != other.layouts.size()) {

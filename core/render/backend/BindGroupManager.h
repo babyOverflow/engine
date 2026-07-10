@@ -1,14 +1,13 @@
 #pragma once
 #include <vector>
 
-#include "render/resource/ShaderManager.h"
 #include "render/resource/MaterialManager.h"
+#include "render/resource/ShaderManager.h"
 
 namespace core::render {
 class BindGroupManager {
   public:
     BindGroupManager(Device* device,
-                     LayoutCache* layoutCache,
                      ShaderManager* shaderManager,
                      MaterialManager* materialManager);
 
@@ -17,11 +16,9 @@ class BindGroupManager {
 
   private:
     Device* m_device;
-    LayoutCache* m_layoutCache;
     ShaderManager* m_shaderManager;
     MaterialManager* m_materialManager;
     std::vector<wgpu::BindGroup> m_materialPassBindGroups;
     std::unordered_map<size_t, size_t> m_materialKeyToBindGroupIndex;
-
 };
-}
+}  // namespace core::render

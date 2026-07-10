@@ -1,5 +1,4 @@
 #include "MaterialManager.h"
-#include <ranges>
 
 namespace core::render {
 
@@ -21,22 +20,15 @@ void MaterialMutator::SetTexture(PropertyId id, AssetView<Texture> texture) {
 
 MaterialManager::MaterialManager(Device* device,
                                  AssetManager* assetManager,
-                                 TextureManager* textureManager,
-                                 PassManager* passManager,
-                                 LayoutCache* layoutCache)
-    : m_device(device),
-      m_assetManager(assetManager),
-      m_layoutCache(layoutCache),
-      m_textureManager(textureManager),
-      m_passManager(passManager) {
+                                 TextureManager* textureManager)
+    : m_device(device), m_assetManager(assetManager), m_textureManager(textureManager) {
+    m_nameToTechniqueIdCache[std::string(kEmptyMaterialName)] = kEmptyMaterialTechniqe;
+    // importer::MaterialResult defaultMaterialResult{
+    //     .materialAsset = MaterialAssetFormat{},
+    //     .assetPath = AssetPath{"virtual://material/default"},
+    // };
 
-    m_nameToTechniqueIdCache[kEmptyMaterialName] = kEmptyMaterialTechniqe;
-    //importer::MaterialResult defaultMaterialResult{
-    //    .materialAsset = MaterialAssetFormat{},
-    //    .assetPath = AssetPath{"virtual://material/default"},
-    //};
-
-    //LoadMaterial(defaultMaterialResult);
+    // LoadMaterial(defaultMaterialResult);
 }
 
 Handle MaterialManager::LoadMaterial(const importer::MaterialResult& materialResult) {

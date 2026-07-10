@@ -2,7 +2,6 @@
 
 #include <expected>
 #include <filesystem>
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -36,8 +35,8 @@ struct CompileResult {
     std::vector<uint8_t> sourceBlob;
     std::vector<std::string> nameTable;
     std::vector<uint32_t> indices;
-    std::uint32_t passNameIdx = core::ShaderAssetFormat::kInvalidIdx;
-    std::uint32_t materialNameIdx = core::ShaderAssetFormat::kInvalidIdx;
+    std::uint32_t passNameIdx = core::ShaderAssetFormat::kInvalidIdx<uint32_t>;
+    std::uint32_t materialNameIdx = core::ShaderAssetFormat::kInvalidIdx<uint32_t>;
     std::string warning;
 };
 
@@ -71,13 +70,18 @@ class SlangCompiler {
 
     std::expected<CompileResult, Error> CompilePass(const std::string& path);
 
-    //std::expected<core::ShaderAssetFormat::Pass, Error> GetPassInfo(slang::IComponentType* componentType);
+    // std::expected<core::ShaderAssetFormat::Pass, Error> GetPassInfo(slang::IComponentType*
+    // componentType);
 
   private:
     SlangCompiler(Slang::ComPtr<slang::IGlobalSession> globalSession,
-                  std::vector<std::string> paths, std::string entryTemplatePath);
+                  std::vector<std::string> paths,
+                  std::string entryTemplatePath);
 
-    std::expected<Slang::ComPtr<slang::IModule>, Error> LoadModuleFromFile(slang::ISession* session, const std::string& path, CompilationContext& context);
+    std::expected<Slang::ComPtr<slang::IModule>, Error> LoadModuleFromFile(
+        slang::ISession* session,
+        const std::string& path,
+        CompilationContext& context);
 
     std::expected<CompileResult, Error> CompileInternal(slang::IComponentType* composedProgram,
                                                         CompilationContext& context);

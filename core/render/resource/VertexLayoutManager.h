@@ -25,15 +25,19 @@ class VertexLayoutManager {
     static constexpr uint32_t kVoidVertexLayout = 0;
 
     core::Handle GetVertexLayout(const wgx::VertexBufferLayout& layout);
-    AssetView<VertexLayout> GetVertexLayout(core::Handle handle) { return {m_vertexLayouts.Get(handle), handle}; }
-    std::span<const VertexLayout> GetAllVertexLayouts() const { return m_vertexLayouts.GetDataSpan(); }
+    AssetView<VertexLayout> GetVertexLayout(core::Handle handle) {
+        return {m_vertexLayouts.Get(handle), handle};
+    }
+    std::span<const VertexLayout> GetAllVertexLayouts() const {
+        return m_vertexLayouts.GetDataSpan();
+    }
     uint8_t GetVertexStateID(const MeshAssetFormat::MeshVertexState& vertexState);
     std::span<const MeshAssetFormat::MeshVertexState> GetAllVertexStates() const {
         return m_vertexStates;
     }
 
     struct VertexAttributeKey {
-        wgpu::VertexFormat format = {};
+        wgpu::VertexFormat format;
         uint64_t offset;
         uint32_t shaderLocation;
     };

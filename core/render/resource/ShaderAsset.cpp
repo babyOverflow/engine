@@ -14,7 +14,7 @@ ShaderAsset ShaderAsset::Create(wgpu::ShaderModule shaderModule,
 
 std::span<const ShaderReflection::Binding> ShaderReflection::GetGroup(uint32_t setIdx) const {
     return std::span<const ShaderAssetFormat::Binding>(
-        m_shaderAssetFormat->bindings.begin() + (m_layouts[setIdx].offset),
+        m_shaderAssetFormat->bindings.data() + (m_layouts[setIdx].offset),
         m_layouts[setIdx].count);
 };
 
@@ -37,7 +37,8 @@ std::optional<uint32_t> ShaderReflection::GetEntryPointOffsetByName(const std::s
     return std::nullopt;
 }
 
-std::span<const ShaderAssetFormat::ShaderParameter> core::render::ShaderReflection::GetEntryIO(uint32_t entryIdx) const {
+std::span<const ShaderAssetFormat::ShaderParameter> core::render::ShaderReflection::GetEntryIO(
+    uint32_t entryIdx) const {
     return std::span(m_shaderAssetFormat->parameters.data() +
                          m_shaderAssetFormat->entryPoints[entryIdx].ioStartIndex,
                      m_shaderAssetFormat->entryPoints[entryIdx].ioCount);
@@ -58,7 +59,7 @@ std::string_view ShaderReflection::GetNameByIndex(uint32_t idx) const {
 }
 
 std::string_view ShaderReflection::GetPassName() const {
-    if (m_shaderAssetFormat->header.passNameIndex != (uint16_t)ShaderAssetFormat::kInvalidIdx) {
+    if (m_shaderAssetFormat->header.passNameIndex != ShaderAssetFormat::kInvalidIdx<uint16_t>) {
         return m_nameTable[m_shaderAssetFormat->header.passNameIndex];
     } else {
         return "";
@@ -66,7 +67,7 @@ std::string_view ShaderReflection::GetPassName() const {
 }
 
 std::string_view ShaderReflection::GetMaterialTechName() const {
-    if (m_shaderAssetFormat->header.materialNameIndex != (uint16_t)ShaderAssetFormat::kInvalidIdx) {
+    if (m_shaderAssetFormat->header.materialNameIndex != ShaderAssetFormat::kInvalidIdx<uint16_t>) {
         return m_nameTable[m_shaderAssetFormat->header.materialNameIndex];
     } else {
         return "";

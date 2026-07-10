@@ -1,7 +1,9 @@
-#include "RenderGraph.h"
 #include <array>
-#include "render/SceneRenderer.h"
+#include <ranges>
+
+#include "RenderGraph.h"
 #include "render/resource/Material.h"
+#include "render/resource/ShaderManager.h"
 
 core::render::TransientResourcePool::TransientResourcePool(Device* device) : m_device(device) {
     m_textures.resize(1);  // Reserve index 0 for scene frame texture

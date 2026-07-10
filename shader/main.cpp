@@ -1,7 +1,5 @@
 #include <filesystem>
-#include <fstream>
 #include <print>
-#include <ranges>
 #include <string>
 #include "SlangCompiler.h"
 #include "util.h"
@@ -82,13 +80,13 @@ int main(int argc, char** argv) {
 
     // Write baked binary payload containing compiled WGSL and matched identifiers
     if (WriteAssetToFile(outputPath, compileResult)) {
-        if (compileResult.passNameIdx != core::ShaderAssetFormat::kInvalidIdx &&
-            compileResult.materialNameIdx != core::ShaderAssetFormat::kInvalidIdx &&
+        if (compileResult.passNameIdx != core::ShaderAssetFormat::kInvalidIdx<uint32_t> &&
+            compileResult.materialNameIdx != core::ShaderAssetFormat::kInvalidIdx<uint32_t> &&
             compileResult.passNameIdx < compileResult.nameTable.size() &&
             compileResult.materialNameIdx < compileResult.nameTable.size()) {
-            std::println("Successfully baked pass [{}] with material [{}]: {}", 
+            std::println("Successfully baked pass [{}] with material [{}]: {}",
                          compileResult.nameTable[compileResult.passNameIdx],
-                         compileResult.nameTable[compileResult.materialNameIdx], 
+                         compileResult.nameTable[compileResult.materialNameIdx],
                          outputPath.string());
         } else {
             std::println("Successfully baked shader asset: {}", outputPath.string());

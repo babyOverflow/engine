@@ -18,7 +18,7 @@ namespace slangCompiler {
 slangCompiler::SlangCompiler::SlangCompiler(ComPtr<IGlobalSession> globalSession,
                                             std::vector<std::string> paths,
                                             std::string entryTemplate)
-    : m_paths(paths), m_globalSession(std::move(globalSession)), m_entryTemplate(entryTemplate) {}
+    : m_paths(paths), m_entryTemplate(entryTemplate), m_globalSession(std::move(globalSession)) {}
 
 std::expected<Slang::ComPtr<slang::IModule>, Error> SlangCompiler::LoadModuleFromFile(
     slang::ISession* session,
@@ -965,9 +965,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
             };
         }) |
         std::ranges::to<std::vector>();
-
-    uint32_t nameTableSize = std::ranges::fold_left(
-        nameTable, 0u, [](uint32_t acc, const std::string& name) { return acc + name.size() + 1; });
 
     std::vector<uint8_t> code(codeBlob->getBufferSize());
     std::memcpy(code.data(), codeBlob->getBufferPointer(), codeBlob->getBufferSize());

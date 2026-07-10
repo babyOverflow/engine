@@ -125,6 +125,7 @@ class RenderGraph {
     RenderGraph(Device* device);
 
     RenderGraph(RenderGraph&& rhs) noexcept = default;
+    RenderGraph& operator=(RenderGraph&& rhs) noexcept = default;
 
     CompiledGraph Compile(std::span<uint32_t> passes,
                           PassManager* passManager,

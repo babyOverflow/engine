@@ -46,5 +46,4 @@ class CameraController {
     float prevCusorY = 0;
 };
 
-
 }  // namespace common

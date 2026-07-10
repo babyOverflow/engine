@@ -5,8 +5,6 @@
 
 namespace core::render {
 
-
-
 struct BindGroupLayoutKey {
     std::vector<wgpu::BindGroupLayoutEntry> entries;
     static BindGroupLayoutKey From(wgpu::BindGroupLayoutDescriptor& desc);

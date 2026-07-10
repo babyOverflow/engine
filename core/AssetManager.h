@@ -1,15 +1,12 @@
 #pragma once
 #include <tiny_gltf.h>
-#include <string_view>
 
 #include "ResourcePool.h"
-#include "memory/StridedSpan.h"
 #include "render/resource/Material.h"
 #include "render/resource/Mesh.h"
 #include "render/resource/Model.h"
 #include "render/resource/ShaderAsset.h"
 #include "render/resource/Texture.h"
-#include "util/Load.h"
 
 namespace core {
 
@@ -23,8 +20,7 @@ struct AssetRegistry {
 
 class AssetManager {
   public:
-    static AssetManager Create(render::Device* device);
-    AssetManager() = delete;
+    static AssetManager Create();
 
     Handle StoreModel(render::Model&& model);
     AssetView<render::Model> GetModel(Handle handle);
@@ -44,9 +40,6 @@ class AssetManager {
     const AssetRegistry GetRegistry() const;
 
   private:
-    AssetManager(render::Device* device);
-    render::Device* m_device;
-
     ResourcePool<render::ShaderAsset> m_shaderPool;
     ResourcePool<render::Texture> m_texturePool;
     ResourcePool<render::Material> m_materialPool;
