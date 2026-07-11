@@ -6,15 +6,11 @@
 #include <dawn/webgpu_cpp.h>
 #include <concepts>
 #include <glm/glm.hpp>
-#include <iostream>
 #include <memory>
+#include <string>
 
-#include "ShaderInterop.h"
 #include "Window.h"
-#include "memory/StridedSpan.h"
 #include "render/resource/GpuResource.h"
-#include "render/resource/Texture.h"
-#include "wgx.h"
 
 namespace core {
 namespace render {
@@ -39,7 +35,7 @@ class Device {
 
     void Present();
 
-    const wgpu::Device& GetDeivce() { return m_device; }
+    const wgpu::Device& GetDevice() { return m_device; }
     const wgpu::SurfaceConfiguration& GetSurfaceConfig() { return m_surfaceConfig; }
 
     wgpu::TextureView GetCurrentTextureView();

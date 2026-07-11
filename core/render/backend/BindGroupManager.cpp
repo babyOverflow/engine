@@ -11,6 +11,8 @@ core::render::BindGroupManager::BindGroupManager(Device* device,
       m_materialManager(materialManager) {}
 
 wgpu::BindGroup core::render::BindGroupManager::GetBindGroup(Handle materialHandle) {
+    // TODO!(Sunghyun) replace it with debug assertion after finish logging system and macros
+    assert(materialHandle.index < m_materialPassBindGroups.size());
     return m_materialPassBindGroups[materialHandle.index];
 }
 

@@ -47,7 +47,7 @@ Material::Material(Device* device,
         .minFilter = wgpu::FilterMode::Linear,
         .mipmapFilter = wgpu::MipmapFilterMode::Linear,
     };
-    m_sampler = m_device->GetDeivce().CreateSampler(&samplerDesc);
+    m_sampler = m_device->GetDevice().CreateSampler(&samplerDesc);
 }
 
 void Material::UpdateUniform() {

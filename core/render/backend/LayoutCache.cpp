@@ -1,4 +1,5 @@
 #include "LayoutCache.h"
+#include "wgx.h"
 #include <algorithm>
 #include <ranges>
 

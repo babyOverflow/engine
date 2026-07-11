@@ -6,12 +6,12 @@ struct EmptyData {};
 struct EngineSamplers {
     SamplerState linearRepeat;
     SamplerState pointClamp;
-}
+};
 
 struct GlobalGroup {
     GlobalUniforms vars;
     EngineSamplers samplers;
-}
+};
 
 struct SurfaceAttributes {
     float4 baseColor;
@@ -52,4 +52,3 @@ interface IRenderPass {
                                        PassResourceType passResources,
                                        FragmentInputType input);
 }
-

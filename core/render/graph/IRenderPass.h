@@ -2,7 +2,9 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <ShaderInterop.h>
 
+#include "wgx.h"
 #include "AssetManager.h"
 
 inline bool operator==(const wgpu::Extent3D& lhs, const wgpu::Extent3D& rhs) {

@@ -292,6 +292,11 @@ std::expected<CompileResult, Error> SlangCompiler::CompilePass(const std::string
     slang::TypeReflection* renderPassInterface = layout->findTypeByName("IRenderPass");
     slang::TypeReflection* materialInterface = layout->findTypeByName("IMaterial");
 
+    if (!renderPassInterface || !materialInterface) {
+        return std::unexpected(Error{.type = ErrorType::CompilationFailed,
+                                     .message = "Render pass or material interface not found."});
+    }
+
     std::string detectedPassName = "";
     std::string detectedMaterialName = "";
     auto children = moduleDecl->getChildren();
@@ -382,6 +387,11 @@ std::expected<CompileResult, Error> SlangCompiler::CompilePass(const std::string
         detectedPassName + "<" + detectedMaterialName + ">;\n";
 
     std::ifstream passShaderStream(path.c_str());
+    if (passShaderStream.fail()) {
+        return std::unexpected(
+            Error{ErrorType::IOError, "Failed to open pass shader file: " + path});
+    }
+
     std::stringstream passShaderBuffer;
 
     passShaderBuffer << passShaderStream.rdbuf();

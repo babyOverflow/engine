@@ -13,20 +13,27 @@ void core::render::pass::ForwardRenderPass::Setup(core::render::PassSetupContext
                                 DepthStencilAttachment{depthStencilHandle});
 }
 
-void core::render::pass::ForwardRenderPass::Execute(wgpu::RenderPassEncoder pass,
+void core::render::pass::ForwardRenderPass::Execute(wgpu::RenderPassEncoder encoder,
                                                     const PassExecuteContext& executeContext) {
+    wgpu::RenderPipeline pipeline = nullptr;
+    wgpu::BindGroup materialBindGroup = nullptr;
     for (uint32_t i = 0; i < executeContext.intents.size(); ++i) {
         const auto& intent = executeContext.intents[i];
 
-        auto pipeline = intent.pipeline;
-        pass.SetPipeline(pipeline);
-        for (uint i = 0; i < intent.bufferRange.size(); ++i) {
-            const auto bufferRange = intent.bufferRange[i];
-            pass.SetVertexBuffer(i, intent.vertexBuffer, bufferRange.offset, bufferRange.size);
+        if (pipeline.Get() != intent.pipeline.Get()) {
+            pipeline = intent.pipeline;
+            encoder.SetPipeline(pipeline);
         }
-        pass.SetIndexBuffer(intent.indexBuffer, wgpu::IndexFormat::Uint32);
-        pass.SetBindGroup(BindSlot::Material, intent.bindGroup);
+        for (uint32_t j = 0; j < intent.bufferRange.size(); ++j) {
+            const auto bufferRange = intent.bufferRange[j];
+            encoder.SetVertexBuffer(j, intent.vertexBuffer, bufferRange.offset, bufferRange.size);
+        }
+        encoder.SetIndexBuffer(intent.indexBuffer, wgpu::IndexFormat::Uint32);
+        if (materialBindGroup.Get() != intent.bindGroup.Get()) {
+            materialBindGroup = intent.bindGroup;
+            encoder.SetBindGroup(BindSlot::Material, materialBindGroup);
+        }
 
-        pass.DrawIndexed(intent.subMeshInfo.indexCount, 1, intent.subMeshInfo.indexStart);
+        encoder.DrawIndexed(intent.subMeshInfo.indexCount, 1, intent.subMeshInfo.indexStart);
     }
 }

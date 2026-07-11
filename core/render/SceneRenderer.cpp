@@ -111,7 +111,7 @@ SceneRenderer::SceneRenderer(Device* device,
         .minFilter = wgpu::FilterMode::Linear,
         .mipmapFilter = wgpu::MipmapFilterMode::Linear,
     };
-    wgpu::Sampler linearRepeat = device->GetDeivce().CreateSampler(&desc);
+    wgpu::Sampler linearRepeat = device->GetDevice().CreateSampler(&desc);
     m_linearRepeatSampler = std::move(linearRepeat);
 
     wgpu::SamplerDescriptor pointSamplerDesc{
@@ -122,7 +122,7 @@ SceneRenderer::SceneRenderer(Device* device,
         .minFilter = wgpu::FilterMode::Nearest,
         .mipmapFilter = wgpu::MipmapFilterMode::Nearest,
     };
-    wgpu::Sampler pointSampler = device->GetDeivce().CreateSampler(&pointSamplerDesc);
+    wgpu::Sampler pointSampler = device->GetDevice().CreateSampler(&pointSamplerDesc);
     m_pointSampler = std::move(pointSampler);
 
     std::array<wgpu::BindGroupEntry, 3> bindGroupEntries{wgpu::BindGroupEntry{
@@ -251,7 +251,7 @@ void SceneRenderer::Prepare(CompiledGraph& compiledGraph, RenderQueue& renderQue
 }
 
 void SceneRenderer::Execute(CompiledGraph& compiledGraph, RenderQueue& renderQueue) {
-    auto d = m_device->GetDeivce();
+    auto d = m_device->GetDevice();
     m_vra.InjectExternalResource(0, m_device->GetCurrentTexture());
 
     auto& cameraData = renderQueue.cameraData;
