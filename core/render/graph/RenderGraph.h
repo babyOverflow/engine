@@ -48,6 +48,8 @@ class TransientResourcePool {
     TransientResourcePool::Handle Attache(const TextureDescriptor& desc);
     void Release(const TextureDescriptor& desc, TransientResourcePool::Handle handle);
 
+    static constexpr Handle kSurfaceTextureIndex = 0;
+
     wgpu::Texture Get(uint32_t);
     void InjectExternalResource(uint32_t handle, wgpu::Texture externalTexture);
 

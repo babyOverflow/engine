@@ -83,6 +83,11 @@ struct TextureDescriptor {
     wgpu::TextureFormat format = wgpu::TextureFormat::Undefined;
     uint32_t mipLevelCount = 1;
     uint32_t sampleCount = 1;
+    // NOTE: viewFormats and viewFormatCount are view-level properties and are intentionally
+    // ignored in comparison (operator==, operator<) and hashing. This allows transient
+    // resources to be shared across passes even if they use different view format casts.
+    // In a future refactoring, view formats should be decoupled from the allocation descriptor
+    // and handled at the texture view registration stage (RegisterRead).
     size_t viewFormatCount = 0;
     wgpu::TextureFormat const* viewFormats = nullptr;
 
@@ -188,7 +193,7 @@ struct SubResource {
         uint32_t passId;
     };
     std::vector<WriteInfo> writePassInfos;
-    uint32_t actualResource;
+    uint32_t actualResource = UINT32_MAX;
 };
 
 struct LocalTexture {

@@ -252,7 +252,8 @@ void SceneRenderer::Prepare(CompiledGraph& compiledGraph, RenderQueue& renderQue
 
 void SceneRenderer::Execute(CompiledGraph& compiledGraph, RenderQueue& renderQueue) {
     auto d = m_device->GetDevice();
-    m_vra.InjectExternalResource(0, m_device->GetCurrentTexture());
+    m_vra.InjectExternalResource(core::render::TransientResourcePool::kSurfaceTextureIndex,
+                                 m_device->GetCurrentTexture());
 
     auto& cameraData = renderQueue.cameraData;
     d.GetQueue().WriteBuffer(m_globalUniformBuffer, 0, &cameraData, sizeof(CameraUniformData));

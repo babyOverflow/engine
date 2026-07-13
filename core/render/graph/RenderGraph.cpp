@@ -86,13 +86,15 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
     std::vector<SubResource> subResources;
 
     subResources.push_back(SubResource{
-        .textureDesc = TextureDescriptor{
-            .label = "SceneColor",
-            .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
-            .dimension = wgpu::TextureDimension::e2D,
-            .size = RelativeSize{1.0f, 1.0f},
-            .format = m_device->GetSurfaceConfig().format,
-        }});
+        .textureDesc =
+            TextureDescriptor{
+                .label = "SceneColor",
+                .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
+                .dimension = wgpu::TextureDimension::e2D,
+                .size = RelativeSize{1.0f, 1.0f},
+                .format = m_device->GetSurfaceConfig().format,
+            },
+        .actualResource = TransientResourcePool::kSurfaceTextureIndex});
     subResourceMap[ToPropertyID(PassSetupContext::kSceneColorName)] =
         PassSetupContext::kSceneColorHandle.index;
 
@@ -177,8 +179,9 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
         }
     }
 
-    uint32_t sceneColorPassId =
-        subResources[PassSetupContext::kSceneColorHandle.index].writePassInfos[0].passId;
+    const auto& sceneColorWriters = subResources[PassSetupContext::kSceneColorHandle.index].writePassInfos;
+    assert(!sceneColorWriters.empty() && "No pass writes to SceneColor!");
+    uint32_t sceneColorPassId = sceneColorWriters.empty() ? 0 : sceneColorWriters[0].passId;
 
     std::array<bool, 255> visited{};
     std::array<bool, 255> onStack{};
@@ -235,7 +238,8 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
     for (uint32_t step = 0; step < compiledGraph.executionOrder.size(); ++step) {
         for (uint32_t resrcIdx = 0; resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
             const auto& sub = subResources[resrcIdx];
-            if (resourceUsageInfo[resrcIdx].lastUse == step - 1) {
+            if (resourceUsageInfo[resrcIdx].firstUse != UINT32_MAX &&
+                resourceUsageInfo[resrcIdx].lastUse == step - 1) {
                 vra.Release(sub.textureDesc, sub.actualResource);
             }
 

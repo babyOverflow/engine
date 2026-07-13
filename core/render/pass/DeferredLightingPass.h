@@ -11,8 +11,5 @@ class DeferredLightingPass : public core::render::IRenderPass {
                  const PassExecuteContext& executeContext) override;
 
     void Setup(PassSetupContext& context) override;
-
-  private:
-    static const core::render::PassTargetState kSignature;
 };
 }  // namespace core::render::pass

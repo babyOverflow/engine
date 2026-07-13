@@ -11,9 +11,9 @@ void core::render::pass::DeferredGBufferPass::Execute(wgpu::RenderPassEncoder en
             pipeline = intent.pipeline;
             encoder.SetPipeline(pipeline);
         }
-        for (uint i = 0; i < intent.bufferRange.size(); ++i) {
-            const auto bufferRange = intent.bufferRange[i];
-            encoder.SetVertexBuffer(i, intent.vertexBuffer, bufferRange.offset, bufferRange.size);
+        for (uint32_t j = 0; j < intent.bufferRange.size(); ++j) {
+            const auto bufferRange = intent.bufferRange[j];
+            encoder.SetVertexBuffer(j, intent.vertexBuffer, bufferRange.offset, bufferRange.size);
         }
         encoder.SetIndexBuffer(intent.indexBuffer, wgpu::IndexFormat::Uint32);
 

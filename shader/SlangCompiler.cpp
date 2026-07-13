@@ -348,7 +348,7 @@ std::expected<CompileResult, Error> SlangCompiler::CompilePass(const std::string
 
                 ComPtr<IBlob> specDiag;
                 slang::GenericReflection* specContext = layout->specializeGeneric(
-                    genericContainer, 1, (SlangReflectionGenericArgType const*)&argType, &argVal,
+                    genericContainer, 1, &argType, &argVal,
                     specDiag.writeRef());
 
                 if (specContext) {
