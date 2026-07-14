@@ -108,7 +108,9 @@ Handle ShaderManager::LoadShader(core::importer::ShaderImportResult&& shaderResu
     }
 
     std::string_view materialTechName = shaderAsset.GetReflection().GetMaterialTechName();
-    uint8_t materialTechId = m_materialManager->GetTechniqueID(materialTechName);
+    uint32_t materialTechId = m_materialManager->GetTechniqueID(materialTechName);
+
+    assert(materialTechId < 255 && "Material tech id is out of range");
 
     if (!m_techniqueBindGroupLayouts[materialTechId]) {
         m_techniqueBindGroupLayouts[materialTechId] =

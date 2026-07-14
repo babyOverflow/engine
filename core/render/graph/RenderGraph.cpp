@@ -170,8 +170,7 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
                 "Currently we only support one writer for the scene color. Multiple writers will "
                 "cause conflict. We will support multiple writers in the future.");
         }
-        if (resource.writePassInfos.empty())
-        {
+        if (resource.writePassInfos.empty()) {
             // TODO!(Sunghyun) return unexpected behavior here.
             // We should return an error or unexpected behavior instead of silently ignoring it.
             assert(false && "No pass writes to this resource!");
@@ -186,7 +185,8 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
         }
     }
 
-    const auto& sceneColorWriters = subResources[PassSetupContext::kSceneColorHandle.index].writePassInfos;
+    const auto& sceneColorWriters =
+        subResources[PassSetupContext::kSceneColorHandle.index].writePassInfos;
     assert(!sceneColorWriters.empty() && "No pass writes to SceneColor!");
     uint32_t sceneColorPassId = sceneColorWriters.empty() ? 0 : sceneColorWriters[0].passId;
 
@@ -212,12 +212,12 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
     compiledGraph.executionOrder = std::move(executionOrder);
 
     struct ResourceUsageInfo {
-        uint32_t firstUse = UINT32_MAX;
-        uint32_t lastUse = 0;
+        int32_t firstUse = INT32_MAX;
+        int32_t lastUse = INT32_MIN;
     };
 
     std::vector<ResourceUsageInfo> resourceUsageInfo(subResources.size());
-    for (uint32_t i = 0; i < compiledGraph.executionOrder.size(); ++i) {
+    for (int32_t i = 0; i < compiledGraph.executionOrder.size(); ++i) {
         uint32_t nodeId = compiledGraph.executionOrder[i];
         for (const auto& colorAttach : virtualPasses[nodeId].color) {
             uint32_t virRsrcIndex = colorAttach.colorAttachementsVirTextureIndex;
@@ -243,17 +243,20 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
     }
 
     for (uint32_t step = 0; step < compiledGraph.executionOrder.size(); ++step) {
-        for (uint32_t resrcIdx = 0; resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
+        for (uint32_t resrcIdx = PassSetupContext::kSceneColorHandle.index + 1;
+             resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
             const auto& sub = subResources[resrcIdx];
-            if (resourceUsageInfo[resrcIdx].firstUse != UINT32_MAX &&
-                resourceUsageInfo[resrcIdx].lastUse == step - 1) {
-                vra.Release(sub.textureDesc, sub.actualResource);
-            }
-
-            if (resourceUsageInfo[resrcIdx].firstUse == step &&
-                resrcIdx != PassSetupContext::kSceneColorHandle.index) {
+            if (resourceUsageInfo[resrcIdx].firstUse == step) {
                 TransientResourcePool::Handle actual = vra.Attache(sub.textureDesc);
                 subResources[resrcIdx].actualResource = actual;
+            }
+        }
+
+        for (uint32_t resrcIdx = PassSetupContext::kSceneColorHandle.index + 1;
+             resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
+            const auto& sub = subResources[resrcIdx];
+            if (resourceUsageInfo[resrcIdx].lastUse == step) {
+                vra.Release(sub.textureDesc, sub.actualResource);
             }
         }
     }

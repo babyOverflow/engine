@@ -68,7 +68,7 @@ PipelineManager::PipelineManager(Device* device,
 }
 
 Handle PipelineManager::GetOrCreatePipeline(const PipelineConfig& config) {
-    PipelineKey key;
+    PipelineKey key{};
     key.bits.shaderId = config.shader.handle.index;
     key.bits.layoutId = config.layoutId;
     key.bits.blendId =

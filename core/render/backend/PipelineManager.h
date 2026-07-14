@@ -36,7 +36,7 @@ class DepthStencilStateManager {
 };
 
 union PipelineKey {
-    uint64_t hash;  // Used for fast O(1) unordered_map lookup and == comparison
+    uint64_t hash = 0;  // Used for fast O(1) unordered_map lookup and == comparison
 
     struct {
         // --- Managed States (Handles/IDs) ---
