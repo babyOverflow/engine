@@ -13,6 +13,7 @@ core::render::BindGroupManager::BindGroupManager(Device* device,
 wgpu::BindGroup core::render::BindGroupManager::GetBindGroup(Handle materialHandle) {
     // TODO!(Sunghyun) replace it with debug assertion after finish logging system and macros
     assert(materialHandle.index < m_materialPassBindGroups.size());
+    assert(m_materialPassBindGroups[materialHandle.index].Get() != nullptr);
     return m_materialPassBindGroups[materialHandle.index];
 }
 

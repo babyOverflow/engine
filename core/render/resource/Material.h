@@ -1,13 +1,9 @@
 #pragma once
-#include <bitset>
-#include <concepts>
-#include <map>
 #include <unordered_map>
 #include <vector>
 
 #include "Texture.h"
 #include "render/backend/BindGroupFactory.h"
-#include "render/backend/LayoutCache.h"
 #include "render/render.h"
 
 namespace core::render {

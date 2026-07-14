@@ -170,6 +170,13 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
                 "Currently we only support one writer for the scene color. Multiple writers will "
                 "cause conflict. We will support multiple writers in the future.");
         }
+        if (resource.writePassInfos.empty())
+        {
+            // TODO!(Sunghyun) return unexpected behavior here.
+            // We should return an error or unexpected behavior instead of silently ignoring it.
+            assert(false && "No pass writes to this resource!");
+            continue;
+        }
         uint32_t writePassId = resource.writePassInfos[0].passId;
         VirtualPassNode& writePassNode = virtualPasses[writePassId];
 
