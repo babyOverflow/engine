@@ -12,11 +12,11 @@ using core::memory::StridedSpan;
 
 namespace core::importer {
 
-const std::string kGltfPosition = "POSITION";
-const std::string kGltfTexCoord0 = "TEXCOORD_0";
-const std::string kGltfNormal = "NORMAL";
-const std::string kGltfTangent = "TANGENT";
-const std::string kGltfColor = "COLOR_0";
+const char* kGltfPosition = "POSITION";
+const char* kGltfTexCoord0 = "TEXCOORD_0";
+const char* kGltfNormal = "NORMAL";
+const char* kGltfTangent = "TANGENT";
+const char* kGltfColor = "COLOR_0";
 
 AssetPath GLTFImporter::ToTextureID(int gltfTextureIndex) {
     return AssetPath{std::format("virtual://tex/{}", gltfTextureIndex)};
@@ -48,6 +48,8 @@ std::expected<MaterialAssetFormat, Error> GLTFImporter::ImportMaterial(
     tryAppendTexture(gltfMaterial.normalTexture, "normalTexture");
     tryAppendTexture(gltfMaterial.occlusionTexture, "occlusionTexture");
     tryAppendTexture(gltfMaterial.emissiveTexture, "emissiveTexture");
+
+    assetFormat.materialTechnique = "OpaqueLitMaterial";
 
     assetFormat.SetUniform(
         "baseColorFactor",
@@ -112,11 +114,10 @@ std::expected<GLTFImportResult, Error> GLTFImporter::ImportFromFile(const std::s
         return std::unexpected(Error::Parse("Failed to load glTF file: " + err));
     }
 
-    for (int i = 0; i < gltfModel.textures.size(); ++i) {
-        const auto& texture = gltfModel.textures[i];
+    for (const auto& [idx, texture] : gltfModel.textures | std::views::enumerate) {
         const auto& image = gltfModel.images[texture.source];
         auto texAsset = ImportTextureFromTinygltf(gltfModel, image).value_or({});
-        result.textures.push_back(TextureResult{texAsset, ToTextureID(i)});
+        result.textures.push_back(TextureResult{texAsset, ToTextureID(idx)});
     }
 
     for (const auto& [idx, material] : gltfModel.materials | std::views::enumerate) {

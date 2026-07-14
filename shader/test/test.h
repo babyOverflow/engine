@@ -128,8 +128,11 @@ struct PBRMaterial {
 PBRMaterial myMaterial;
 
 [[shader("vertex")]]
-float4 vertexMain(AssembledVertex vertex) {
-    return float4(vertex.normal, 1);
+float4 vertexMain(AssembledVertex vertex) : SV_Position {
+    float4 col = myMaterial.albedo.Load(int3(0,0,0));
+    col += myMaterial.roughness.Load(int3(0,0,0));
+    col += myMaterial.normal.Load(int3(0,0,0));
+    return float4(vertex.normal, 1) + col;
 }
 )";
 
@@ -164,8 +167,10 @@ struct PostProcessSettings {
 ParameterBlock<PostProcessSettings> postEffect : register(space3);
 
 [[shader("vertex")]]
-float4 vertexMain(AssembledVertex vertex) {
-    return float4(vertex.normal, 1);
+float4 vertexMain(AssembledVertex vertex) : SV_Position {
+    float4 col = postEffect.inputTex.Sample(postEffect.linearSampler, float2(0,0));
+    col.xyz += postEffect.temp;
+    return float4(vertex.normal, 1) + col;
 }
 )";
 
@@ -218,7 +223,50 @@ const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSi
         },
 
     };
-const char* kComplexTest = R"(
+
+constexpr uint32_t kComplexTestExpectedBindingSizeWithoutRoughness = 6;
+const std::array<core::ShaderAssetFormat::Binding, kComplexTestExpectedBindingSizeWithoutRoughness>
+    kComplexTestExpectedBindingsWithoutRoughness{
+        core::ShaderAssetFormat::Binding{
+            // cbuffer PerFrameUniforms
+            .set = 0,
+            .binding = 0,
+            .resource = core::ShaderAssetFormat::Resource::Buffer(80),
+            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
+        },
+        core::ShaderAssetFormat::Binding{
+            // TextureSet gExtraTextures : register(space0) .albedoMap
+            .set = 0,
+            .binding = 1,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            // TextureSet gExtraTextures : register(space0) .normalMap
+            .set = 0,
+            .binding = 2,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            // ParameterBlock<MaterialData> gMaterial : register(space1) .textures.albedoMap
+            .set = 1,
+            .binding = 1,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            // ParameterBlock<MaterialData> gMaterial : register(space1) .textures.normalMap
+            .set = 1,
+            .binding = 2,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
+        },
+        core::ShaderAssetFormat::Binding{
+            // ParameterBlock<MaterialData> gMaterial : register(space1) .smapler
+            .set = 1,
+            .binding = 3,
+            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
+        },
+    };
+
+const char* kComplexTestWithRoughness = R"(
 #include <ShaderInterop.h>
 struct AssembledVertex {
     float3 vtx;
@@ -258,11 +306,13 @@ float4 vertexMain(AssembledVertex vertex) : SV_Position {
     float4 pos = mul(gCamera.viewProjection, float4(vertex.vtx, 1.0));
     pos.x += gCamera.time;
 
-    float4 matColor = gMaterial.textures.albedoMap.Load(int3(0,0,0));
+    float4 matColor = gMaterial.textures.albedoMap.Sample(gMaterial.sampler, float2(0,0));
+    matColor += gMaterial.textures.normalMap.Load(int3(0,0,0));
     
     float r = gMaterial.roughness;
 
-    float4 extraColor = gExtraTextures.normalMap.Load(int3(0,0,0));
+    float4 extraColor = gExtraTextures.albedoMap.Sample(gMaterial.sampler, float2(0,0));
+    extraColor += gExtraTextures.normalMap.Load(int3(0,0,0));
 
     pos.y += matColor.r + r + extraColor.g;
 
@@ -270,8 +320,61 @@ float4 vertexMain(AssembledVertex vertex) : SV_Position {
 }
 )";
 
-const uint32_t kStandardPBR_ExpectedBindingSize = 4;
-const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingSize>
+const char* kComplexTestWithoutRoughness = R"(
+#include <ShaderInterop.h>
+struct AssembledVertex {
+    float3 vtx;
+};
+
+struct CameraData {
+    float4x4 viewProjection;
+    float3 eyePosition;
+    float time;
+};
+
+struct TextureSet {
+    Texture2D albedoMap;
+    Texture2D normalMap;
+};
+
+struct MaterialData {
+    TextureSet textures;
+    SamplerState sampler;
+    float roughness;
+};
+
+[[vk::binding(0, BindSlot::Global)]]
+cbuffer PerFrameUniforms {
+    CameraData gCamera;
+};
+
+[[vk::binding(0, BindSlot::Material)]]
+ParameterBlock<MaterialData> gMaterial; 
+
+[[vk::binding(1, BindSlot::Global)]]
+TextureSet gExtraTextures;
+
+
+[[shader("vertex")]]
+float4 vertexMain(AssembledVertex vertex) : SV_Position {
+    float4 pos = mul(gCamera.viewProjection, float4(vertex.vtx, 1.0));
+    pos.x += gCamera.time;
+
+    float4 matColor = gMaterial.textures.albedoMap.Sample(gMaterial.sampler, float2(0,0));
+    matColor += gMaterial.textures.normalMap.Load(int3(0,0,0));
+    
+
+    float4 extraColor = gExtraTextures.albedoMap.Sample(gMaterial.sampler, float2(0,0));
+    extraColor += gExtraTextures.normalMap.Load(int3(0,0,0));
+
+    pos.y += matColor.r +  extraColor.g;
+
+    return pos;
+}
+)";
+
+const uint32_t kStandardPBR_ExpectedBindingsSize = 4;
+const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingsSize>
     kStandardPBR_ExpectedBindings{
         core::ShaderAssetFormat::Binding{
             .set = 0,
@@ -296,32 +399,9 @@ const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingS
             .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
         },
     };
-const uint32_t kStandardPBR_ExpectedBindingsSize_VS = 1;
-const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingsSize_VS>
-    kStandardPBR_ExpectedBindings_VS{
-        core::ShaderAssetFormat::Binding{
-            .set = 0,
-            .binding = 0,
-            .resource = core::ShaderAssetFormat::Resource::Buffer(64),
-            .resourceType = core::ShaderAssetFormat::ResourceType::UniformBuffer,
-        },
-    };
 
-const uint32_t kStandardPBR_ExpectedBindingsSize_FS = 2;
-const std::array<core::ShaderAssetFormat::Binding, kStandardPBR_ExpectedBindingsSize_FS>
-    kStandardPBR_ExpectedBindings_FS{
-        core::ShaderAssetFormat::Binding{
-            .set = 1,
-            .binding = 0,
-            .resourceType = core::ShaderAssetFormat::ResourceType::Texture,
-        },
-        core::ShaderAssetFormat::Binding{
-            .set = 1,
-            .binding = 1,
-            .resourceType = core::ShaderAssetFormat::ResourceType::Sampler,
-        },
-
-    };
+const uint32_t kStandardPBR_ExpectedBindingsSize_VS = 4;
+const uint32_t kStandardPBR_ExpectedBindingsSize_FS = 4;
 
 const char* kStandardPBR_Data = R"(
 #include <ShaderInterop.h>
@@ -391,5 +471,92 @@ Fragment fragmentMain(CoarseVertex coarseVertex: CoarseVertex) : SV_Target {
         baseColorTexture.Sample(baseColorSampler, coarseVertex.uv);
     return output;
 }
+
+)";
+
+const char* kStandardPBRPass_Data = R"(
+#include <ShaderInterop.h>
+#include "core_interface.slang"
+
+
+
+
+struct AssembledVertex {
+    [[vk::location(ShaderLoc::Position)]]
+    float3 position : POSITION;
+    [[vk::location(ShaderLoc::Normal)]]
+    float3 normal : NORMAL;
+    [[vk::location(ShaderLoc::UV)]]
+    float2 texcoord : TEXCOORD_0;
+    [[vk::location(ShaderLoc::Tangent)]]
+    float4 tangent : TANGENT;
+};
+struct CoarseVertex {
+    float2 uv;
+};
+
+struct VertexStageOutput {
+    CoarseVertex coarseVertex : CoarseVertex;
+    float4 sv_position : SV_Position;
+};
+
+struct Fragment {
+    float4 color;
+};
+
+struct AlbedoMaterial : IMaterial {
+    typealias DataType = struct {
+        Texture2D diffuseMap;
+        SamplerState linearSampler;
+    };
+    static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
+                                                       float3 worldPosition,
+                                                       float3 worldNormal,
+                                                       float2 uv) {
+        SurfaceAttributes attributes;
+        attributes.baseColor = data.diffuseMap.Sample(data.linearSampler, uv).rgb;
+        return attributes;
+    }
+};
+
+struct ForwardRenderPass<Material : IMaterial> : IRenderPass {
+    typealias M = Material;
+
+    typealias VertexInputType = AssembledVertex;
+    typealias VertexOutputType = VertexStageOutput;
+
+    typealias FragmentInputType = CoarseVertex;
+    typealias FragmentOutputType = Fragment;
+
+    typealias GlobalResourcesType = GlobalResources;
+    typealias PassResourceType = EmptyData;
+
+    static VertexOutputType vertex(GlobalResourcesType globalResources,
+                                   M.DataType material,
+                                   PassResourceType passResources,
+                                   VertexInputType input) {
+        VertexOutputType output;
+        float3 position = input.position;
+        float3 color = input.normal;
+        output.coarseVertex.uv = input.texcoord;
+        output.sv_position = mul(globalResources.viewProjMatrix, float4(position, 1.0));
+        return output;
+    }
+
+    static FragmentOutputType fragment(GlobalResourcesType globalResources,
+                                       M.DataType material,
+                                       PassResourceType passResources,
+                                       FragmentInputType input) {
+        FragmentOutputType output;
+
+        SurfaceAttributes attributes = M.evaluateSurfaceAttributes(material, float3(0, 0, 0), float3(0, 0, 1), input.uv);
+        output.color = float4(attributes.baseColor, 1.0f);
+        return output;
+    }
+
+}
+
+[[vk::binding(0, BindSlot::Instance)]]
+ConstantBuffer<InstanceUniforms> instanceUniforms;
 
 )";

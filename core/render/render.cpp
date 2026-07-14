@@ -132,6 +132,11 @@ void Device::WriteBuffer(const GpuBuffer& buffer, uint64_t offset, void* data, u
     m_device.GetQueue().WriteBuffer(buffer.GetHandle(), offset, data, size);
 }
 
+wgpu::Texture Device::CreateTexture(const wgpu::TextureDescriptor& descriptor) {
+    wgpu::Texture texture = m_device.CreateTexture(&descriptor);
+    return texture;
+}
+
 wgpu::Texture Device::CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
                                             const wgpu::TexelCopyBufferLayout& layout,
                                             std::span<const uint8_t> data) {
@@ -161,11 +166,14 @@ wgpu::Texture Device::CreateTextureFromData(const wgpu::TextureDescriptor& descr
 void Device::Present() {
     m_surface.Present();
 }
-
-wgpu::TextureView Device::GetCurrentTextureView() {
+wgpu::Texture Device::GetCurrentTexture() {
     wgpu::SurfaceTexture surfaceTexture;
     m_surface.GetCurrentTexture(&surfaceTexture);
-    return surfaceTexture.texture.CreateView();
+    return surfaceTexture.texture;
+}
+
+wgpu::TextureView Device::GetCurrentTextureView() {
+    return GetCurrentTexture().CreateView();
 }
 
 }  // namespace render

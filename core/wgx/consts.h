@@ -20,11 +20,10 @@ inline const wgpu::BlendState kReplace{
 }
 
 namespace PrimitiveState {
-inline const wgpu::PrimitiveState kDefault{.topology = wgpu::PrimitiveTopology::TriangleList,
-                              .stripIndexFormat = wgpu::IndexFormat::Undefined,
-                              .frontFace = wgpu::FrontFace::CCW,
-                              .cullMode = wgpu::CullMode::Back};
+inline constexpr wgpu::PrimitiveState kDefault{.topology = wgpu::PrimitiveTopology::TriangleList,
+                                        .stripIndexFormat = wgpu::IndexFormat::Undefined,
+                                        .frontFace = wgpu::FrontFace::CCW,
+                                        .cullMode = wgpu::CullMode::None};
 }
 
-}
-
+}  // namespace wgx

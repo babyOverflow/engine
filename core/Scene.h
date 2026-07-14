@@ -1,6 +1,6 @@
 #pragma once
 #include "render/render.h"
-#include "render/Model.h"
+#include "render/resource/Model.h"
 
 namespace core {
 struct Scene {

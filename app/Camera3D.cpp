@@ -1,4 +1,3 @@
-#include <print>
 #include "Camera3D.h"
 
 bool common::CameraController::OnKeyboardPress(core::event::KeyPressEvent& event) {
@@ -22,10 +21,9 @@ bool common::CameraController::OnKeyboardPress(core::event::KeyPressEvent& event
     return true;
 }
 
-bool common::CameraController::OnMouseMove(core::event::CursorPosEvent& event)
-{
+bool common::CameraController::OnMouseMove(core::event::CursorPosEvent& event) {
     rotateHorizontal += prevCusorX - event.x;
-    rotateVertical  += prevCusorY - event.y;
+    rotateVertical += prevCusorY - event.y;
     prevCusorX = event.x;
     prevCusorY = event.y;
     return true;
@@ -85,11 +83,15 @@ core::render::CameraUniformData common::GameCamera::GetCameraUniformData() {
 
     glm::mat4x4 view = glm::lookAtRH(position, direction + position, glm::vec3(0.F, 1.F, 0.F));
 
+    glm::mat4x4 viewProj = proj.proj * view;
+    glm::mat4x4 invViewPorj = glm::inverse(viewProj);
+
     return core::render::CameraUniformData{
         .view = view,
         .proj = proj.proj,
-        .viewProj = proj.proj * view,
-        .position = position,
+        .viewProj = viewProj,
+        .invViewProj = invViewPorj,
+        .position = glm::vec4(position, 0),
     };
 }
 

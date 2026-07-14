@@ -182,6 +182,7 @@ Checks: "-*,\
           -performance-unnecessary-value-param,\
           portability-*,\
           -portability-template-virtual-member-function,\
+          -portability-avoid-pragma-once,\
           readability-*,\
           -readability-avoid-const-params-in-decls,\
           -readability-avoid-nested-conditional-operator,\

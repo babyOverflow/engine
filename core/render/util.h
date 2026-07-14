@@ -1,14 +1,13 @@
 #pragma once
 #include <windows.h>
-#include <print>
 
 // #if DAWN_PLATFORM_IS(WINDOWS)
 #define GLFW_EXPOSE_NATIVE_WIN32
 // #endif
-#if defined(DAWN_USE_X11)
+#ifdef DAWN_USE_X11
 #define GLFW_EXPOSE_NATIVE_X11
 #endif
-#if defined(DAWN_USE_WAYLAND)
+#ifdef DAWN_USE_WAYLAND
 #define GLFW_EXPOSE_NATIVE_WAYLAND
 #endif
 
@@ -16,9 +15,9 @@
 #include <GLFW/glfw3native.h>
 #include <dawn/webgpu_cpp.h>
 #include <libloaderapi.h>
-#include "ShaderAsset.h"
 #include "TextureAssetFormat.h"
 #include "Window.h"
+#include "render/resource/ShaderAsset.h"
 
 namespace core::util {
 std::unique_ptr<wgpu::ChainedStruct, void (*)(wgpu::ChainedStruct*)>

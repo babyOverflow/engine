@@ -1,17 +1,12 @@
 #pragma once
-#include <glm/glm.hpp>
 #include <tiny_gltf.h>
-
+#include <glm/glm.hpp>
 
 #include "Importer.h"
-
-#include "ResourcePool.h"
-
-#include "render/Mesh.h"
+#include "ModelAssetFormat.h"
+#include "memory/StridedSpan.h"
 
 namespace core::importer {
-
-
 
 struct GLTFImportResult {
     std::vector<TextureResult> textures;
@@ -77,6 +72,7 @@ class GLTFImporter {
         const tinygltf::Material& gltfMaterial);
 
     static AssetPath ToTextureID(int gltfTextureIndex);
+
   private:
     static AssetPath ToMaterialID(int gltfMaterialIndex);
     static AssetPath ToMeshId(int gltfMeshIndex);

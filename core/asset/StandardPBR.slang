@@ -1,7 +1,9 @@
 #include <ShaderInterop.h>
+#include <core_interface.slang>
+
 
 [[vk::binding(0, BindSlot::Global)]]
-ConstantBuffer<GlobalUniforms> globalUniforms;
+ConstantBuffer<GlobalGroup> globalUniforms;
 
 struct MaterialData {
     Texture2D<float4> baseColorTexture;
@@ -9,6 +11,8 @@ struct MaterialData {
 };
 [[vk::binding(0, BindSlot::Material)]]
 ParameterBlock<MaterialData> materialData;
+
+
 
 // [[vk::binding(0, BindSlot::Instance)]]
 // ConstantBuffer<InstanceUniforms> instanceUniforms;
@@ -35,34 +39,6 @@ struct Fragment {
     float4 color;
 };
 
-struct ColorVertex {
-    float3 position : POSITION;
-    float4 color : COLOR0;
-};
-
-struct ColorVertexStageOutput {
-    float4 sv_position : SV_Position;
-    float4 color : COLOR; 
-};
-
-[shader("vertex")]
-ColorVertexStageOutput vertexMain_Color(ColorVertex colorVertex) {
-    ColorVertexStageOutput output;
-
-    float3 position = colorVertex.position;
-
-    output.sv_position = mul(globalUniforms.viewProj, float4(position, 1.0f));
-    output.color = colorVertex.color;
-
-    return output;
-}
-
-[shader("fragment")]
-Fragment fragmentMain_Color(float4 color: COLOR) : SV_Target {
-    Fragment output;
-    output.color = color;
-    return output;
-}
 
 // Vertex  Shader
 struct VertexStageOutput {
@@ -80,7 +56,7 @@ VertexStageOutput vertexMain(AssembledVertex assembledVertex) {
     output.coarseVertex.uv = assembledVertex.texcoord;
 
     //float4 worldPosition = mul(instanceUniforms.model, float4(position, 1.0f));
-    output.sv_position = mul(globalUniforms.viewProj, float4(position, 1.0f));
+    output.sv_position = mul(globalUniforms.vars.viewProj, float4(position, 1.0f));
 
     return output;
 }

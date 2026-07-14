@@ -20,7 +20,13 @@ enable_testing()
 
 add_executable(shaderTest "test/test.cpp" "test/ShaderInterop.h" "test/test.h" "test/ParameterTest.h" "test/ParameterTest.cpp" "util.h" "util.cpp")
 target_link_libraries(shaderTest PRIVATE  shader)
-target_link_libraries(shaderTest PRIVATE GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
+target_link_libraries(shaderTest PRIVATE GTest::gtest GTest::gmock GTest::gmock_main)
+
+add_executable(slangTest "test/SlangTest.cpp" "util.h" "util.cpp")
+target_link_libraries(slangTest PRIVATE  shader)
+target_link_libraries(slangTest PRIVATE GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
 
 include(GoogleTest)
+gtest_discover_tests(shaderTest DISCOVERY_MODE PRE_TEST)
 gtest_discover_tests(shaderTest)
+gtest_discover_tests(slangTest)

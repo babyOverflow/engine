@@ -1,4 +1,5 @@
 #include "ShaderAssetFormat.h"
+#include <print>
 #include <cctype>
 #include <algorithm>
 
@@ -22,6 +23,10 @@ Semantic NameToSemantic(const std::string& semanticName, uint32_t index) {
     } else if (name == "COLOR") {
         if (index < 4) {
             return static_cast<Semantic>(static_cast<int>(Semantic::Color0) + index);
+        }
+    } else if (name == "SV_TARGET") {
+        if (index < 8) {
+            return static_cast<Semantic>(static_cast<int>(Semantic::Target0) + index);
         }
     }
 
@@ -79,12 +84,18 @@ std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(
         shaderAsset.bindings.resize(header.bindingCount);
         std::memcpy(shaderAsset.bindings.data(), ptr + bindingsOffset,
                     sizeof(Binding) * header.bindingCount);
+
+        for (uint32_t i = 0; i < header.bindingCount; ++i) {
+            const auto& b = shaderAsset.bindings[i];
+            std::println("DEBUG LOAD: Binding[{}] - set: {}, binding: {}, type: {}, visibility: {}",
+                         i, b.set, b.binding, static_cast<int>(b.resourceType), static_cast<int>(b.visibility));
+        }
     }
 
     if (header.variableCount > 0) {
         shaderAsset.variables.resize(header.variableCount);
         std::memcpy(shaderAsset.variables.data(), ptr + variablesOffset,
-                    sizeof(Variable) * header.shaderSize);
+                    sizeof(Variable) * header.variableCount);
     }
 
     if (header.entryPointCount > 0) {
@@ -93,18 +104,12 @@ std::expected<ShaderAssetFormat, Error> core::ShaderAssetFormat::LoadFromMemory(
                     sizeof(EntryPoint) * header.entryPointCount);
     }
 
+
     if (header.shaderSize > 0) {
         shaderAsset.code.resize(header.shaderSize);
         std::memcpy(shaderAsset.code.data(), ptr + codeOffset, header.shaderSize);
     }
 
-    if (header.indexCount > 0) {
-        shaderAsset.indices.resize(header.indexCount);
-        std::memcpy(shaderAsset.indices.data(), ptr + header.indexOffset,
-                    header.indexCount * sizeof(uint32_t));
-    }
-
-    shaderAsset.tokens;
     if (header.nameTableSize > 0) {
         shaderAsset.nameTableData.resize(header.nameTableSize);
         std::memcpy(shaderAsset.nameTableData.data(), ptr + nameTableOffset, header.nameTableSize);

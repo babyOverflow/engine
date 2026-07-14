@@ -2,7 +2,7 @@
 
 #ifdef __cplusplus
 #include <cstdint>
-#include <glm/glm.hpp>  // GLM »ç¿ë ½Ã
+#include <glm/glm.hpp>  // GLM  
 
 using uint = uint32_t;
 using float2 = glm::vec2;

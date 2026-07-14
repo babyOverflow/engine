@@ -1,6 +1,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <print>
 #include <ranges>
 
@@ -15,8 +16,31 @@ using sa = core::ShaderAssetFormat;
 namespace slangCompiler {
 
 slangCompiler::SlangCompiler::SlangCompiler(ComPtr<IGlobalSession> globalSession,
-                                            std::vector<std::string> paths)
-    : m_globalSession(std::move(globalSession)), m_paths(paths) {}
+                                            std::vector<std::string> paths,
+                                            std::string entryTemplate)
+    : m_paths(paths), m_entryTemplate(entryTemplate), m_globalSession(std::move(globalSession)) {}
+
+std::expected<Slang::ComPtr<slang::IModule>, Error> SlangCompiler::LoadModuleFromFile(
+    slang::ISession* session,
+    const std::string& path,
+    CompilationContext& context) {
+    ComPtr<IModule> module;
+    ComPtr<IBlob> diagnosticBlob;
+    {
+        if (!std::filesystem::exists(path)) {
+            return std::unexpected(
+                Error{ErrorType::IOError, "Failed to find filepath: \"" + path + "\"!\n"});
+        }
+        IModule* m = session->loadModule(path.data(), diagnosticBlob.writeRef());
+        if (m == nullptr) {
+            context.AppendError(diagnosticBlob.get());
+            return std::unexpected(
+                Error{ErrorType::InitFailed, "Failed to load module: " + context.message});
+        }
+        module = m;
+    }
+    return module;
+}
 
 std::expected<SlangCompiler, Error> SlangCompiler::Create(const SlangCompilerDesc& desc) {
     ComPtr<IGlobalSession> globalSession;
@@ -36,7 +60,21 @@ std::expected<SlangCompiler, Error> SlangCompiler::Create(const SlangCompilerDes
     for (const auto& path : desc.paths) {
         paths.emplace_back(path.string());
     }
-    return SlangCompiler(std::move(globalSession), paths);
+
+    std::string entryTemplate = [&desc]() {
+        if (!std::filesystem::exists(desc.entryTemplatePaths)) {
+            return std::string();
+        }
+        std::ifstream entryTemplateStream(desc.entryTemplatePaths.string());
+        if (!entryTemplateStream.is_open()) {
+            return std::string();
+        }
+        std::stringstream entryTemplateBuffer;
+        entryTemplateBuffer << entryTemplateStream.rdbuf();
+        return entryTemplateBuffer.str();
+    }();
+
+    return SlangCompiler(std::move(globalSession), paths, entryTemplate);
 }
 
 std::expected<CompileResult, Error> SlangCompiler::CompileFromString(const std::string& slangCode,
@@ -233,6 +271,153 @@ std::expected<CompileResult, Error> SlangCompiler::Compile(const std::string& pa
     return CompileInternal(composedProgram.get(), context);
 }
 
+std::expected<CompileResult, Error> SlangCompiler::CompilePass(const std::string& path) {
+    CompilationContext context;
+    ComPtr<ISession> session;
+
+    if (auto result = CreateSession(); result.has_value()) {
+        session = result.value();
+    } else {
+        return std::unexpected(result.error());
+    }
+
+    auto moduleResult = LoadModuleFromFile(session.get(), path, context);
+    if (!moduleResult.has_value()) {
+        return std::unexpected(moduleResult.error());
+    }
+    ComPtr<IModule> passModule = moduleResult.value();
+
+    slang::DeclReflection* moduleDecl = passModule->getModuleReflection();
+    slang::ShaderReflection* layout = passModule->getLayout();
+    slang::TypeReflection* renderPassInterface = layout->findTypeByName("IRenderPass");
+    slang::TypeReflection* materialInterface = layout->findTypeByName("IMaterial");
+
+    if (!renderPassInterface || !materialInterface) {
+        return std::unexpected(Error{.type = ErrorType::CompilationFailed,
+                                     .message = "Render pass or material interface not found."});
+    }
+
+    std::string detectedPassName = "";
+    std::string detectedMaterialName = "";
+    auto children = moduleDecl->getChildren();
+
+    slang::TypeReflection* concreteMaterialType = nullptr;
+    for (slang::DeclReflection* childDecl : children) {
+        if (childDecl && childDecl->getKind() == slang::DeclReflection::Kind::Struct) {
+            slang::TypeReflection* currentType = layout->findTypeByName(childDecl->getName());
+            if (!currentType) {
+                continue;
+            }
+
+            ComPtr<ITypeConformance> conformanceComponent;
+            ComPtr<ISlangBlob> dummyDiagnostics;
+
+            SlangResult matResult = session->createTypeConformanceComponentType(
+                currentType, materialInterface, conformanceComponent.writeRef(), 0,
+                dummyDiagnostics.writeRef());
+
+            if (SLANG_SUCCEEDED(matResult)) {
+                detectedMaterialName = childDecl->getName();
+                concreteMaterialType = currentType;
+                break;
+            }
+        }
+    }
+    if (detectedMaterialName.empty()) {
+        return std::unexpected(
+            Error{ErrorType::ReflectionFailed,
+                  "Failed to find concrete material type conforming to IMaterial!"});
+    }
+
+    for (slang::DeclReflection* childDecl : children) {
+        if (childDecl && (childDecl->getKind() == slang::DeclReflection::Kind::Generic ||
+                          childDecl->getKind() == slang::DeclReflection::Kind::Struct)) {
+            slang::TypeReflection* currentType = layout->findTypeByName(childDecl->getName());
+            if (!currentType) {
+                continue;
+            }
+
+            slang::GenericReflection* genericContainer = currentType->getGenericContainer();
+            slang::TypeReflection* typeToCheck = currentType;
+
+            // 제네릭 컨텍스트 팩토리가 존재할 경우 인메모리 조립 단행
+            if (genericContainer) {
+                slang::GenericArgType argType = slang::GenericArgType::SLANG_GENERIC_ARG_TYPE;
+                slang::GenericArgReflection argVal;
+                argVal.typeVal = concreteMaterialType;
+
+                ComPtr<IBlob> specDiag;
+                slang::GenericReflection* specContext = layout->specializeGeneric(
+                    genericContainer, 1, &argType, &argVal,
+                    specDiag.writeRef());
+
+                if (specContext) {
+                    typeToCheck = currentType->applySpecializations(specContext);
+                }
+            }
+
+            if (!typeToCheck) {
+                continue;
+            }
+
+            ComPtr<ITypeConformance> conformanceComponent;
+            ComPtr<ISlangBlob> dummyDiagnostics;
+
+            SlangResult passResult = session->createTypeConformanceComponentType(
+                typeToCheck, renderPassInterface, conformanceComponent.writeRef(), 0,
+                dummyDiagnostics.writeRef());
+
+            if (SLANG_SUCCEEDED(passResult)) {
+                detectedPassName = childDecl->getName();
+                break;
+            }
+        }
+    }
+
+    if (detectedPassName.empty()) {
+        return std::unexpected(
+            Error{ErrorType::ReflectionFailed,
+                  "Failed to find concrete pass type conforming to IRenderPass!"});
+    }
+
+    std::string macroControlCode =
+        "\n\n// Injected by Framework\n"
+        "#define ENGINE_STATIC_DISPATCH\n"
+        "typealias P = " +
+        detectedPassName + "<" + detectedMaterialName + ">;\n";
+
+    std::ifstream passShaderStream(path.c_str());
+    if (passShaderStream.fail()) {
+        return std::unexpected(
+            Error{ErrorType::IOError, "Failed to open pass shader file: " + path});
+    }
+
+    std::stringstream passShaderBuffer;
+
+    passShaderBuffer << passShaderStream.rdbuf();
+    std::string passShader = passShaderBuffer.str();
+
+    std::string finalCombinedSource =
+        std::string(passShader) + macroControlCode + std::string(m_entryTemplate);
+
+    return CompileFromString(finalCombinedSource)
+        .and_then([&](slangCompiler::CompileResult&& shader) {
+            shader.passNameIdx = shader.nameTable.size();
+            shader.nameTable.push_back(detectedPassName);
+            shader.materialNameIdx = shader.nameTable.size();
+            shader.nameTable.push_back(detectedMaterialName);
+
+            return std::expected<slangCompiler::CompileResult, Error>(std::in_place,
+                                                                      std::move(shader));
+        });
+}
+
+// std::expected<core::ShaderAssetFormat::Pass, Error> SlangCompiler::GetPassInfo(
+//     slang::IComponentType* componentType) {
+//     slang::ProgramLayout* layout = componentType->getLayout();
+//     uint32_t parameterCount = layout->getParameterCount();
+// }
+
 constexpr uint32_t kInvalidSetNumber = -1;
 inline bool IsValidSet(uint32_t setNumber) {
     return setNumber != kInvalidSetNumber;
@@ -274,8 +459,6 @@ struct CompilerBinding {
     sa::ResourceType resourceType;
     sa::ShaderVisibility visibility;
     std::string name;
-
-    slang::ParameterCategory slangCategory;
 };
 
 sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
@@ -285,7 +468,7 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
 
     sa::Texture textureBinding{};
     SlangResourceShape shape = varLayout->getTypeLayout()->getType()->getResourceShape();
-    switch (shape) {
+    switch (shape & SLANG_RESOURCE_BASE_SHAPE_MASK) {
         case SLANG_TEXTURE_1D:
             textureBinding.viewDimension = sa::ShaderAssetFormat::ViewDimension::e1D;
             break;
@@ -323,7 +506,12 @@ sa::Texture CreateTextureBinding(VariableLayoutReflection* varLayout,
         case TypeReflection::ScalarType::Float16:
         case TypeReflection::ScalarType::Float32:
         case TypeReflection::ScalarType::Float64:
-            textureBinding.type = sa::ShaderAssetFormat::TextureType::Float;
+            if (shape & SLANG_TEXTURE_SHADOW_FLAG) {
+                textureBinding.type = sa::ShaderAssetFormat::TextureType::Depth;
+
+            } else {
+                textureBinding.type = sa::ShaderAssetFormat::TextureType::Float;
+            }
             break;
         case TypeReflection::ScalarType::UInt16:
         case TypeReflection::ScalarType::UInt32:
@@ -380,7 +568,6 @@ CompilerBinding CalculateBasicBinding(VariableLayoutReflection* varLayout,
             binding.binding = static_cast<uint32_t>(cbufferIndex);
         }
     }
-    binding.slangCategory = varLayout->getCategory();
 
     return binding;
 }
@@ -424,7 +611,7 @@ bool PopulateResourceDetails(CompilerBinding& binding,
             break;
         case slang::TypeReflection::Kind::Resource: {
             SlangResourceShape shape = typeLayout->getResourceShape();
-            switch (shape) {
+            switch (shape & SLANG_RESOURCE_BASE_SHAPE_MASK) {
                 case SLANG_TEXTURE_1D:
                 case SLANG_TEXTURE_1D_ARRAY:
                 case SLANG_TEXTURE_2D:
@@ -468,27 +655,14 @@ std::optional<CompilerBinding> CreateLeafBinding(VariableLayoutReflection* varLa
         return std::nullopt;
     }
 
-    uint32_t set = ctx.currentSet;
-    if (set == -1) {
-        size_t spaceOffset = varLayout->getOffset(slang::ParameterCategory::RegisterSpace);
-        set = (spaceOffset != -SLANG_UNBOUNDED_SIZE) ? (uint32_t)spaceOffset : 0;
-    }
-
     CompilerBinding binding = CalculateBasicBinding(varLayout, ctx, kind);
-
-    if (kind == slang::TypeReflection::Kind::ParameterBlock) {
-        size_t cbufferIndex = varLayout->getOffset(slang::ParameterCategory::DescriptorTableSlot);
-        if (cbufferIndex != SLANG_UNBOUNDED_SIZE) {
-            binding.binding = static_cast<uint32_t>(cbufferIndex);
-        }
-    }
 
     if (ctx.skipResourceDetails) {
         return binding;
     }
 
     if (!PopulateResourceDetails(binding, varLayout, ctx, kind)) {
-        return std::nullopt; 
+        return std::nullopt;
     }
 
     return binding;
@@ -505,7 +679,7 @@ std::vector<CompilerBinding> ReflectRecursively(VariableLayoutReflection* varLay
     std::string varName = "";
     if (!ctx.skipResourceDetails) {
         const char* rawName = varLayout->getName();
-        std::string varName = rawName == nullptr ? "" : std::string(rawName);
+        varName = rawName == nullptr ? "" : std::string(rawName);
     }
 
     if (kind == TypeReflection::Kind::ParameterBlock) {
@@ -606,7 +780,8 @@ struct CompilerEntryParameter {
 
 std::vector<CompilerShaderParameter> CreateVaryingParameterLayout(
     slang::VariableLayoutReflection* varLayout,
-    const VaryingParameterContext& context) {
+    const VaryingParameterContext& context,
+    slang::ParameterCategory category) {
     slang::TypeLayoutReflection* typeLayout = varLayout->getTypeLayout();
     std::vector<CompilerShaderParameter> shaderParameters;
     CompilerVariable variable{};
@@ -633,7 +808,7 @@ std::vector<CompilerShaderParameter> CreateVaryingParameterLayout(
                 auto* param = typeLayout->getFieldByIndex(i);
                 const VaryingParameterContext nextCtx = context.WithPrefix(param->getName());
                 std::vector<CompilerShaderParameter> fields =
-                    CreateVaryingParameterLayout(param, nextCtx);
+                    CreateVaryingParameterLayout(param, nextCtx, category);
                 shaderParameters.append_range(fields);
                 continue;
             }
@@ -671,7 +846,7 @@ std::vector<CompilerShaderParameter> CreateVaryingParameterLayout(
     variable.name = context.prefix;
 
     const char* semanticName = varLayout->getSemanticName();
-    const uint32_t location = varLayout->getOffset(slang::ParameterCategory::VaryingInput);
+    const uint32_t location = varLayout->getOffset(category);
     // const uint32_t location = varLayout->getBindingIndex();
     shaderParameters.push_back(CompilerShaderParameter{
         .variable = variable,
@@ -687,12 +862,12 @@ CompilerEntryParameter GernerateEntryPointLayout(slang::EntryPointReflection* la
                                                  CompilationContext& context) {
     VaryingParameterContext varyingContext;
     slang::VariableLayoutReflection* paramaterVarLayout = layout->getVarLayout();
-    std::vector<CompilerShaderParameter> entryInputParameters =
-        CreateVaryingParameterLayout(paramaterVarLayout, varyingContext);
+    std::vector<CompilerShaderParameter> entryInputParameters = CreateVaryingParameterLayout(
+        paramaterVarLayout, varyingContext, slang::ParameterCategory::VaryingInput);
     slang::VariableLayoutReflection* resultVarLayout = layout->getResultVarLayout();
     // const uint32_t resultVarCount
-    std::vector<CompilerShaderParameter> entryOutpuParameters =
-        CreateVaryingParameterLayout(resultVarLayout, varyingContext);
+    std::vector<CompilerShaderParameter> entryOutpuParameters = CreateVaryingParameterLayout(
+        resultVarLayout, varyingContext, slang::ParameterCategory::VaryingOutput);
     return {
         entryInputParameters,
         entryOutpuParameters,
@@ -749,7 +924,7 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                             : core::Semantic::Undefined,
         };
 
-         parameters.push_back(parameter);
+        parameters.push_back(parameter);
     };
 
     ProgramLayout* programLayout = linkedProgram->getLayout();
@@ -757,7 +932,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
         GenerateBindingsFromLayout(programLayout, context);
 
     uint32_t entryCount = programLayout->getEntryPointCount();
-    std::vector<uint32_t> indices;
     std::vector<sa::EntryPoint> entryPoints;
     for (uint32_t i = 0; i < entryCount; ++i) {
         slang::EntryPointReflection* entry = programLayout->getEntryPointByIndex(i);
@@ -782,23 +956,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
             }
         }
 
-        entryPoint.bindingStartIndex = indices.size();
-        entryPoint.bindingCount = 0;
-        ComPtr<IMetadata> metadata;
-        composedProgram->getEntryPointMetadata(i, 0, metadata.writeRef());
-        for (uint32_t j = 0; j < compilerBindings.size(); ++j) {
-            const auto& b = compilerBindings[j];
-            bool isUsed = false;
-
-            metadata->isParameterLocationUsed(static_cast<SlangParameterCategory>(b.slangCategory),
-                                              b.set, b.binding, isUsed);
-
-            if (isUsed) {
-                entryPoint.bindingCount++;
-                indices.push_back(j);
-                compilerBindings[j].visibility = compilerBindings[j].visibility | entryPoint.stage;
-            }
-        }
         uint32_t nameIdx = getNameId(entry->getName());
         entryPoint.nameIdx = nameIdx;
 
@@ -814,13 +971,10 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                 .nameIdx = getNameId(cb.name),
                 .resource = cb.resource,
                 .resourceType = cb.resourceType,
-                .visibility = cb.visibility,
+                .visibility = sa::ShaderVisibility::Render,
             };
         }) |
         std::ranges::to<std::vector>();
-
-    uint32_t nameTableSize = std::ranges::fold_left(
-        nameTable, 0u, [](uint32_t acc, const std::string& name) { return acc + name.size() + 1; });
 
     std::vector<uint8_t> code(codeBlob->getBufferSize());
     std::memcpy(code.data(), codeBlob->getBufferPointer(), codeBlob->getBufferSize());
@@ -831,7 +985,6 @@ std::expected<CompileResult, Error> slangCompiler::SlangCompiler::CompileInterna
                                                              .entryPoints = std::move(entryPoints),
                                                              .sourceBlob = std::move(code),
                                                              .nameTable = std::move(nameTable),
-                                                             .indices = std::move(indices),
                                                              .warning = context.message});
 }
 
@@ -840,8 +993,7 @@ std::expected<Slang::ComPtr<slang::ISession>, Error> SlangCompiler::CreateSessio
     {
         const TargetDesc targetDesc{
             .format = SLANG_WGSL,
-            .profile = m_globalSession->findProfile("sm_6_0"),
-            .flags = SLANG_TARGET_FLAG_GENERATE_WHOLE_PROGRAM,
+            .profile = m_globalSession->findProfile(""),
         };
         std::vector<const char*> searchPaths;
         for (const auto& path : m_paths) {

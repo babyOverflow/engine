@@ -1,22 +1,26 @@
 #pragma once
 #include <tiny_gltf.h>
-#include <string_view>
 
 #include "ResourcePool.h"
-#include "memory/StridedSpan.h"
-#include "render/Material.h"
-#include "render/Mesh.h"
-#include "render/Model.h"
-#include "render/ShaderAsset.h"
-#include "render/Texture.h"
-#include "util/Load.h"
+#include "render/resource/Material.h"
+#include "render/resource/Mesh.h"
+#include "render/resource/Model.h"
+#include "render/resource/ShaderAsset.h"
+#include "render/resource/Texture.h"
 
 namespace core {
 
+struct AssetRegistry {
+    std::span<const render::Model> models;
+    std::span<const render::Mesh> meshes;
+    std::span<const render::Material> materials;
+    std::span<const render::Texture> textures;
+    std::span<const render::ShaderAsset> shaders;
+};
+
 class AssetManager {
   public:
-    static AssetManager Create(render::Device* device);
-    AssetManager() = delete;
+    static AssetManager Create();
 
     Handle StoreModel(render::Model&& model);
     AssetView<render::Model> GetModel(Handle handle);
@@ -33,10 +37,9 @@ class AssetManager {
     Handle StoreMesh(render::Mesh&& mesh);
     AssetView<render::Mesh> GetMesh(Handle handle);
 
-  private:
-    AssetManager(render::Device* device);
-    render::Device* m_device;
+    const AssetRegistry GetRegistry() const;
 
+  private:
     ResourcePool<render::ShaderAsset> m_shaderPool;
     ResourcePool<render::Texture> m_texturePool;
     ResourcePool<render::Material> m_materialPool;

@@ -13,7 +13,8 @@ struct ShaderAssetFormat {
     static constexpr uint32_t SHADER_ASSET_MAGIC = 0x52444853;
     static constexpr uint32_t SHADER_ASSET_VERSION = 4;
 
-    static constexpr uint32_t kInvalidIdx = -1;
+    template <typename T = uint32_t>
+    static constexpr T kInvalidIdx = static_cast<T>(-1);
 
     enum class Flag : uint16_t {  // Reserved
         None,
@@ -107,34 +108,26 @@ struct ShaderAssetFormat {
         };
 
         static Resource Buffer(uint32_t size);
-
-        bool operator==(const Resource& rhs) const {
-            return std::memcmp(this, &rhs, sizeof(Resource)) == 0;
-        }
-        std::strong_ordering operator<=>(const Resource& rhs) const {
-            int res = std::memcmp(this, &rhs, sizeof(Resource));
-            return res <=> 0;
-        }
     };
 
     struct alignas(64) Header {
-        uint32_t magicNumber = SHADER_ASSET_MAGIC;
-        uint16_t version = SHADER_ASSET_VERSION;
-        uint16_t parameterCount = 0;
-        uint16_t bindingCount = 0;
-        uint16_t entryPointCount = 0;
-        uint16_t variableCount = 0;  // reserved
-        uint16_t indexCount = 0;
-        uint32_t nameTableSize = 0;
-        uint32_t shaderSize = 0;
-        uint32_t parameterOffset;
-        uint32_t bindingOffset;
-        uint32_t entryPointOffset;
-        uint32_t variableOffset;
-        uint32_t indexOffset;
-        uint32_t nameTableOffset;
-        uint32_t shaderOffset;
-        char _padding[12] = {0};
+        uint32_t magicNumber = SHADER_ASSET_MAGIC;           // 4
+        uint16_t version = SHADER_ASSET_VERSION;             // 6
+        uint16_t parameterCount = 0;                         // 8
+        uint16_t bindingCount = 0;                           // 10
+        uint16_t entryPointCount = 0;                        // 12
+        uint16_t variableCount = 0;                          // reserved
+        uint32_t nameTableSize = 0;                          //
+        uint32_t shaderSize = 0;                             //
+        uint32_t parameterOffset;                            //
+        uint32_t bindingOffset;                              //
+        uint32_t entryPointOffset;                           //
+        uint32_t variableOffset;                             //
+        uint32_t nameTableOffset;                            //
+        uint32_t shaderOffset;                               //
+        uint16_t passNameIndex = kInvalidIdx<uint16_t>;      //
+        uint16_t materialNameIndex = kInvalidIdx<uint16_t>;  //
+        char _padding[4] = {0};
     };
 
     static_assert(sizeof(Header) == 64);
@@ -147,13 +140,55 @@ struct ShaderAssetFormat {
         uint32_t set;
         uint32_t binding;
         uint32_t id;
-        uint32_t nameIdx = kInvalidIdx;
+        uint32_t nameIdx = kInvalidIdx<uint32_t>;
         Resource resource = {.buffer = {0}};
         ResourceType resourceType;
         ShaderVisibility visibility;
         char _padding[10] = {0};
 
-        std::strong_ordering operator<=>(const Binding&) const = default;
+        bool operator==(const Binding& rhs) const {
+            return (*this <=> rhs) == std::strong_ordering::equal;
+        }
+
+        std::strong_ordering operator<=>(const Binding& rhs) const {
+            if (auto cmp = set <=> rhs.set; cmp != 0) {
+                return cmp;
+            }
+            if (auto cmp = binding <=> rhs.binding; cmp != 0) {
+                return cmp;
+            }
+            if (auto cmp = id <=> rhs.id; cmp != 0) {
+                return cmp;
+            }
+            if (auto cmp = nameIdx <=> rhs.nameIdx; cmp != 0) {
+                return cmp;
+            }
+            if (auto cmp = resourceType <=> rhs.resourceType; cmp != 0) {
+                return cmp;
+            }
+            if (auto cmp = visibility <=> rhs.visibility; cmp != 0) {
+                return cmp;
+            }
+
+            switch (resourceType) {
+                case ResourceType::UniformBuffer:
+                case ResourceType::StorageBuffer:
+                case ResourceType::ReadOnlyStorage:
+                    return resource.buffer.bufferSize <=> rhs.resource.buffer.bufferSize;
+                case ResourceType::Texture:
+                    if (auto cmp = resource.texture.type <=> rhs.resource.texture.type; cmp != 0) {
+                        return cmp;
+                    }
+                    if (auto cmp = resource.texture.viewDimension <=> rhs.resource.texture.viewDimension; cmp != 0) {
+                        return cmp;
+                    }
+                    return resource.texture.multiSampled <=> rhs.resource.texture.multiSampled;
+                case ResourceType::Sampler:
+                    return resource.sampler.type <=> rhs.resource.sampler.type;
+                default:
+                    return std::strong_ordering::equal;
+            }
+        }
     };
 
     struct Scalar {};
@@ -181,24 +216,36 @@ struct ShaderAssetFormat {
         Kind kind;
         ScalarType scalarType;
         Shape shape;
-        uint32_t nameIdx = kInvalidIdx;
+        uint32_t nameIdx = kInvalidIdx<uint32_t>;
 
-        bool operator==(const Variable& rhs) const {
-            if (kind != rhs.kind || scalarType != rhs.scalarType || nameIdx != rhs.nameIdx) {
-                return false;
+        std::strong_ordering operator<=>(const Variable& rhs) const {
+            if (auto cmp = kind <=> rhs.kind; cmp != 0) {
+                return cmp;
+            }
+            if (auto cmp = scalarType <=> rhs.scalarType; cmp != 0) {
+                return cmp;
+            }
+            if (auto cmp = nameIdx <=> rhs.nameIdx; cmp != 0) {
+                return cmp;
             }
 
             switch (kind) {
                 case Kind::Scalar:
-                    return true;
+                    return std::strong_ordering::equal;
                 case Kind::Vector:
-                    return shape.vector.length == rhs.shape.vector.length;
+                    return shape.vector.length <=> rhs.shape.vector.length;
                 case Kind::Matrix:
-                    return shape.matrix.rows == rhs.shape.matrix.rows &&
-                           shape.matrix.columns == rhs.shape.matrix.columns;
+                    if (auto cmp = shape.matrix.rows <=> rhs.shape.matrix.rows; cmp != 0) {
+                        return cmp;
+                    }
+                    return shape.matrix.columns <=> rhs.shape.matrix.columns;
                 default:
-                    return true;
+                    return std::strong_ordering::equal;
             }
+        }
+
+        bool operator==(const Variable& rhs) const {
+            return (*this <=> rhs) == std::strong_ordering::equal;
         }
     };
 
@@ -213,14 +260,13 @@ struct ShaderAssetFormat {
     struct EntryPoint {
         ShaderVisibility stage;
         uint32_t nameIdx;
+        PropertyId id;
 
         uint32_t ioStartIndex;
-        uint32_t bindingStartIndex;
-
         uint16_t ioCount;
-        uint16_t bindingCount;
 
-        uint32_t _padding;
+        uint16_t _padding0 = 0;
+        uint32_t _padding1 = 0;
     };
     static_assert(sizeof(EntryPoint) == 24, "EntryPoint size must be 24 bytes!");
 
