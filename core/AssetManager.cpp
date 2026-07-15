@@ -1,24 +1,13 @@
 #include "AssetManager.h"
-#include "ShaderAssetFormat.h"
-
-#include "import/GLTFImporter.h"
-#include "render/util.h"
 
 #include <slang.h>
-
-const std::string kGltfPosition = "POSITION";
-const std::string kGltfTexCoord0 = "TEXCOORD_0";
-const std::string kGltfNormal = "NORMAL";
-const std::string kGltfTangent = "TANGENT";
 
 using namespace slang;
 
 namespace core {
-AssetManager AssetManager::Create(render::Device* device) {
-    return AssetManager(device);
+AssetManager AssetManager::Create() {
+    return AssetManager();
 }
-
-AssetManager::AssetManager(render::Device* device) : m_device(device) {}
 
 Handle AssetManager::StoreModel(render::Model&& model) {
     return m_modelPool.Attach(std::move(model));
@@ -58,6 +47,13 @@ Handle AssetManager::StoreMaterial(render::Material&& material) {
 
 AssetView<render::Material> AssetManager::GetMaterial(Handle handle) {
     return {m_materialPool.Get(handle), handle};
+}
+
+const AssetRegistry AssetManager::GetRegistry() const {
+    return AssetRegistry{
+        m_modelPool.GetDataSpan(),   m_meshPool.GetDataSpan(),   m_materialPool.GetDataSpan(),
+        m_texturePool.GetDataSpan(), m_shaderPool.GetDataSpan(),
+    };
 }
 
 }  // namespace core

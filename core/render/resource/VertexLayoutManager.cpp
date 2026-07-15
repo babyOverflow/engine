@@ -1,0 +1,48 @@
+#include "VertexLayoutManager.h"
+#include <ranges>
+#include <span>
+
+core::render::VertexLayoutManager::VertexLayoutManager() {
+    m_vertexStates.resize(1);
+    m_vertexStates[kVoidVertexLayout] = {};
+}
+
+core::Handle core::render::VertexLayoutManager::GetVertexLayout(
+    const wgx::VertexBufferLayout& layout) {
+    auto it = std::ranges::find_if(
+        m_layoutCache, [&layout](const std::pair<wgx::VertexBufferLayout, Handle>& pair) {
+            return pair.first == layout;
+        });
+    if (it != m_layoutCache.end()) {
+        return it->second;
+    }
+
+    VertexLayout newLayout;
+    newLayout.m_attributes = layout.attributes | std::views::transform([](auto att) {
+                                 return wgpu::VertexAttribute{
+                                     .format = att.format,
+                                     .offset = att.offset,
+                                     .shaderLocation = att.shaderLocation,
+                                 };
+                             }) |
+                             std::ranges::to<std::vector>();
+    newLayout.m_layout.arrayStride = layout.arrayStride;
+    newLayout.m_layout.stepMode = layout.stepMode;
+    newLayout.m_layout.attributes = newLayout.m_attributes.data();
+    newLayout.m_layout.attributeCount = newLayout.m_attributes.size();
+
+    core::Handle handle = m_vertexLayouts.Attach(std::move(newLayout));
+    m_layoutCache.push_back({layout, handle});
+    return handle;
+}
+
+uint8_t core::render::VertexLayoutManager::GetVertexStateID(
+    const MeshAssetFormat::MeshVertexState& vertexState) {
+    auto it = std::ranges::find(m_vertexStates, vertexState);
+    if (it != m_vertexStates.end()) {
+        uint8_t id = static_cast<uint8_t>(std::distance(m_vertexStates.begin(), it));
+        return id;
+    }
+    m_vertexStates.push_back(vertexState);
+    return static_cast<uint8_t>(m_vertexStates.size() - 1);
+}

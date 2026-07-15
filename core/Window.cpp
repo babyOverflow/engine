@@ -1,5 +1,4 @@
 #include "Window.h"
-#include <iostream>
 #include <print>
 
 static core::event::KeyCode GlfwToMyKeycode(int key) {
@@ -83,17 +82,17 @@ std::expected<Window, int> core::Window::Create(WindowSpec& spec) {
 
     glfwSetWindowUserPointer(window, spec.eventDispatcher);
     glfwSetWindowCloseCallback(window, [](GLFWwindow* window) {
-        EventDispatcher* dispatcher = (EventDispatcher*)glfwGetWindowUserPointer(window);
+        EventDispatcher* dispatcher = static_cast<EventDispatcher*>(glfwGetWindowUserPointer(window));
         dispatcher->Post(event::WindowCloseEvent{});
     });
 
     glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
-        EventDispatcher* dispatcher = (EventDispatcher*)glfwGetWindowUserPointer(window);
+        EventDispatcher* dispatcher = static_cast<EventDispatcher*>(glfwGetWindowUserPointer(window));
         dispatcher->Post(event::ScrollEvent{.xoffset = xoffset, .yoffset = yoffset});
     });
 
     glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mode) {
-        EventDispatcher* dispatcher = (EventDispatcher*)glfwGetWindowUserPointer(window);
+        EventDispatcher* dispatcher = static_cast<EventDispatcher*>(glfwGetWindowUserPointer(window));
         if (action == GLFW_PRESS) {
             dispatcher->Post(event::KeyPressEvent{.keyCode = GlfwToMyKeycode(key)});
         } else if (action == GLFW_RELEASE) {
@@ -104,7 +103,7 @@ std::expected<Window, int> core::Window::Create(WindowSpec& spec) {
     glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {});
 
     glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
-        EventDispatcher* dispatcher = (EventDispatcher*)glfwGetWindowUserPointer(window);
+        EventDispatcher* dispatcher = static_cast<EventDispatcher*>(glfwGetWindowUserPointer(window));
         dispatcher->Post(event::CursorPosEvent{.x = xpos, .y = ypos});
     });
 

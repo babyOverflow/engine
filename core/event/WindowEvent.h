@@ -1,9 +1,5 @@
 namespace core::event {
-struct WindowCloseEvent {
+struct WindowCloseEvent {};
 
-};
-
-struct WindowResizeEvent {
-
-};
+struct WindowResizeEvent {};
 }  // namespace core::event

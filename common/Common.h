@@ -27,7 +27,6 @@ struct Error {
 struct AssetPath {
     std::string value;
 
-    // 편의를 위한 비교 연산자
     bool operator==(const AssetPath& other) const { return value == other.value; }
 };
 
@@ -64,14 +63,19 @@ struct AssetView {
     T* Get() const { return data; }
 };
 
+inline uint32_t HashFNV1a(std::string_view str) {
+    uint32_t hash = 2166136261u;
+    for (char c : str) {
+        hash ^= static_cast<uint32_t>(c);
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
 using PropertyId = uint32_t;
 constexpr PropertyId ToPropertyID(std::string_view name) {
     // Simple hash function for demonstration purposes
-    PropertyId hash = 0;
-    for (char c : name) {
-        hash = hash * 31 + static_cast<unsigned char>(c);
-    }
-    return hash;
+    return HashFNV1a(name);
 }
 
 enum class Semantic {
@@ -96,17 +100,21 @@ enum class Semantic {
     Custom2,
     Custom3,
 
+    Target0,
+    Target1,
+    Target2,
+    Target3,
+    Target4,
+    Target5,
+    Target6,
+    Target7,
+
     Undefined = 255
 };
 
 Semantic NameToSemantic(const std::string& name, uint32_t index);
-
-constexpr uint32_t kSetNumberGlobal = 0;
-constexpr uint32_t kSetNumberMaterial = 1;
-constexpr uint32_t kSetNumberInstance = 2;
 }  // namespace core
 
-// std::unordered_map의 Key로 쓰기 위한 해시 특수화
 template <>
 struct std::hash<core::AssetPath> {
     std::size_t operator()(const core::AssetPath& k) const {

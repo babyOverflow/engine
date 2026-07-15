@@ -3,7 +3,7 @@
 struct EmptyData {};
 
 struct SurfaceAttributes {
-    float3 baseColor;
+    float4 baseColor;
     float3 worldNormal;
     float roughness;
     float metallic;
@@ -15,27 +15,13 @@ interface IMaterial {
     static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
                                                        float3 worldPosition,
                                                        float3 worldNormal,
-                                                       float2 uv);
-}
-
-struct EmptyMaterial : IMaterial {
-    typealias DataType = EmptyData;
-    static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
-                                                       float3 worldPosition,
-                                                       float3 worldNormal,
-                                                       float2 uv) {
-        SurfaceAttributes attributes;
-        attributes.baseColor = float3(1.0, 1.0, 1.0);
-        attributes.worldNormal = worldNormal;
-        attributes.roughness = 0.5;
-        attributes.metallic = 0.0;
-        attributes.emissive = float3(0.0, 0.0, 0.0);
-        return attributes;
-    }
+                                                       float2 uv,
+                                                       float3 tangent = 0,
+                                                       float3 bitangent = 0);
 }
 
 interface IRenderPass {
-    associatedtype M: IMaterial;
+    associatedtype M : IMaterial;
 
     associatedtype VertexInputType;
     associatedtype VertexOutputType;

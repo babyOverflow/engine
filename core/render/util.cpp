@@ -1,9 +1,5 @@
 #include "util.h"
-#include <map>
-#include <ranges>
-// TODO!(IsEntryEqual is in LayoutCache.h. It should be moved to proper header. If it's done remove
-// inclusion)
-#include "LayoutCache.h"
+#include <print>
 
 namespace core::util {
 std::unique_ptr<wgpu::ChainedStruct, void (*)(wgpu::ChainedStruct*)>
@@ -108,8 +104,12 @@ static wgpu::ShaderStage MapStageToWgpu(ShaderAssetFormat::ShaderVisibility visi
         case ShaderAssetFormat::ShaderVisibility::Compute:
             return wgpu::ShaderStage::Compute;
         case ShaderAssetFormat::ShaderVisibility::All:
+            return wgpu::ShaderStage::Fragment | wgpu::ShaderStage::Vertex |
+                   wgpu::ShaderStage::Compute;
+        case core::ShaderAssetFormat::ShaderVisibility::Render:
             return wgpu::ShaderStage::Fragment | wgpu::ShaderStage::Vertex;
         case ShaderAssetFormat::ShaderVisibility::None:
+        default:
             return wgpu::ShaderStage::None;
     }
 }
@@ -208,8 +208,7 @@ static wgpu::TextureBindingLayout MapBindingToTexture(render::ShaderReflection::
     return layout;
 }
 
-wgpu::BindGroupLayoutEntry core::util::MapBindingInfoToWgpu(
-    render::ShaderReflection::Binding binding) {
+wgpu::BindGroupLayoutEntry MapBindingInfoToWgpu(render::ShaderReflection::Binding binding) {
     wgpu::BindGroupLayoutEntry entry{
         .binding = binding.binding,
         .visibility = MapStageToWgpu(binding.visibility),

@@ -1,9 +1,7 @@
 #include "ModelLoader.h"
 #include <import/GLTFImporter.h>
 
-std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
-    const std::string& path) {
-
+std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(const std::string& path) {
     if (m_modelCache.find(path) != m_modelCache.end()) {
         return m_modelCache[path];
     }
@@ -11,13 +9,14 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
     if (!resultOrError.has_value()) {
         return std::unexpected(resultOrError.error());
     }
-    const auto& result = resultOrError.value();
+    auto& result = resultOrError.value();
 
     for (const core::importer::TextureResult& textureResult : result.textures) {
         core::Handle _ = m_textureManger->LoadTexture(textureResult);
     }
 
-    for (const auto& materialResult : result.materials) {
+    for (auto& materialResult : result.materials) {
+        materialResult.materialAsset.shaderName.value = std::string("assets/ForwardPass.shdr");
         core::Handle _ = m_materialManager->LoadMaterial(materialResult);
     }
 
@@ -47,9 +46,8 @@ std::expected<core::Handle, core::Error> loader::GLTFLoader::LoadModel(
             model.renderUnits.push_back(std::move(renderUnit));
         }
     }
-    
+
     core::Handle modelHandle = m_assetManager->StoreModel(std::move(model));
     m_modelCache[path] = modelHandle;
     return modelHandle;
-    
 }

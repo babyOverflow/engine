@@ -1,4 +1,4 @@
-﻿// render.h: 표준 시스템 포함 파일
+// render.h: 표준 시스템 포함 파일
 // 또는 프로젝트 특정 포함 파일이 들어 있는 포함 파일입니다.
 
 #pragma once
@@ -6,24 +6,21 @@
 #include <dawn/webgpu_cpp.h>
 #include <concepts>
 #include <glm/glm.hpp>
-#include <iostream>
 #include <memory>
+#include <string>
 
-#include "GpuResource.h"
-#include "ShaderInterop.h"
-#include "Texture.h"
 #include "Window.h"
-#include "memory/StridedSpan.h"
-#include "wgx.h"
+#include "render/resource/GpuResource.h"
 
 namespace core {
 namespace render {
 
 struct CameraUniformData {
-    alignas(16) glm::mat4x4 view;
-    alignas(16) glm::mat4x4 proj;
-    alignas(16) glm::mat4x4 viewProj;
-    alignas(16) glm::vec3 position;
+    glm::mat4x4 view;
+    glm::mat4x4 proj;
+    glm::mat4x4 viewProj;
+    glm::mat4x4 invViewProj;
+    glm::vec4 position;
 };
 
 template <typename T>
@@ -38,10 +35,11 @@ class Device {
 
     void Present();
 
-    const wgpu::Device& GetDeivce() { return m_device; }
+    const wgpu::Device& GetDevice() { return m_device; }
     const wgpu::SurfaceConfiguration& GetSurfaceConfig() { return m_surfaceConfig; }
 
     wgpu::TextureView GetCurrentTextureView();
+    wgpu::Texture GetCurrentTexture();
 
     wgpu::ShaderModule CreateShaderModuleFromWGSL(const std::string_view wgslCode);
     wgpu::ShaderModule CreateShaderModuleFromSPIRV(const std::vector<uint32_t>& spirvCode);
@@ -55,6 +53,7 @@ class Device {
     GpuPipelineLayout CreatePipelineLayout(const wgpu::PipelineLayoutDescriptor& descriptor);
     wgpu::RenderPipeline CreateRenderPipeline(const wgpu::RenderPipelineDescriptor& descriptor);
 
+    wgpu::Texture CreateTexture(const wgpu::TextureDescriptor& descriptor);
     wgpu::Texture CreateTextureFromData(const wgpu::TextureDescriptor& descriptor,
                                         const wgpu::TexelCopyBufferLayout& layout,
                                         std::span<const uint8_t> data);

@@ -1,11 +1,8 @@
 #include <slang.h>
-#include <array>
 #include <glm/glm.hpp>
 #include <print>
-#include <string_view>
 
 #include "ExampleLayer.h"
-#include "util.h"
 
 struct Uniform {
     glm::mat4x4 modelViewProjection;
@@ -20,13 +17,8 @@ struct Vertex {
 
 std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
     core::render::Device* device = app->GetDevice();
-    core::render::PipelineManager* pipelineManager = app->GetPipelineManager();
-    core::AssetManager* assetManager = app->GetAssetManager();
-    core::render::ShaderManager* shaderManager = app->GetShaderManager();
 
     using namespace core::render;
-
-    auto shader = shaderManager->GetStandardShader();
 
     auto config = device->GetSurfaceConfig();
     auto proj = common::Projection::Perspective(45, config.width, config.height, 0.1, 100.0);
@@ -39,17 +31,26 @@ std::unique_ptr<ExampleLayer> ExampleLayer::Create(core::Application* app) {
         app->GetMeshManager(),
     };
 
+    loader::ShaderLoader shaderLoader{
+        app->GetShaderManager(),
+    };
 
-    return std::unique_ptr<ExampleLayer>(new ExampleLayer(app, device, gameCamera, loader));
+    return std::unique_ptr<ExampleLayer>(
+        new ExampleLayer(app, device, gameCamera, loader, shaderLoader));
 }
 
 void ExampleLayer::OnAttach(core::Scene& scene) {
+    auto shaderHandle = m_shaderLoader.LoadShader("assets/ForwardPass.shdr");
+    auto shaderHandle1 = m_shaderLoader.LoadShader("assets/DeferredGBufferPass.shdr");
+    auto shaderHandle0 = m_shaderLoader.LoadShader("assets/DeferredLightingPass.shdr");
     auto modelOrError = m_loader.LoadModel("resources/microphone/scene.gltf");
     if (!modelOrError.has_value()) {
         std::println("failed to load");
     }
+
     m_modelHandle = modelOrError.value();
     core::AssetView<core::render::Model> model = m_app->GetAssetManager()->GetModel(m_modelHandle);
+
     scene.AddModel(model, glm::mat4x4(1.F));
 }
 

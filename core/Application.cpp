@@ -4,17 +4,34 @@
 namespace core {
 
 wgpu::BindGroupLayoutDescriptor Application::GetGlobalLayouDesc() {
-    static const std::array<wgpu::BindGroupLayoutEntry, 1> entries{wgpu::BindGroupLayoutEntry{
-        .binding = 0,
-        .visibility = wgpu::ShaderStage::Vertex,
-        .buffer =
-            wgpu::BufferBindingLayout{
-                .type = wgpu::BufferBindingType::Uniform,
-                .hasDynamicOffset = false,
-                .minBindingSize = 0,
-            },
-    }};
+    static const std::array<wgpu::BindGroupLayoutEntry, 3> entries{
+        wgpu::BindGroupLayoutEntry{
+            .binding = 0,
+            .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
+            .buffer =
+                wgpu::BufferBindingLayout{
+                    .type = wgpu::BufferBindingType::Uniform,
+                    .hasDynamicOffset = false,
+                    .minBindingSize = 0,
+                }},
+        wgpu::BindGroupLayoutEntry{
+            .binding = 1,
+            .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
+            .sampler =
+                wgpu::SamplerBindingLayout{
+                    .type = wgpu::SamplerBindingType::Filtering,
+                }},
+        wgpu::BindGroupLayoutEntry{
+            .binding = 2,
+            .visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment,
+            .sampler =
+                wgpu::SamplerBindingLayout{
+                    .type = wgpu::SamplerBindingType::NonFiltering,
+                }},
+    };
+
     return wgpu::BindGroupLayoutDescriptor{
+        .label = "GlobalBindGroup",
         .entryCount = entries.size(),
         .entries = entries.data(),
     };
@@ -36,49 +53,37 @@ std::expected<Application, int> core::Application::Create(ApplicationSpec& spec)
 
     Window window = std::move(re.value());
     std::unique_ptr<render::Device> device = render::Device::Create(window);
-    auto assetManager = std::make_unique<AssetManager>(AssetManager::Create(device.get()));
+    auto assetManager = std::make_unique<AssetManager>(AssetManager::Create());
     auto globalBindGroupLayout = GetGlobalLayouDesc();
-    auto layoutCache = std::make_unique<render::LayoutCache>(device.get());
-    auto pipelineManager = std::make_unique<render::PipelineManager>(
-        device.get(), layoutCache.get(), globalBindGroupLayout);
-    auto shaderManager = std::make_unique<render::ShaderManager>(device.get(), assetManager.get(),
-                                                                 layoutCache.get());
-    auto meshManager = std::make_unique<render::MeshManager>(device.get(), assetManager.get());
-    auto textureManager =
-        std::make_unique<render::TextureManager>(device.get(), assetManager.get());
-    auto materialManager = std::make_unique<render::MaterialManager>(
-        device.get(), assetManager.get(), shaderManager.get(), textureManager.get(),
-        layoutCache.get());
 
-    render::RenderGraph renderGraph(device.get(), assetManager.get(), pipelineManager.get(),
-                                    layoutCache->GetBindGroupLayout(globalBindGroupLayout));
+    auto sceneRenderer = std::make_unique<render::SceneRenderer>(device.get(), assetManager.get(),
+                                                                 globalBindGroupLayout);
 
     return Application(std::move(window), std::move(device), std::move(assetManager),
-                       std::move(eventDispatcher), std::move(renderGraph), std::move(layoutCache),
-                       std::move(pipelineManager), std::move(shaderManager),
-                       std::move(textureManager), std::move(materialManager),
-                       std::move(meshManager));
+                       std::move(eventDispatcher), std::move(sceneRenderer));
 }
 
 core::Application::~Application() {}
 
 void core::Application::Run() {
-    render::RenderQueue renderQueue;
+    auto passManager = m_sceneRenderer->GetPassManager();
+    std::vector<uint32_t> passIDs{
+        passManager->GetPassID("DeferredGBufferPass"),
+        passManager->GetPassID("DeferredLightingPass"),
+    };
+
+    m_sceneRenderer->Setup(passIDs);
+
     while (!m_souldColose) {
         m_window.PollEvent();
         m_eventDispatcher->ProcessEvent([this](auto&& event) -> void { this->RaiseEvent(event); });
 
-        renderQueue.Clear();
         for (auto& layer : m_Layers) {
-            // layer->OnUpdate(); // Assuming Layer has an OnUpdate method
             layer->OnUpdate(m_scene);
         }
 
-
-        render::SceneRenderer::ExtractRenderQueue(m_scene, renderQueue);
-        m_renderGraph.Execute(renderQueue);
+        m_sceneRenderer->Render(m_scene, passIDs);
         m_device->Present();
-
     }
 
     glfwTerminate();

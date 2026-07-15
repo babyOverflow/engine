@@ -1,8 +1,8 @@
 #pragma once
 
 #include <expected>
-#include <memory>
 #include <functional>
+#include <memory>
 
 #include <GLFW/glfw3.h>
 
@@ -10,7 +10,7 @@
 
 struct GLFWWindowDestroyer {
     void operator()(GLFWwindow* ptr) const {
-        // ÀÌ¹Ì nullptrÀÎÁö´Â unique_ptrÀÌ °Ë»çÇØÁÖÁö¸¸, ¾ÈÀüÀ» À§ÇØ
+        // ï¿½Ì¹ï¿½ nullptrï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ unique_ptrï¿½ï¿½ ï¿½Ë»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (ptr) {
             glfwDestroyWindow(ptr);
         }
@@ -44,7 +44,7 @@ class Window {
     void PollEvent();
 
   private:
-    Window(GLFWwindow* window, WindowSpec spec) : m_window(window), m_spec(spec) {}
+    Window(GLFWwindow* window, WindowSpec spec) : m_spec(spec), m_window(window) {}
     WindowSpec m_spec;
     std::unique_ptr<GLFWwindow, GLFWWindowDestroyer> m_window;
 };

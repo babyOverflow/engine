@@ -47,4 +47,4 @@ inline bool IsEntryEqual(const wgpu::BindGroupLayoutEntry& a, const wgpu::BindGr
     return true;
 }
 
-}
+}  // namespace wgx

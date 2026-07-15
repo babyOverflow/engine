@@ -1,8 +1,22 @@
 #pragma once
+#include "ShaderInterop.h"
+
+struct EmptyData {};
+
+struct EngineSamplers {
+    SamplerState linearRepeat;
+    SamplerState pointClamp;
+};
+
+struct GlobalGroup {
+    GlobalUniforms vars;
+    EngineSamplers samplers;
+};
 
 struct SurfaceAttributes {
-    float3 baseColor;
+    float4 baseColor;
     float3 worldNormal;
+    float occlusion = 1.0;
     float roughness;
     float metallic;
     float3 emissive;
@@ -11,13 +25,16 @@ interface IMaterial {
     associatedtype DataType;
 
     static SurfaceAttributes evaluateSurfaceAttributes(DataType data,
+                                                       EngineSamplers samplers,
                                                        float3 worldPosition,
                                                        float3 worldNormal,
-                                                       float2 uv);
+                                                       float2 uv,
+                                                       float3 tangent = 0,
+                                                       float3 bitangent = 0);
 }
 
 interface IRenderPass {
-    associatedtype M: IMaterial;
+    associatedtype Material : IMaterial;
 
     associatedtype VertexInputType;
     associatedtype VertexOutputType;
@@ -27,11 +44,11 @@ interface IRenderPass {
     associatedtype PassResourceType;
 
     static VertexOutputType vertex(GlobalResourcesType globalResources,
-                                   M.DataType material,
+                                   Material.DataType material,
                                    PassResourceType passResources,
                                    VertexInputType input);
     static FragmentOutputType fragment(GlobalResourcesType globalResources,
-                                       M.DataType material,
+                                       Material.DataType material,
                                        PassResourceType passResources,
                                        FragmentInputType input);
 }

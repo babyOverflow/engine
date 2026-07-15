@@ -1,5 +1,6 @@
 #pragma once
 #include <queue>
+#include <span>
 #include <vector>
 
 #include "Common.h"
@@ -14,37 +15,39 @@ class ResourcePool {
         if (!m_freeSlots.empty()) {
             index = m_freeSlots.front();
             m_freeSlots.pop();
-            m_slots[index].data = std::move(resource);
-            m_slots[index].isActive = true;
-            m_slots[index].generation++;
+            m_data[index] = std::move(resource);
+            m_actives[index] = true;
+            m_generations[index]++;
         } else {
-            index = static_cast<uint32_t>(m_slots.size());
-            m_slots.push_back({std::move(resource), 0, true});
+            index = static_cast<uint32_t>(m_data.size());
+            m_data.push_back(std::move(resource));
+            m_generations.push_back(0);
+            m_actives.push_back(true);
         }
-        return Handle{index, m_slots[index].generation};
+        return Handle{index, m_generations[index]};
     }
     void Release(const Handle& handle) {
-        if (handle.index < m_slots.size() && m_slots[handle.index].isActive &&
-            m_slots[handle.index].generation == handle.generation) {
-            m_slots[handle.index].isActive = false;
+        if (handle.index < m_data.size() && m_actives[handle.index] &&
+            m_generations[handle.index] == handle.generation) {
+            m_data[handle.index] = {};
+            m_actives[handle.index] = false;
             m_freeSlots.push(handle.index);
         }
     }
     T* Get(const Handle& handle) {
-        if (handle.index < m_slots.size() && m_slots[handle.index].isActive &&
-            m_slots[handle.index].generation == handle.generation) {
-            return &m_slots[handle.index].data;
+        if (handle.index < m_data.size() && m_actives[handle.index] &&
+            m_generations[handle.index] == handle.generation) {
+            return &m_data[handle.index];
         }
         return nullptr;
     }
 
+    std::span<const T> GetDataSpan() const { return m_data; }
+
   private:
-    struct Slot {
-        T data;
-        uint32_t generation = -1;
-        bool isActive = false;
-    };
-    std::vector<Slot> m_slots;
+    std::vector<T> m_data;
+    std::vector<uint32_t> m_generations;
+    std::vector<uint8_t> m_actives;
     std::queue<uint32_t> m_freeSlots;
 };
 }  // namespace core

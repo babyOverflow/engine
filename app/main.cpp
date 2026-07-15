@@ -1,8 +1,7 @@
-#include "ExampleLayer.h"
 #include <print>
+#include "ExampleLayer.h"
 
-int main()
-{
+int main() {
     core::ApplicationSpec spec;
     core::WindowSpec winSpec = {800, 600, "My Application"};
     spec.winSpec = &winSpec;
@@ -12,9 +11,8 @@ int main()
         return -1;
     }
     auto app = std::move(re.value());
-    auto layer =  ExampleLayer::Create(&app);
-    if (!layer)
-    {
+    auto layer = ExampleLayer::Create(&app);
+    if (!layer) {
         std::println("failed to creat layer");
         return -1;
     }
