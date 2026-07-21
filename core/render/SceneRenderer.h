@@ -73,7 +73,6 @@ class SceneRenderer {
     wgpu::Sampler m_linearRepeatSampler;
     wgpu::Sampler m_pointSampler;
     wgpu::Texture m_depthTexture;
-    TransientResourcePool m_vra;
     CompiledGraph m_compiledGraph;
 
     void Prepare(CompiledGraph& compiledGraph, RenderQueue& renderQueue);

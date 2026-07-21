@@ -73,13 +73,11 @@ wgpu::Texture core::render::TransientResourcePool::Get(uint32_t index) {
     return m_textures[index];
 }
 
-core::render::RenderGraph::RenderGraph(Device* device) : m_device(device) {}
+core::render::RenderGraph::RenderGraph(Device* device)
+    : m_device(device), m_transientResourcePool(TransientResourcePool(m_device)) {}
 
-core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_t> passes,
-                                                               PassManager* passManager,
-                                                               ShaderManager* shaderManager,
-                                                               TransientResourcePool& vra) {
-    CompiledGraph compiledGraph;
+core::render::DependencyGraph core::render::RenderGraph::Compile(std::span<uint32_t> passes,
+                                                                 PassManager* passManager) {
     std::array<PassSetupContext, PassManager::kMaxPasses> setupContexts;
     std::array<VirtualPassNode, PassManager::kMaxPasses> virtualPasses;
     std::unordered_map<PropertyId, uint32_t> subResourceMap;
@@ -209,16 +207,10 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
     };
 
     dfs(sceneColorPassId);
-    compiledGraph.executionOrder = std::move(executionOrder);
-
-    struct ResourceUsageInfo {
-        int32_t firstUse = INT32_MAX;
-        int32_t lastUse = INT32_MIN;
-    };
 
     std::vector<ResourceUsageInfo> resourceUsageInfo(subResources.size());
-    for (int32_t i = 0; i < compiledGraph.executionOrder.size(); ++i) {
-        uint32_t nodeId = compiledGraph.executionOrder[i];
+    for (int32_t i = 0; i < executionOrder.size(); ++i) {
+        uint32_t nodeId = executionOrder[i];
         for (const auto& colorAttach : virtualPasses[nodeId].color) {
             uint32_t virRsrcIndex = colorAttach.colorAttachementsVirTextureIndex;
             resourceUsageInfo[virRsrcIndex].firstUse =
@@ -242,27 +234,43 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
         }
     }
 
-    for (uint32_t step = 0; step < compiledGraph.executionOrder.size(); ++step) {
+    DependencyGraph dependencyGraph;
+    dependencyGraph.executionOrder = std::move(executionOrder);
+    dependencyGraph.setupContexts = std::move(setupContexts);
+    dependencyGraph.virtualPasses = std::move(virtualPasses);
+    dependencyGraph.subResourceMap = std::move(subResourceMap);
+    dependencyGraph.subResources = std::move(subResources);
+    dependencyGraph.resourceUsageInfo = std::move(resourceUsageInfo);
+    return dependencyGraph;
+}
+
+core::render::CompiledGraph core::render::RenderGraph::Compile(
+    core::render::DependencyGraph&& dependencyGraph,
+    PassManager* passManager,
+    ShaderManager* shaderManager) {
+    for (uint32_t step = 0; step < dependencyGraph.executionOrder.size(); ++step) {
         for (uint32_t resrcIdx = PassSetupContext::kSceneColorHandle.index + 1;
-             resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
-            const auto& sub = subResources[resrcIdx];
-            if (resourceUsageInfo[resrcIdx].firstUse == step) {
-                TransientResourcePool::Handle actual = vra.Attache(sub.textureDesc);
-                subResources[resrcIdx].actualResource = actual;
+             resrcIdx < dependencyGraph.resourceUsageInfo.size(); ++resrcIdx) {
+            const auto& sub = dependencyGraph.subResources[resrcIdx];
+            if (dependencyGraph.resourceUsageInfo[resrcIdx].firstUse == step) {
+                TransientResourcePool::Handle actual =
+                    m_transientResourcePool.Attache(sub.textureDesc);
+                dependencyGraph.subResources[resrcIdx].actualResource = actual;
             }
         }
 
         for (uint32_t resrcIdx = PassSetupContext::kSceneColorHandle.index + 1;
-             resrcIdx < resourceUsageInfo.size(); ++resrcIdx) {
-            const auto& sub = subResources[resrcIdx];
-            if (resourceUsageInfo[resrcIdx].lastUse == step) {
-                vra.Release(sub.textureDesc, sub.actualResource);
+             resrcIdx < dependencyGraph.resourceUsageInfo.size(); ++resrcIdx) {
+            const auto& sub = dependencyGraph.subResources[resrcIdx];
+            if (dependencyGraph.resourceUsageInfo[resrcIdx].lastUse == step) {
+                m_transientResourcePool.Release(sub.textureDesc, sub.actualResource);
             }
         }
     }
 
-    for (uint32_t step = 0; step < compiledGraph.executionOrder.size(); ++step) {
-        uint32_t nodeIdx = compiledGraph.executionOrder[step];
+    CompiledGraph compiledGraph;
+    for (uint32_t step = 0; step < dependencyGraph.executionOrder.size(); ++step) {
+        uint32_t nodeIdx = dependencyGraph.executionOrder[step];
 
         wgpu::BindGroup passBindGroup = nullptr;
         std::optional<wgpu::BindGroupLayout> layout =
@@ -270,26 +278,34 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
         if (layout.has_value()) {
             std::span<const ShaderAssetFormat::Binding> bindingInfo =
                 shaderManager->GetPassBindGroupInfo(nodeIdx);
-            ResourceResolver resolver(virtualPasses[nodeIdx], subResourceMap, subResources, &vra);
+            ResourceResolver resolver(dependencyGraph.virtualPasses[nodeIdx],
+                                      dependencyGraph.subResourceMap, dependencyGraph.subResources,
+                                      &m_transientResourcePool);
             passBindGroup = BindGroupFactory::Create(m_device, layout.value(), bindingInfo,
                                                      RenderGraphProvider{&resolver});
         }
 
-        std::vector<RenderNode::ColorAttach> colorAttachments =
-            virtualPasses[nodeIdx].color |
-            std::views::transform([&subResources](const VirtualColorAttach& color) {
-                return RenderNode::ColorAttach{
-                    .resourceIdx =
-                        subResources[color.colorAttachementsVirTextureIndex].actualResource,
-                    .colorAttach = color.colorAttachment,
-                };
-            }) |
-            std::ranges::to<std::vector>();
+        std::vector<RenderNode::ColorAttach> colorAttachments;
+        colorAttachments.reserve(dependencyGraph.virtualPasses[nodeIdx].color.size());
+        for (const auto& color : dependencyGraph.virtualPasses[nodeIdx].color) {
+            if (color.colorAttachementsVirTextureIndex ==
+                PassSetupContext::kSceneColorHandle.index) {
+                compiledGraph.surfaceTargetLocation = {
+                    nodeIdx, static_cast<uint32_t>(colorAttachments.size())};
+            }
+            colorAttachments.push_back(RenderNode::ColorAttach{
+                .resource = m_transientResourcePool.Get(
+                    dependencyGraph.subResources[color.colorAttachementsVirTextureIndex]
+                        .actualResource),
+                .colorAttach = color.colorAttachment,
+            });
+        }
         std::optional<RenderNode::DepthStencilAttach> depthAttach =
-            virtualPasses[nodeIdx].depthStencil.transform(
-                [&subResources](VirtualDepthDtencilAttach& depth) {
+            dependencyGraph.virtualPasses[nodeIdx].depthStencil.transform(
+                [&](VirtualDepthDtencilAttach& depth) {
                     return RenderNode::DepthStencilAttach{
-                        .resourceIdx = subResources[depth.virTextureIndex].actualResource,
+                        .resource = m_transientResourcePool.Get(
+                            dependencyGraph.subResources[depth.virTextureIndex].actualResource),
                         .depthStencilAttach = depth.depthStencilAttachment,
                     };
                 });
@@ -300,11 +316,10 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(std::span<uint32_
             .m_bindGroup = passBindGroup,
         };
         compiledGraph.renderNodes[nodeIdx] = node;
-        compiledGraph.targetStates[nodeIdx] = virtualPasses[nodeIdx].targetState;
+        compiledGraph.targetStates[nodeIdx] = dependencyGraph.virtualPasses[nodeIdx].targetState;
     }
 
-    compiledGraph.subResources = std::move(subResources);
-    compiledGraph.subResourceMap = std::move(subResourceMap);
+    compiledGraph.executionOrder = std::move(dependencyGraph.executionOrder);
 
     return compiledGraph;
 }
@@ -320,8 +335,8 @@ core::render::ResourceResolver::ResourceResolver(
       m_resourcePool(resourcePool) {}
 
 wgpu::TextureView core::render::ResourceResolver::GetTextureView(PropertyId id) const {
-    uint32_t virRsourceIndex = m_subResourceMap.at(id);
-    const SubResource& subResource = m_subResources[virRsourceIndex];
+    uint32_t virResourceIndex = m_subResourceMap.at(id);
+    const SubResource& subResource = m_subResources[virResourceIndex];
 
     wgpu::Texture texture = m_resourcePool->Get(subResource.actualResource);
 

@@ -29,11 +29,11 @@ struct RenderQueue {
 struct RenderNode {
     IRenderPass* pass = nullptr;
     struct ColorAttach {
-        uint32_t resourceIdx;
+        wgpu::Texture resource;
         ColorAttachmentInfo colorAttach;
     };
     struct DepthStencilAttach {
-        uint32_t resourceIdx;
+        wgpu::Texture resource;
         DepthStencilAttachmentInfo depthStencilAttach;
     };
     std::vector<ColorAttach> attachments;
@@ -113,13 +113,32 @@ struct RenderGraphProvider {
 
 static_assert(BindGroupResourceProvider<RenderGraphProvider>);
 
+struct ResourceUsageInfo {
+    int32_t firstUse = INT32_MAX;
+    int32_t lastUse = INT32_MIN;
+};
+
+struct DependencyGraph {
+    std::vector<uint32_t> executionOrder;
+    std::array<PassSetupContext, PassManager::kMaxPasses> setupContexts;
+    std::array<VirtualPassNode, PassManager::kMaxPasses> virtualPasses;
+    std::unordered_map<PropertyId, uint32_t> subResourceMap;
+    std::vector<SubResource> subResources;
+    std::vector<ResourceUsageInfo> resourceUsageInfo;
+};
+
 struct CompiledGraph {
     std::vector<uint32_t> executionOrder;
     std::array<RenderNode, PassManager::kMaxPasses> renderNodes{};
     std::array<PassTargetState, PassManager::kMaxPasses> targetStates{};
+    std::optional<std::pair<uint32_t, uint32_t>> surfaceTargetLocation = std::nullopt;
 
-    std::vector<SubResource> subResources;
-    std::unordered_map<PropertyId, uint32_t> subResourceMap;
+    void SetSurfaceTexture(wgpu::Texture surface) {
+        if (surfaceTargetLocation.has_value()) {
+            auto [nodeId, attachIdx] = *surfaceTargetLocation;
+            renderNodes[nodeId].attachments[attachIdx].resource = surface;
+        }
+    }
 };
 
 class RenderGraph {
@@ -129,12 +148,14 @@ class RenderGraph {
     RenderGraph(RenderGraph&& rhs) noexcept = default;
     RenderGraph& operator=(RenderGraph&& rhs) noexcept = default;
 
-    CompiledGraph Compile(std::span<uint32_t> passes,
+    DependencyGraph Compile(std::span<uint32_t> passes, PassManager* passManager);
+
+    CompiledGraph Compile(DependencyGraph&& dependencyGraph,
                           PassManager* passManager,
-                          ShaderManager* shaderManager,
-                          TransientResourcePool& vra);
+                          ShaderManager* shaderManager);
 
   private:
     Device* m_device;
+    TransientResourcePool m_transientResourcePool;
 };
 }  // namespace core::render

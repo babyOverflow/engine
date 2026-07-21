@@ -92,8 +92,7 @@ SceneRenderer::SceneRenderer(Device* device,
       m_bindGroupManager(std::make_unique<BindGroupManager>(device,
                                                             m_shaderManager.get(),
                                                             m_materialManager.get())),
-      m_renderGraph(device),
-      m_vra(device) {
+      m_renderGraph(device) {
     m_passManager->RegisterPass<pass::ForwardRenderPass>("ForwardRenderPass");
     m_passManager->RegisterPass<pass::DeferredGBufferPass>("DeferredGBufferPass");
     m_passManager->RegisterPass<pass::DeferredLightingPass>("DeferredLightingPass");
@@ -160,8 +159,9 @@ SceneRenderer::SceneRenderer(Device* device,
 }
 
 void SceneRenderer::Setup(std::span<uint32_t> passIDs) {
-    m_compiledGraph =
-        m_renderGraph.Compile(passIDs, m_passManager.get(), m_shaderManager.get(), m_vra);
+    DependencyGraph dependencyGraph = m_renderGraph.Compile(passIDs, m_passManager.get());
+    m_compiledGraph = m_renderGraph.Compile(std::move(dependencyGraph), m_passManager.get(),
+                                            m_shaderManager.get());
 }
 
 inline void RadixSortRenderIntents64(std::vector<core::render::RenderIntent>& intents) {
@@ -252,8 +252,7 @@ void SceneRenderer::Prepare(CompiledGraph& compiledGraph, RenderQueue& renderQue
 
 void SceneRenderer::Execute(CompiledGraph& compiledGraph, RenderQueue& renderQueue) {
     auto d = m_device->GetDevice();
-    m_vra.InjectExternalResource(core::render::TransientResourcePool::kSurfaceTextureIndex,
-                                 m_device->GetCurrentTexture());
+    compiledGraph.SetSurfaceTexture(m_device->GetCurrentTexture());
 
     auto& cameraData = renderQueue.cameraData;
     d.GetQueue().WriteBuffer(m_globalUniformBuffer, 0, &cameraData, sizeof(CameraUniformData));
@@ -262,12 +261,14 @@ void SceneRenderer::Execute(CompiledGraph& compiledGraph, RenderQueue& renderQue
     for (uint32_t i = 0; i < compiledGraph.executionOrder.size(); ++i) {
         uint32_t nodeId = compiledGraph.executionOrder[i];
 
+        const RenderNode& node = compiledGraph.renderNodes[nodeId];
+
         wgpu::RenderPassDescriptor renderPassDescriptor{};
 
         std::vector<wgpu::RenderPassColorAttachment> colorAttachments;
-        colorAttachments.reserve(compiledGraph.renderNodes[nodeId].attachments.size());
-        for (const auto& attach : compiledGraph.renderNodes[nodeId].attachments) {
-            wgpu::TextureView view = m_vra.Get(attach.resourceIdx).CreateView();
+        colorAttachments.reserve(node.attachments.size());
+        for (const auto& attach : node.attachments) {
+            wgpu::TextureView view = attach.resource.CreateView();
             colorAttachments.push_back(wgpu::RenderPassColorAttachment{
                 .view = view,
                 .loadOp = attach.colorAttach.loadOp,
@@ -280,13 +281,10 @@ void SceneRenderer::Execute(CompiledGraph& compiledGraph, RenderQueue& renderQue
         renderPassDescriptor.colorAttachments = colorAttachments.data();
 
         wgpu::RenderPassDepthStencilAttachment depthStencilAttach;
-        if (compiledGraph.renderNodes[nodeId].depthStencilAttachment) {
-            const auto& desc =
-                compiledGraph.renderNodes[nodeId].depthStencilAttachment->depthStencilAttach;
+        if (node.depthStencilAttachment) {
+            const auto& desc = node.depthStencilAttachment->depthStencilAttach;
 
-            depthStencilAttach.view =
-                m_vra.Get(compiledGraph.renderNodes[nodeId].depthStencilAttachment->resourceIdx)
-                    .CreateView();
+            depthStencilAttach.view = node.depthStencilAttachment->resource.CreateView();
             depthStencilAttach.depthClearValue = desc.depthClearValue;
             depthStencilAttach.depthLoadOp = desc.depthLoadOp;
             depthStencilAttach.depthStoreOp = desc.depthStoreOp;
@@ -298,13 +296,13 @@ void SceneRenderer::Execute(CompiledGraph& compiledGraph, RenderQueue& renderQue
         }
         wgpu::RenderPassEncoder encoder = commandEncoder.BeginRenderPass(&renderPassDescriptor);
         encoder.SetBindGroup(0, m_globalBindGroup);
-        encoder.SetBindGroup(BindSlot::Pass, compiledGraph.renderNodes[nodeId].m_bindGroup);
-        compiledGraph.renderNodes[nodeId].pass->Execute(
-            encoder, {
-                         .intents = renderQueue.renderIntents[nodeId],
-                         .assetRegistry = m_assetManager->GetRegistry(),
-                         .proceduralPipeline = renderQueue.proceduralPipelines[nodeId],
-                     });
+        encoder.SetBindGroup(BindSlot::Pass, node.m_bindGroup);
+        node.pass->Execute(encoder,
+                           {
+                               .intents = renderQueue.renderIntents[nodeId],
+                               .assetRegistry = m_assetManager->GetRegistry(),
+                               .proceduralPipeline = renderQueue.proceduralPipelines[nodeId],
+                           });
         encoder.End();
     }
 
