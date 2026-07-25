@@ -1,5 +1,4 @@
 #include <array>
-#include <ranges>
 
 #include "RenderGraph.h"
 #include "render/resource/Material.h"
@@ -129,7 +128,7 @@ core::render::DependencyGraph core::render::RenderGraph::Compile(std::span<uint3
             uint32_t virRsrcIndex = GetGlobalResource(locTex.name);
             subResources[virRsrcIndex].writePassInfos.push_back({passId});
             virtualPasses[passId].color.push_back(
-                {.colorAttachementsVirTextureIndex = virRsrcIndex,
+                {.colorAttachmentsVirTextureIndex = virRsrcIndex,
                  .colorAttachResourcePropertyID = ToPropertyID(locTex.name),
                  .colorAttachment = colorAttach.attachemntInfo});
             virtualPasses[passId].targetState.colorTargetFormats.push_back(
@@ -141,7 +140,7 @@ core::render::DependencyGraph core::render::RenderGraph::Compile(std::span<uint3
                 ctx.m_requiredTextures[ctx.m_depthStencilAttachment->virTextureHandle.index];
             uint32_t virRsrcIndex = GetGlobalResource(locTex.name);
             subResources[virRsrcIndex].writePassInfos.push_back({passId});
-            virtualPasses[passId].depthStencil = VirtualDepthDtencilAttach{
+            virtualPasses[passId].depthStencil = VirtualDepthStencilAttach{
                 .virTextureIndex = virRsrcIndex,
                 .depthStencilResourcePropertyID = ToPropertyID(locTex.name),
                 .depthStencilAttachment = ctx.m_depthStencilAttachment->attachmentInfo};
@@ -212,7 +211,7 @@ core::render::DependencyGraph core::render::RenderGraph::Compile(std::span<uint3
     for (int32_t i = 0; i < executionOrder.size(); ++i) {
         uint32_t nodeId = executionOrder[i];
         for (const auto& colorAttach : virtualPasses[nodeId].color) {
-            uint32_t virRsrcIndex = colorAttach.colorAttachementsVirTextureIndex;
+            uint32_t virRsrcIndex = colorAttach.colorAttachmentsVirTextureIndex;
             resourceUsageInfo[virRsrcIndex].firstUse =
                 std::min(resourceUsageInfo[virRsrcIndex].firstUse, i);
             resourceUsageInfo[virRsrcIndex].lastUse =
@@ -288,21 +287,21 @@ core::render::CompiledGraph core::render::RenderGraph::Compile(
         std::vector<RenderNode::ColorAttach> colorAttachments;
         colorAttachments.reserve(dependencyGraph.virtualPasses[nodeIdx].color.size());
         for (const auto& color : dependencyGraph.virtualPasses[nodeIdx].color) {
-            if (color.colorAttachementsVirTextureIndex ==
+            if (color.colorAttachmentsVirTextureIndex ==
                 PassSetupContext::kSceneColorHandle.index) {
                 compiledGraph.surfaceTargetLocation = {
                     nodeIdx, static_cast<uint32_t>(colorAttachments.size())};
             }
             colorAttachments.push_back(RenderNode::ColorAttach{
                 .resource = m_transientResourcePool.Get(
-                    dependencyGraph.subResources[color.colorAttachementsVirTextureIndex]
+                    dependencyGraph.subResources[color.colorAttachmentsVirTextureIndex]
                         .actualResource),
                 .colorAttach = color.colorAttachment,
             });
         }
         std::optional<RenderNode::DepthStencilAttach> depthAttach =
             dependencyGraph.virtualPasses[nodeIdx].depthStencil.transform(
-                [&](VirtualDepthDtencilAttach& depth) {
+                [&](VirtualDepthStencilAttach& depth) {
                     return RenderNode::DepthStencilAttach{
                         .resource = m_transientResourcePool.Get(
                             dependencyGraph.subResources[depth.virTextureIndex].actualResource),

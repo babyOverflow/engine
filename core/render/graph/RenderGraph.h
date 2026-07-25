@@ -62,12 +62,12 @@ class TransientResourcePool {
 };
 
 struct VirtualColorAttach {
-    uint32_t colorAttachementsVirTextureIndex;
+    uint32_t colorAttachmentsVirTextureIndex;
     core::PropertyId colorAttachResourcePropertyID;
     core::render::ColorAttachmentInfo colorAttachment;
 };
 
-struct VirtualDepthDtencilAttach {
+struct VirtualDepthStencilAttach {
     uint32_t virTextureIndex;
     core::PropertyId depthStencilResourcePropertyID;
     core::render::DepthStencilAttachmentInfo depthStencilAttachment;
@@ -81,7 +81,7 @@ struct VirtualReadInfo {
 
 struct VirtualPassNode {
     std::vector<VirtualColorAttach> color;
-    std::optional<VirtualDepthDtencilAttach> depthStencil;
+    std::optional<VirtualDepthStencilAttach> depthStencil;
 
     std::vector<VirtualReadInfo> readInfos;
 

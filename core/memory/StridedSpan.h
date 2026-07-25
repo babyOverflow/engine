@@ -16,7 +16,6 @@ class StridedSpan {
     using InternalPtr =
         std::conditional_t<std::is_const_v<T>, const unsigned char*, unsigned char*>;
 
-    // �ݺ��ڸ� ���ø����� ����� T�� const T ��� �����ϰ� �մϴ�.
     template <typename U>
     class IteratorImpl {
       public:
@@ -42,12 +41,10 @@ class StridedSpan {
         IteratorImpl(const IteratorImpl<OtherU>& other)
             : m_ptr(other.m_ptr), m_stride(other.m_stride), m_index(other.m_index) {}
 
-        // ���� �� ������ ����
         reference operator*() const { return *reinterpret_cast<U*>(m_ptr); }
         pointer operator->() const { return reinterpret_cast<U*>(m_ptr); }
         reference operator[](difference_type n) const { return *(*this + n); }
 
-        // ���� ����
         IteratorImpl& operator++() {
             m_ptr += m_stride;
             ++m_index;
@@ -71,7 +68,6 @@ class StridedSpan {
             return tmp;
         }
 
-        // ��� ����
         IteratorImpl& operator+=(difference_type n) {
             m_ptr += (n * m_stride);
             m_index += n;
@@ -87,12 +83,10 @@ class StridedSpan {
         friend IteratorImpl operator+(difference_type n, IteratorImpl it) { return it += n; }
         friend IteratorImpl operator-(IteratorImpl it, difference_type n) { return it -= n; }
 
-        // �Ÿ� ��� (�߿�: Stride�� ������)
         difference_type operator-(const IteratorImpl& other) const {
             return (static_cast<difference_type>(m_index - other.m_index));
         }
 
-        // �� ���� (Spaceship operator <=> �� ���� ����������, ���� �����Ϸ� ��� �� ��ü ����)
         bool operator==(const IteratorImpl& other) const { return m_index == other.m_index; }
         auto operator<=>(const IteratorImpl&) const = default;
 
@@ -121,7 +115,6 @@ class StridedSpan {
         return MakeRepeated(kZero, count);
     }
 
-    // �ε��� ����
     T& operator[](size_type index) const {
         assert(index < m_count);
         return *reinterpret_cast<T*>(m_data + (index * m_stride));
