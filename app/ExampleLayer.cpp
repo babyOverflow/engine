@@ -51,7 +51,13 @@ void ExampleLayer::OnAttach(core::Scene& scene) {
     m_modelHandle = modelOrError.value();
     core::AssetView<core::render::Model> model = m_app->GetAssetManager()->GetModel(m_modelHandle);
 
-    scene.AddModel(model, glm::mat4x4(1.F));
+    for (const auto& renderUnit : model->renderUnits) {
+        auto entity = scene.registry.create();
+        scene.registry.emplace<core::StaticMeshComponent>(entity, renderUnit.meshHandle, renderUnit.materialHandle, renderUnit.subMeshIndex);
+        scene.registry.emplace<core::MaterialInstanceComponent>(entity, 0u);
+        scene.registry.emplace<core::LocalTransformComponent>(entity, glm::vec3(0.f), glm::vec4(0.f, 0.f, 0.f, 1.f), glm::vec3(1.f));
+        scene.registry.emplace<core::WorldMatrixComponent>(entity, glm::mat4x4(1.F));
+    }
 }
 
 void ExampleLayer::OnUpdate(core::Scene& scene) {

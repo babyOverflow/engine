@@ -12,10 +12,12 @@ using float4x4 = glm::mat4;
 
 #define NAMESPACE_BEGIN(name) namespace name {
 #define NAMESPACE_END }
+#define ALIGN16 alignas(16)
 #elif defined(__SLANG__)
 
 #define NAMESPACE_BEGIN(name)
 #define NAMESPACE_END
+#define ALIGN16
 
 #else
 #error "Unknown compiler/language! This header supports only C++ and Slang."
@@ -45,6 +47,19 @@ struct GlobalUniforms {
                            // compatibility with uniform buffer layout rules)
 };
 
-struct InstanceUniforms {
-    float4x4 model;  // Object: Local-to-World Matrix
+struct ALIGN16 StaticInstanceData {
+    float4 row0;
+    float4 row1;
+    float4 row2;
+    uint customDataIndex;
+    uint _padding[3];
+};
+
+struct ALIGN16 SkinnedInstanceData {
+    float4 row0;
+    float4 row1;
+    float4 row2;
+    uint customDataIndex;
+    uint boneBufferOffset;
+    uint _padding[2];
 };

@@ -10,6 +10,7 @@
             "version>=": "2026.2"
         },
         "tinygltf",
-        "gtest"
+        "gtest",
+        "entt"
     ]
 }

@@ -15,14 +15,16 @@ namespace core::render {
 struct RenderQueue {
     std::array<std::vector<RenderIntent>, PassManager::kMaxPasses> renderIntents;
     std::array<wgpu::RenderPipeline, PassManager::kMaxPasses> proceduralPipelines;
-    std::span<const glm::mat4x4> transforms;
+    std::vector<StaticInstanceData> staticInstances;
+    std::vector<SkinnedInstanceData> skinnedInstances;
     CameraUniformData cameraData;
 
     void Clear() {
         for (uint32_t i = 0; i < PassManager::kMaxPasses; ++i) {
             renderIntents[i].clear();
         }
-        transforms = {};
+        staticInstances.clear();
+        skinnedInstances.clear();
     }
 };
 

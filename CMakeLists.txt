@@ -42,6 +42,7 @@ find_package(magic_enum CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(slang CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
+find_package(EnTT CONFIG REQUIRED)
 
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 

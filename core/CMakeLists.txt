@@ -104,6 +104,7 @@ set(SOURCES
                     target_link_libraries(core PRIVATE magic_enum::magic_enum)
                     target_link_libraries(core PUBLIC glm::glm)
                     target_link_libraries(core PUBLIC slang::slang)
+                    target_link_libraries(core PUBLIC EnTT::EnTT)
                     target_include_directories(core SYSTEM PRIVATE ${TINYGLTF_INCLUDE_DIRS})
 
 #IDE(Visual Studio) 에서 필터 정리

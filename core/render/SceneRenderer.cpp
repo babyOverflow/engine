@@ -15,53 +15,67 @@ void core::render::SceneCuller::ExtractRenderQueue(
     BindGroupManager* bindGroupManager,
     std::span<const PassTargetState> passTargetStates,
     RenderQueue& outRenderQueue) {
-    for (uint32_t i = 0; i < scene.models.size(); ++i) {
-        for (const auto& renderUnit : scene.models[i]->renderUnits) {
-            AssetView<Mesh> mesh = assetManager->GetMesh(renderUnit.meshHandle);
-            const MeshAssetFormat::SubMeshInfo& subMesh =
-                mesh->GetSubMeshInfo(renderUnit.subMeshIndex);
-            std::span<const MeshAssetFormat::BufferRange> bufferRanges =
-                mesh->GetBufferRanges(subMesh.bufferRangeStart, subMesh.bufferRangeCount);
-            AssetView<Material> material = assetManager->GetMaterial(renderUnit.materialHandle);
-            for (uint32_t passId : passes) {
-                Handle shaderHandle =
-                    shaderManager->GetShaderHandle(passId, material->GetActiveTechniqueID());
-                if (!shaderHandle.IsValid()) {
-                    continue;
-                }
-                AssetView<ShaderAsset> shader = shaderManager->GetShaderAsset(shaderHandle);
+    auto view = scene.registry.view<const StaticMeshComponent, const WorldMatrixComponent, const MaterialInstanceComponent>();
+    for (auto entity : view) {
+        const auto& meshComp = view.get<const StaticMeshComponent>(entity);
+        const auto& transformComp = view.get<const WorldMatrixComponent>(entity);
+        const auto& matComp = view.get<const MaterialInstanceComponent>(entity);
+        
+        uint32_t instanceIndex = static_cast<uint32_t>(outRenderQueue.staticInstances.size());
+        
+        StaticInstanceData instanceData{};
+        const glm::mat4& m = transformComp.transform;
+        instanceData.row0 = glm::vec4(m[0][0], m[1][0], m[2][0], m[3][0]);
+        instanceData.row1 = glm::vec4(m[0][1], m[1][1], m[2][1], m[3][1]);
+        instanceData.row2 = glm::vec4(m[0][2], m[1][2], m[2][2], m[3][2]);
+        instanceData.customDataIndex = matComp.customDataIndex;
+        outRenderQueue.staticInstances.push_back(instanceData);
 
-                Handle pipelineHandle =
-                    pipelineManager->GetOrCreatePipeline(PipelineManager::PipelineConfig{
-                        .shader = shader,
-                        .layoutId = mesh->GetGlobalVertexStateID(renderUnit.subMeshIndex),
-                        .blendMode = BlendMode::Opaque,
-                        .depthStencilId = DepthStencilStateManager::kDefaultDepthStateID,
-                        .passId = passId,
-                        .cullMode = wgpu::CullMode::Back,
-                        .targetState = &passTargetStates[passId],
-                    });
+        AssetView<Mesh> mesh = assetManager->GetMesh(meshComp.meshHandle);
+        const MeshAssetFormat::SubMeshInfo& subMesh =
+            mesh->GetSubMeshInfo(meshComp.subMeshIndex);
+        std::span<const MeshAssetFormat::BufferRange> bufferRanges =
+            mesh->GetBufferRanges(subMesh.bufferRangeStart, subMesh.bufferRangeCount);
+        AssetView<Material> material = assetManager->GetMaterial(meshComp.materialHandle);
 
-                RenderIntent intent;
-                intent.transformIndex = i;
-                intent.pipeline = pipelineManager->GetPipeline(pipelineHandle);
-                intent.vertexBuffer = mesh->vertexBuffer;
-                intent.indexBuffer = mesh->indexBuffer;
-                intent.bufferRange = bufferRanges;
-                intent.subMeshInfo = subMesh;
-                intent.sortKey = RenderIntent::CreateOpaqueKey(pipelineHandle.index,
-                                                               renderUnit.materialHandle.index,
-                                                               renderUnit.meshHandle.index, 0);
-
-                intent.bindGroup = bindGroupManager->GetBindGroup(material.handle);
-
-                outRenderQueue.renderIntents[passId].push_back(intent);
+        for (uint32_t passId : passes) {
+            Handle shaderHandle =
+                shaderManager->GetShaderHandle(passId, material->GetActiveTechniqueID());
+            if (!shaderHandle.IsValid()) {
+                continue;
             }
+            AssetView<ShaderAsset> shader = shaderManager->GetShaderAsset(shaderHandle);
+
+            Handle pipelineHandle =
+                pipelineManager->GetOrCreatePipeline(PipelineManager::PipelineConfig{
+                    .shader = shader,
+                    .layoutId = mesh->GetGlobalVertexStateID(meshComp.subMeshIndex),
+                    .blendMode = BlendMode::Opaque,
+                    .depthStencilId = DepthStencilStateManager::kDefaultDepthStateID,
+                    .passId = passId,
+                    .cullMode = wgpu::CullMode::Back,
+                    .targetState = &passTargetStates[passId],
+                });
+
+            RenderIntent intent;
+            intent.baseInstance = instanceIndex;
+            intent.instanceCount = 1;
+            intent.pipeline = pipelineManager->GetPipeline(pipelineHandle);
+            intent.vertexBuffer = mesh->vertexBuffer;
+            intent.indexBuffer = mesh->indexBuffer;
+            intent.bufferRange = bufferRanges;
+            intent.subMeshInfo = subMesh;
+            intent.sortKey = RenderIntent::CreateOpaqueKey(0 /* topology */, pipelineHandle.index,
+                                                           meshComp.materialHandle.index,
+                                                           meshComp.meshHandle.index, 0);
+
+            intent.bindGroup = bindGroupManager->GetBindGroup(material.handle);
+
+            outRenderQueue.renderIntents[passId].push_back(intent);
         }
     }
 
     outRenderQueue.cameraData = scene.cameraData;
-    outRenderQueue.transforms = std::span(scene.modelMatrices.data(), scene.modelMatrices.size());
 }
 
 namespace core::render {

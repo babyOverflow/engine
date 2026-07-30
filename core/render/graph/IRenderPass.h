@@ -15,7 +15,8 @@ inline bool operator==(const wgpu::Extent3D& lhs, const wgpu::Extent3D& rhs) {
 namespace core::render {
 
 struct RenderIntent {
-    uint32_t transformIndex;
+    uint32_t baseInstance = 0;
+    uint32_t instanceCount = 1;
     wgpu::RenderPipeline pipeline;
     wgpu::Buffer vertexBuffer;
     wgpu::Buffer indexBuffer;
@@ -26,19 +27,17 @@ struct RenderIntent {
     uint64_t sortKey;
 
     // Helper to generate a deterministic, endian-independent key
-    static constexpr uint64_t CreateOpaqueKey(uint64_t pipeline,
-                                              uint64_t material,
-                                              uint64_t mesh,
-                                              uint64_t depth) {
-        // Bit masks to prevent accidental overflow into adjacent fields
-        constexpr uint64_t PIPELINE_MASK = 0xFFF;   // 12 bits
-        constexpr uint64_t MATERIAL_MASK = 0x3FFF;  // 14 bits
-        constexpr uint64_t MESH_MASK = 0x3FFF;      // 14 bits
-        constexpr uint64_t DEPTH_MASK = 0xFFFF;     // 16 bits
-
+    static constexpr uint64_t CreateOpaqueKey(uint64_t topology,  // 3 bits
+                                              uint64_t pipeline,  // 12 bits
+                                              uint64_t material,  // 14 bits
+                                              uint64_t mesh,      // 14 bits
+                                              uint64_t depth) {   // 16 bits
         // Shift values to their designated logical MSB->LSB positions
-        return ((pipeline & PIPELINE_MASK) << 44) | ((material & MATERIAL_MASK) << 30) |
-               ((mesh & MESH_MASK) << 16) | (depth & DEPTH_MASK);
+        return ((topology & 0x7) << 56) |
+               ((pipeline & 0xFFF) << 44) |
+               ((material & 0x3FFF) << 30) |
+               ((mesh & 0x3FFF) << 16) |
+               (depth & 0xFFFF);
     }
 };
 

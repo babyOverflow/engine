@@ -52,10 +52,3 @@ interface IRenderPass {
                                        PassResourceType passResources,
                                        FragmentInputType input);
 }
-
-struct GlobalResources {
-    float4x4 viewProjMatrix;
-    float3 cameraPosition;
-};
-
-struct EmptyData {};
