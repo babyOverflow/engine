@@ -4,11 +4,11 @@ title: "ADR-003: Linking and Citing Content Rules"
 description: "Establishes relative linking and symbol-based citation standards for documentation."
 resource: /docs/adr/003-code-citation.md
 tags: [adr, documentation, okf]
-status: accepted
+status: stable
 generated: { by: "human:babyOverflow", at: "2026-07-23T09:34:28Z" }
 sources:
   - id: okf-v02
-    resource: ../guides/SPEC.md
+    resource: ../../references/okf-v0.2.md
     title: "Open Knowledge Format (OKF) v0.2"
 ---
 

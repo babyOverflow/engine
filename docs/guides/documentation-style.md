@@ -4,7 +4,7 @@ title: Documentation Style Guide
 description: Linking, citation, and formatting rules for all project documentation.
 resource: /docs/guides/documentation-style.md
 tags: [guide, documentation, okf]
-generated: { by: "antigravity/gemini-3.1-pro", at: "2026-07-25T13:21:52Z" }
+generated: { by: "openai/gpt-5.6-sol", at: "2026-08-07T22:17:21Z" }
 sources:
   - id: adr-003
     resource: ../adr/003-code-citation.md
@@ -111,7 +111,7 @@ title: "<Document Title>"
 description: "<One-line summary>"
 resource: /docs/<path>/<filename>.md
 tags: [<relevant>, <tags>]
-generated: { by: "<actor>", at: "<ISO 8601 datetime>" } # actor: "human:<id>", "<producer>/<version>", or "process:<id>"
+generated: { by: "<actor>", at: "<ISO 8601 datetime>" } # actor: "human:<id>", "<provider>/<model>", or "process:<id>"
 sources:
   - id: <source-key>
     resource: <relative-path-or-url>
@@ -122,6 +122,13 @@ sources:
 > **OKF v0.2 Migration:** The v0.1 `timestamp` field is superseded by `generated: { by, at }` (OKF v0.2 §5.2, §13.1).
 > The v0.1 `date` field used in our ADRs serves the same purpose and should also migrate to `generated.at`.
 > Use `generated` in all new documents. Existing docs with `timestamp` or `date` should be migrated.
+
+For AI-generated content, `generated.by` must include the model identifier,
+such as `openai/gpt-5.6-sol` or `antigravity/gemini-3.1-pro`. A generic product
+or agent name is insufficient evidence for trust decisions. Do not invent a
+model identifier when it is unavailable. Spelling, path, and other
+maintenance-only corrections do not replace the original document's
+`generated` attribution.
 
 ### 3.2 High-Level Architecture (HLA) Documents
 
