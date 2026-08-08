@@ -28,5 +28,4 @@ target_link_libraries(slangTest PRIVATE GTest::gtest GTest::gtest_main GTest::gm
 
 include(GoogleTest)
 gtest_discover_tests(shaderTest DISCOVERY_MODE PRE_TEST)
-gtest_discover_tests(shaderTest)
 gtest_discover_tests(slangTest)
