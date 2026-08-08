@@ -1,37 +1,34 @@
-# Render Engine
+# Render
 
-An experimental, high-performance rendering engine built on **WebGPU (Dawn)** and **Slang**.
+Render is an experimental C++23 renderer built around WebGPU through Dawn and
+Slang-generated WGSL. The repository currently contains a native renderer, a
+render graph, shader compilation and reflection support, asset formats, and a
+small example application.
 
-## Project Overview
+The verified development environment is Windows native x64. Linux, macOS, and
+WebAssembly remain design targets rather than supported build targets.
 
-This is an experimental game engine project designed with WebGPU as its first-class graphics API. It leverages the modern capabilities of WebGPU while providing a flexible, high-level abstraction through a **Render Graph** architecture.
+## Implemented Areas
 
-One of the core design philosophies of this engine is the **intentional exposure of WebGPU objects** to the user-land, allowing for fine-grained control and optimization where needed, while still maintaining a structured framework for complex scene rendering.
+- WebGPU instance, device, surface, command, and resource wrappers using Dawn.
+- A dependency-driven render graph and modular render-pass interface.
+- Slang compilation to WGSL with reflected shader parameters and bindings.
+- Shader, material, mesh, texture, pipeline, and bind-group management.
+- glTF import support and an example application under `app/`.
 
-## Key Technologies
+## Repository Layout
 
-- **Graphics API:** [WebGPU (Dawn)](https://dawn.googlesource.com/dawn) - Using Google's Dawn implementation for cross-platform, modern graphics.
-- **Shader Language:** [Slang](https://shader-slang.com/) - Employing Slang for advanced shader modularity, reflection, and multi-target compilation.
-- **Core Architecture:** Render Graph & Modular Render Passes.
-- **Asset Pipeline:** Custom binary formats for Meshes, Materials, and Shaders with GLTF import support.
+- `app/`: Example application, sample assets, and application shaders.
+- `core/`: Application framework, WebGPU renderer, render graph, passes,
+  resources, and importers.
+- `shader/`: Slang compiler integration, command-line compiler, and shader
+  tests.
+- `common/`: Shared C++/Slang interfaces and serialized asset formats.
+- `cmake/` and `tools/`: Shader-asset and local build workflow support.
+- `docs/`: Architecture records, ADRs, and developer guides.
 
-## Project Structure
-
-- `app/`: Example application, main entry point, and high-level scene logic.
-- `core/render/`: The heart of the renderer, containing:
-    - `RenderGraph`: Manages resource dependencies and execution order.
-    - `IRenderPass`: Modular interface for implementing various rendering stages (GBuffer, Lighting, Forward, etc.).
-    - `Material/Mesh/Texture Managers`: Resource lifecycle management.
-- `shader/`: Integration with the Slang compiler for runtime or build-time shader processing.
-- `common/`: Shared asset format definitions and utilities.
-- `wgx/`: WebGPU extensions and utility helpers (hash, convert, types).
-
-## Current Development Status
-
-The project is in its **early experimental stage**. Current development is heavily focused on:
-1.  **Render Graph Refinement:** Improving transient resource management and pass dependency resolution.
-2.  **Render Pass Implementation:** Finalizing the `IRenderPass` interface and implementing standard passes (Deferred, Lighting, etc.).
-3.  **Slang Integration:** Enhancing the shader reflection and parameter binding system.
+See the [documentation index](docs/README.md) for maintained design documents
+and their current lifecycle state.
 
 ## Build Instructions
 
@@ -84,4 +81,5 @@ future platform workflows; platform-specific commands will be documented only
 after they are implemented and validated.
 
 ## License
-TBD
+
+No license has been selected yet.
