@@ -1,5 +1,5 @@
 *.dll
-CMakePresets.json
+CMakeUserPresets.json
 vcpkg_installed
 out
 .vs

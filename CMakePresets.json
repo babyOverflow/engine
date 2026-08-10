@@ -7,10 +7,10 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_CXX_COMPILER": "cl.exe"
       },
       "condition": {
         "type": "equals",
@@ -105,37 +105,22 @@
       }
     },
     {
-      "name": "zed-debug",
-      "displayName": "Zed Debug",
-      "description": "Zed-specific configuration with compile_commands.json export",
+      "name": "windows-clang-debug",
+      "displayName": "Windows x64 Debug (clang-cl)",
+      "description": "Windows x64 Debug configuration using LLVM clang-cl and lld-link",
       "inherits": "x64-debug",
-      "binaryDir": "${sourceDir}/out/zed-build",
       "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "zed-clang",
-      "displayName": "Zed Clang (LLVM)",
-      "description": "Zed-specific configuration using Standalone LLVM/Clang",
-      "inherits": "x64-debug",
-      "binaryDir": "${sourceDir}/out/zed-clang",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "C:/Program Files/LLVM/bin/clang-cl.exe",
-        "CMAKE_CXX_COMPILER": "C:/Program Files/LLVM/bin/clang-cl.exe",
-        "CMAKE_LINKER": "C:/Program Files/LLVM/bin/lld-link.exe",
+        "CMAKE_C_COMPILER": "clang-cl.exe",
+        "CMAKE_CXX_COMPILER": "clang-cl.exe",
+        "CMAKE_LINKER": "lld-link.exe",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "zed-debug",
-      "configurePreset": "zed-debug"
-    },
-    {
-      "name": "zed-clang",
-      "configurePreset": "zed-clang"
+      "name": "windows-clang-debug",
+      "configurePreset": "windows-clang-debug"
     }
   ]
 }

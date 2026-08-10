@@ -4,7 +4,7 @@ title: "ADR-002: Adopting RenderGraph over Hardcoded Pipelines"
 description: Rationale for implementing a Directed Acyclic Graph (DAG) based rendering system.
 resource: /docs/adr/002-RenderGraph-over-hardcoded-pipeline.md
 tags: [adr, rendering, RenderGraph]
-status: accepted
+status: stable
 generated: { by: "human:babyOverflow", at: "2026-07-19T05:24:00Z" }
 ---
 

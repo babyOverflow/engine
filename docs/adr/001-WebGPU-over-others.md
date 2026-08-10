@@ -4,7 +4,7 @@ title: "ADR-001: Choosing WebGPU over Vulkan, DirectX, and OpenGL"
 description: Rationale for selecting WebGPU-Dawn as the primary graphics API.
 resource: /docs/adr/001-WebGPU-over-others.md
 tags: [adr, WebGPU, rendering]
-status: accepted
+status: stable
 generated: { by: "human:babyOverflow", at: "2026-07-19T00:14:00Z" }
 ---
 

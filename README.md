@@ -1,54 +1,85 @@
-# Render Engine
+# Render
 
-An experimental, high-performance rendering engine built on **WebGPU (Dawn)** and **Slang**.
+Render is an experimental C++23 renderer built around WebGPU through Dawn and
+Slang-generated WGSL. The repository currently contains a native renderer, a
+render graph, shader compilation and reflection support, asset formats, and a
+small example application.
 
-## Project Overview
+The verified development environment is Windows native x64. Linux, macOS, and
+WebAssembly remain design targets rather than supported build targets.
 
-This is an experimental game engine project designed with WebGPU as its first-class graphics API. It leverages the modern capabilities of WebGPU while providing a flexible, high-level abstraction through a **Render Graph** architecture.
+## Implemented Areas
 
-One of the core design philosophies of this engine is the **intentional exposure of WebGPU objects** to the user-land, allowing for fine-grained control and optimization where needed, while still maintaining a structured framework for complex scene rendering.
+- WebGPU instance, device, surface, command, and resource wrappers using Dawn.
+- A dependency-driven render graph and modular render-pass interface.
+- Slang compilation to WGSL with reflected shader parameters and bindings.
+- Shader, material, mesh, texture, pipeline, and bind-group management.
+- glTF import support and an example application under `app/`.
 
-## Key Technologies
+## Repository Layout
 
-- **Graphics API:** [WebGPU (Dawn)](https://dawn.googlesource.com/dawn) - Using Google's Dawn implementation for cross-platform, modern graphics.
-- **Shader Language:** [Slang](https://shader-slang.com/) - Employing Slang for advanced shader modularity, reflection, and multi-target compilation.
-- **Core Architecture:** Render Graph & Modular Render Passes.
-- **Asset Pipeline:** Custom binary formats for Meshes, Materials, and Shaders with GLTF import support.
+- `app/`: Example application, sample assets, and application shaders.
+- `core/`: Application framework, WebGPU renderer, render graph, passes,
+  resources, and importers.
+- `shader/`: Slang compiler integration, command-line compiler, and shader
+  tests.
+- `common/`: Shared C++/Slang interfaces and serialized asset formats.
+- `cmake/` and `tools/`: Shader-asset and local build workflow support.
+- `docs/`: Architecture records, ADRs, and developer guides.
 
-## Project Structure
+See the [documentation index](docs/README.md) for maintained design documents
+and their current lifecycle state.
 
-- `app/`: Example application, main entry point, and high-level scene logic.
-- `core/render/`: The heart of the renderer, containing:
-    - `RenderGraph`: Manages resource dependencies and execution order.
-    - `IRenderPass`: Modular interface for implementing various rendering stages (GBuffer, Lighting, Forward, etc.).
-    - `Material/Mesh/Texture Managers`: Resource lifecycle management.
-- `shader/`: Integration with the Slang compiler for runtime or build-time shader processing.
-- `common/`: Shared asset format definitions and utilities.
-- `wgx/`: WebGPU extensions and utility helpers (hash, convert, types).
+## Build Instructions
 
-## Current Development Status
+This project uses CMake and vcpkg. The only verified build path is Windows
+native x64 with the `windows-clang-debug` preset.
 
-The project is in its **early experimental stage**. Current development is heavily focused on:
-1.  **Render Graph Refinement:** Improving transient resource management and pass dependency resolution.
-2.  **Render Pass Implementation:** Finalizing the `IRenderPass` interface and implementing standard passes (Deferred, Lighting, etc.).
-3.  **Slang Integration:** Enhancing the shader reflection and parameter binding system.
+### Common Project Dependencies
 
-## Building the Project
+The [vcpkg manifest](vcpkg.json) declares Dawn, GLFW, GLM, magic-enum, Slang,
+tinygltf, and GoogleTest. vcpkg resolves the manifest dependencies during CMake
+configuration.
 
-This project uses **CMake** and **vcpkg** for dependency management.
+### Windows Native — Verified
 
-### Prerequisites
-- CMake 3.20+
-- vcpkg
-- A C++23 compatible compiler (Visual Studio 2022 recommended for Windows)
+Install or provide the following host dependencies:
 
-### Build Instructions
-```bash
-git clone <repository-url>
+- Visual Studio C++ Build Tools and a Windows SDK.
+- LLVM containing `clang-cl.exe` and `lld-link.exe`. Make its `bin` directory
+  available on `PATH`, set `RENDER_LLVM_ROOT`, or pass `-LlvmRoot` to the build
+  script. The script also checks the standard standalone LLVM installation and
+  Visual Studio's bundled LLVM.
+- CMake 3.25 or later and Ninja. The build script discovers the copies bundled
+  with Visual Studio when they are not on `PATH`.
+- A vcpkg checkout; set `VCPKG_ROOT` to its root directory.
+- Python 3 with a `python3` command when building the full `app` target, which
+  generates a C++ header from a baked shader asset.
+
+From a PowerShell prompt:
+
+```powershell
+git clone https://github.com/babyOverflow/engine.git render
 cd render
-cmake --preset=default
-cmake --build out/build/default
+
+# Point this at an existing vcpkg checkout.
+$env:VCPKG_ROOT = 'C:\path\to\vcpkg'
+
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\Invoke-Build.ps1 -Operation Configure
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\Invoke-Build.ps1 -Operation Build -Target shaderTest
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\Invoke-Build.ps1 -Operation Test
 ```
 
+The first configure may take several minutes while vcpkg builds dependencies.
+The workflow preserves vcpkg downloads, binary caches, and installed packages.
+
+### Other Platforms
+
+Linux, macOS, and WebAssembly are not currently supported or verified. The
+CMake project and dependency manifest remain the intended foundation for
+future platform workflows; platform-specific commands will be documented only
+after they are implemented and validated.
+
 ## License
-TBD
+
+No license has been selected yet.

@@ -3,10 +3,10 @@
     "clangd": {
       "binary": {
         "arguments": [
-          "--compile-commands-dir=out/zed-clang",
-          "--header-insertion=never",
-        ],
-      },
-    },
-  },
+          "--compile-commands-dir=out/build/windows-clang-debug",
+          "--header-insertion=never"
+        ]
+      }
+    }
+  }
 }
